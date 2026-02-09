@@ -1,0 +1,2784 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PANDA DAQ Control v2</title>
+    <link rel="icon" type="image/x-icon" href="assets/smurfcat.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            background-color: #f8fafc;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #f5f5f5;
+            padding: 10px 20px;
+            border-bottom: 1px solid #ddd;
+            position: relative;
+            z-index: 1000;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .header.armed {
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4), 0 0 40px rgba(239, 68, 68, 0.3), inset 0 -3px 15px rgba(239, 68, 68, 0.2);
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #e53e3e;
+        }
+
+        .toast {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 10000;
+            animation: slideIn 0.2s ease-out, slideOut 0.2s ease-in 1.3s;
+            opacity: 0;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
+        .toast.warning { border-left: 4px solid #ed8936; }
+        .toast.success { border-left: 4px solid #38a169; }
+        .toast.error { border-left: 4px solid #e53e3e; }
+        .toast.info { border-left: 4px solid #3b82f6; }
+        .toast-icon { font-size: 24px; }
+        .toast.warning .toast-icon { color: #ed8936; }
+        .toast.success .toast-icon { color: #38a169; }
+        .toast.error .toast-icon { color: #e53e3e; }
+        .toast.info .toast-icon { color: #3b82f6; }
+        .toast-content { flex: 1; }
+        .toast-title { font-weight: bold; font-size: 14px; margin-bottom: 2px; }
+        .toast-message { font-size: 12px; color: #718096; }
+
+        .connection-status {
+            font-size: 14px;
+            color: #4a5568;
+        }
+
+        .safety-controls {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 250px;
+            height: 100%;
+        }
+
+        .emergency-stop {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #8b0000;
+            color: white;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: background-color 0.3s;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .emergency-stop:hover {
+            background-color: #990000;
+        }
+
+        .abort-controls {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 250px;
+            height: 100%;
+        }
+
+        .abort {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ffd700;
+            color: black;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: background-color 0.3s;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .abort:hover {
+            background-color: #ffcc00;
+        }
+
+        .abort.aborted {
+            background-color: #cc0000;
+            color: white;
+        }
+
+        .abort.aborted:hover {
+            background-color: #990000;
+        }
+
+        .abort.safe {
+            background-color: #38a169;
+            color: white;
+        }
+
+        .abort.safe:hover {
+            background-color: #2f855a;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            height: calc(100vh - 60px);
+            overflow: hidden;
+        }
+
+        .log-top-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .arm-controls-top {
+            position: absolute;
+            top: 50%;
+            left: 260px;
+            transform: translateY(-50%);
+            display: flex;
+            gap: 8px;
+        }
+
+        .arm-btn-compact {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        .arm-btn-compact:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .arm-btn-compact.arm {
+            background-color: #ed8936;
+            color: white;
+        }
+
+        .arm-btn-compact.disarm {
+            background-color: #38a169;
+            color: white;
+        }
+
+        .logging-indicator.top {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #cbd5e0;
+        }
+
+        .logging-indicator.top.active {
+            background-color: #48bb78;
+        }
+
+        .logging-filename-top {
+            font-size: 12px;
+            color: #4a5568;
+            font-family: monospace;
+        }
+
+        .log-btn.small {
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+
+        .controls-panel {
+            flex: 2;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            background-color: white;
+            border-right: 3px solid #e2e8f0;
+        }
+        
+        /* Tab Styles */
+        .tab-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 4px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0;
+            margin-bottom: 20px;
+        }
+
+        .tab-button {
+            padding: 12px 24px;
+            background-color: #f7fafc;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            color: #718096;
+            transition: all 0.3s ease;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .tab-button:hover {
+            background-color: #edf2f7;
+            color: #4a5568;
+        }
+
+        .tab-button.active {
+            background-color: white;
+            color: #3182ce;
+            border-bottom: 3px solid #3182ce;
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .info-bar {
+            background-color: #fff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 8px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: #4a5568;
+            gap: 20px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .info-left, .info-right {
+            display: flex;
+            gap: 20px;
+        }
+
+        .stale-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .stale-indicator.fresh {
+            background-color: #d4edda;
+            color: #38a169;
+        }
+
+        .stale-indicator.stale {
+            background-color: #fff3cd;
+            color: #ed8936;
+        }
+
+        .stale-indicator.offline {
+            background-color: #f8d7da;
+            color: #e53e3e;
+        }
+
+        .telemetry-panel {
+            flex: 1.5;
+            padding: 2px;
+            background-color: #ffffff;
+            color: #1a202c;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            grid-template-areas:
+                "pt lc"
+                "pt tc";
+            gap: 8px;
+            height: calc(100vh - 60px);
+        }
+
+        .dc-controls {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(185px, 1fr));
+            gap: 8px;
+        }
+
+        .dc-channel {
+            background-color: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 8px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        .dc-type-fuel { background-color: #fff4e6; border-color: #f6ad55; }
+        .dc-type-lox { background-color: #e6f4ff; border-color: #63b3ed; }
+        .dc-type-misc { background-color: #e8fff0; border-color: #68d391; }
+
+        .dc-channel:hover {
+            border-color: #3182ce;
+            box-shadow: 0 4px 12px rgba(49, 130, 206, 0.15);
+        }
+
+        .dc-channel.active {
+            border-color: #38a169;
+            background-color: #f0fff4;
+        }
+
+        .dc-channel.inactive {
+            border-color: #e53e3e;
+            background-color: #fff5f5;
+        }
+
+        .dc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .dc-name {
+            font-weight: bold;
+            font-size: 13px;
+            color: #2d3748;
+            line-height: 1.2;
+        }
+
+        .dc-short {
+            font-size: 9px;
+            color: #718096;
+            text-transform: uppercase;
+            line-height: 1.2;
+        }
+
+        .dc-controls-row { display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
+
+        .dc-status {
+            flex: 1;
+            text-align: center;
+            padding: 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .dc-status.on {
+            background-color: #38a169;
+            color: white;
+        }
+
+        .dc-status.off {
+            background-color: #e53e3e;
+            color: white;
+        }
+
+        .dc-pill { padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 12px; }
+        .dc-pill.on { background:#38a169; color:#fff; }
+        .dc-pill.off { background:#e53e3e; color:#fff; }
+
+        /* Sequencer Styles */
+        .sequence-builder {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .sequence-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background-color: #f7fafc;
+            border-radius: 6px;
+        }
+
+        .sequence-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .seq-btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            border: none;
+            font-weight: bold;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .seq-btn-blue { background-color: #3182ce; color: white; }
+        .seq-btn-blue:hover { background-color: #2c5282; }
+        .seq-btn-green { background-color: #38a169; color: white; }
+        .seq-btn-green:hover { background-color: #2f855a; }
+        .seq-btn-red { background-color: #e53e3e; color: white; }
+        .seq-btn-red:hover { background-color: #c53030; }
+        .seq-btn-gray { background-color: #718096; color: white; }
+        .seq-btn-gray:hover { background-color: #4a5568; }
+
+        .sequence-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 15px;
+            background-color: #f9fafb;
+            border: 2px dashed #e2e8f0;
+            border-radius: 6px;
+            min-height: 150px;
+            overflow-x: auto;
+        }
+
+        .sequence-block {
+            width: 160px;
+            border-radius: 6px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .sequence-block:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .block-header {
+            padding: 8px 10px;
+            border-top-left-radius: 6px;
+            border-top-right-radius: 6px;
+            color: white;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .block-action-on { background-color: #38a169; }
+        .block-action-off { background-color: #e53e3e; }
+
+        .block-content {
+            padding: 10px;
+        }
+
+        .remove-block {
+            cursor: pointer;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .form-select, .form-input {
+            width: 100%;
+            padding: 6px;
+            margin-bottom: 6px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 11px;
+            color: #4a5568;
+            margin-bottom: 3px;
+            font-weight: 600;
+        }
+
+        .command-preview {
+            padding: 10px;
+            background-color: #f1f5f9;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            font-family: monospace;
+            overflow-x: auto;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+
+        .telemetry-section {
+            background-color: #ffffff;
+            border-radius: 4px;
+            padding: 2px;
+            border: 1px solid #e2e8f0;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            min-height: 0;
+        }
+        .section-pt { grid-area: pt; }
+        .section-lc { grid-area: lc; }
+        .section-tc { grid-area: tc; }
+
+        .telemetry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+            padding-bottom: 2px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .telemetry-title {
+            font-weight: bold;
+            font-size: 12px;
+            color: #2d3748;
+            text-transform: uppercase;
+        }
+
+        .telemetry-count {
+            font-size: 10px;
+            color: #a0aec0;
+        }
+
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-auto-rows: 1fr;
+            gap: 1px;
+            overflow: hidden;
+        }
+
+        .sensor-reading {
+            display: grid;
+            grid-template-columns: auto auto;
+            align-items: center;
+            justify-content: space-between;
+            padding: 2px 4px;
+            background-color: #f9fafb;
+            border-radius: 2px;
+            border-left: 2px solid #cbd5e1;
+            transition: all 0.2s ease;
+            min-height: 0;
+        }
+
+        .sensor-reading.normal { border-left-color: #16a34a; }
+        .sensor-reading.warning { border-left-color: #f59e0b; background-color: #fff7ed; }
+        .sensor-reading.critical { border-left-color: #ef4444; background-color: #fef2f2; }
+        .sensor-reading.offline { border-left-color: #94a3b8; background-color: #f1f5f9; }
+
+        .sensor-info {
+            flex: 1;
+        }
+
+        .sensor-name {
+            font-size: 10px;
+            color: #4a5568;
+            text-transform: uppercase;
+            margin-bottom: 1px;
+        }
+
+        .sensor-short {
+            font-size: 9px;
+            color: #718096;
+        }
+
+        .sensor-value {
+            text-align: right;
+            font-weight: bold;
+        }
+
+        .sensor-main-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: flex-end;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .sensor-main {
+            font-size: 14px;
+            color: #1a202c;
+        }
+
+        .sensor-raw-group {
+            display: flex;
+            gap: 4px;
+            font-size: 7px;
+            color: #94a3b8;
+            font-weight: normal;
+            flex-wrap: nowrap;
+            white-space: nowrap;
+        }
+
+        .sensor-raw, .sensor-raw-ma, .sensor-config {
+            font-size: 7px;
+            color: #94a3b8;
+            font-weight: normal;
+            white-space: nowrap;
+        }
+
+        .sensor-reading.warning .sensor-main {
+            color: #fbd38d;
+        }
+
+        .sensor-reading.critical .sensor-main {
+            color: #feb2b2;
+        }
+
+        .connection-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-left: 8px;
+        }
+
+        .connection-indicator.connected {
+            background-color: #38a169;
+            box-shadow: 0 0 8px rgba(56, 161, 105, 0.6);
+        }
+
+        .connection-indicator.disconnected {
+            background-color: #e53e3e;
+            box-shadow: 0 0 8px rgba(229, 62, 62, 0.6);
+        }
+
+        .refresh-btn {
+            background: none;
+            border: none;
+            color: #3182ce;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 4px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background-color: rgba(49, 130, 206, 0.1);
+        }
+
+        .data-timestamp {
+            font-size: 8px;
+            color: #718096;
+            text-align: center;
+            margin-top: 4px;
+        }
+
+        .logging-controls {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 10px 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .logging-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .logging-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .logging-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #cbd5e0;
+        }
+
+        .logging-indicator.active {
+            background-color: #48bb78;
+            animation: pulse 2s infinite;
+        }
+
+        .logging-filename {
+            font-size: 10px;
+            color: #718096;
+            margin-bottom: 8px;
+            text-align: center;
+            font-family: monospace;
+            word-break: break-all;
+        }
+
+        .logging-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .log-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .log-btn.start {
+            background-color: #48bb78;
+            color: white;
+        }
+
+        .log-btn.start:hover {
+            background-color: #38a169;
+        }
+
+        .log-btn.stop {
+            background-color: #f56565;
+            color: white;
+        }
+
+        .log-btn.stop:hover {
+            background-color: #e53e3e;
+        }
+
+        .log-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .sensor-reading.updating {
+            animation: pulse 0.35s ease-in-out;
+        }
+
+        .trend {
+            margin-left: 6px;
+            font-size: 11px;
+        }
+        .trend.up { color: #38a169; }
+        .trend.down { color: #e53e3e; }
+        .trend.flat { color: #a0aec0; }
+
+        .help-tooltip {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .help-tooltip div {
+            cursor: pointer;
+            background-color: #3182ce;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        /* Preset Sequences Styles */
+        .preset-sequences {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f7fafc;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+        }
+
+        .preset-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .preset-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .preset-card {
+            background: white;
+            border: 2px solid #cbd5e0;
+            border-radius: 8px;
+            padding: 12px;
+            transition: all 0.3s;
+        }
+
+        .preset-card:hover {
+            border-color: #3182ce;
+            box-shadow: 0 4px 12px rgba(49, 130, 206, 0.15);
+        }
+
+        .preset-card.gox {
+            border-color: #63b3ed;
+            background: linear-gradient(to bottom, #e6f4ff, #ffffff);
+        }
+
+        .preset-card.hotfire {
+            border-color: #f6ad55;
+            background: linear-gradient(to bottom, #fff4e6, #ffffff);
+        }
+
+        .preset-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .preset-name {
+            font-weight: bold;
+            font-size: 14px;
+            color: #2d3748;
+        }
+
+        .preset-status {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .preset-status.set {
+            background-color: #d4edda;
+            color: #38a169;
+        }
+
+        .preset-status.empty {
+            background-color: #f8d7da;
+            color: #e53e3e;
+        }
+
+        .preset-preview {
+            font-family: monospace;
+            font-size: 10px;
+            color: #718096;
+            background: #f9fafb;
+            padding: 6px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            min-height: 30px;
+            max-height: 50px;
+            overflow-y: auto;
+            word-break: break-all;
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        .preset-btn {
+            flex: 1;
+            padding: 6px 10px;
+            border: none;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .preset-btn-set {
+            background-color: #3182ce;
+            color: white;
+        }
+
+        .preset-btn-set:hover {
+            background-color: #2c5282;
+        }
+
+        .preset-btn-upload {
+            background-color: #38a169;
+            color: white;
+        }
+
+        .preset-btn-upload:hover {
+            background-color: #2f855a;
+        }
+
+        .preset-btn-arm {
+            background-color: #22d3ee;
+            color: #083344;
+        }
+
+        .preset-btn-arm:hover {
+            background-color: #0ea5e9;
+            color: #e0f2fe;
+        }
+
+        .preset-btn-fire {
+            background-color: #ed8936;
+            color: white;
+        }
+
+        .preset-btn-fire:hover {
+            background-color: #dd6b20;
+        }
+
+        .preset-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Terminal panel */
+        .terminal-panel {
+            margin-top: 18px;
+            padding: 12px;
+            background: #0d1117;
+            border-radius: 8px;
+            border: 1px solid #1f2933;
+            color: #c9d1d9;
+            font-family: "Fira Code", "Consolas", monospace;
+            display: flex;
+            flex-direction: column;
+            height: 220px;
+        }
+
+        .terminal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #58a6ff;
+        }
+
+        .terminal-body {
+            flex: 1;
+            overflow-y: auto;
+            background: #0b0f16;
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 12px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+
+        .terminal-line {
+            margin: 0;
+        }
+
+        .terminal-line.seq {
+            color: #8bcdff;
+        }
+
+        .terminal-line.err {
+            color: #f88;
+        }
+
+        .terminal-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        /* Sequence Callback Indicator */
+        .sequence-callback {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background-color: #f7fafc;
+            border-radius: 6px;
+            border: 2px solid #e2e8f0;
+            margin-top: 10px;
+        }
+
+        .callback-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #cbd5e0;
+            transition: all 0.3s;
+        }
+
+        .callback-indicator.received {
+            background-color: #38a169;
+            box-shadow: 0 0 10px rgba(56, 161, 105, 0.6);
+            animation: pulse-callback 2s ease-in-out;
+        }
+
+        @keyframes pulse-callback {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.2);
+                opacity: 0.8;
+            }
+        }
+
+        .callback-text {
+            font-size: 13px;
+            color: #4a5568;
+            flex: 1;
+        }
+
+        .callback-text.received {
+            color: #38a169;
+            font-weight: bold;
+        }
+
+        .callback-timestamp {
+            font-size: 10px;
+            color: #a0aec0;
+            font-family: monospace;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="title">PANDA DAQ Control v2</div>
+        <div class="connection-status">
+            <span id="connection-text">Connecting...</span>
+            <div class="connection-indicator disconnected" id="connection-indicator"></div>
+        </div>
+        <div class="abort-controls">
+            <button class="abort" id="abort_button">ABORT</button>
+        </div>
+        <div class="safety-controls">
+            <button class="emergency-stop" id="emergency_stop">EMERGENCY STOP</button>
+        </div>
+        <div class="arm-controls-top">
+            <button class="arm-btn-compact disarm" id="disarm-btn-top">
+                <i class="fas fa-shield-alt"></i> DISARM
+            </button>
+            <button class="arm-btn-compact arm" id="arm-btn-top">
+                <i class="fas fa-exclamation-triangle"></i> ARM
+            </button>
+        </div>
+        <div class="log-top-center">
+            <div class="logging-indicator top" id="logging-indicator-top"></div>
+            <span class="logging-filename-top" id="logging-filename-top">No active log</span>
+            <button class="log-btn start small" id="new-log-btn-top" onclick="createNewLog()"><i class="fas fa-file-alt"></i> New Log</button>
+            <a href="pid.html" class="log-btn start small" style="text-decoration: none; margin-left: 8px;"><i class="fas fa-project-diagram"></i> P&ID</a>
+        </div>
+    </div>
+
+    <div class="info-bar">
+        <div class="info-left">
+            <div class="info-item">
+                <i class="fas fa-microchip"></i>
+                <span>Serial: <strong id="info-serial-port">--</strong></span>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-clock"></i>
+                <span id="info-last-update">Last Update: --:--:--</span>
+            </div>
+            <div class="info-item">
+                <span id="stale-indicator" class="stale-indicator offline">
+                    <i class="fas fa-circle"></i>
+                    <span id="stale-text">No Data</span>
+                </span>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-file-csv"></i>
+                <span id="info-log-file">Log: <strong>--</strong></span>
+            </div>
+        </div>
+        <div class="info-right">
+            <div class="info-item">
+                <i class="fas fa-signal"></i>
+                <span id="info-data-rate">-- Hz</span>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-chart-line"></i>
+                <span id="info-message-count">0 messages</span>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-hourglass-half"></i>
+                <span id="info-uptime">Uptime: 00:00</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- Controls Panel with Tabs -->
+        <div class="controls-panel">
+            <div class="tab-container">
+                <div class="tab-buttons">
+                    <button class="tab-button active" onclick="switchTab('manual')">
+                        <i class="fas fa-hand-pointer"></i> Manual Control
+                    </button>
+                    <button class="tab-button" onclick="switchTab('sequencer')">
+                        <i class="fas fa-list-ol"></i> AutoSequencer
+                    </button>
+                </div>
+
+                <!-- Tab 1: Manual Control (Original DC Controls) -->
+                <div id="tab-manual" class="tab-content active">
+                    <div class="dc-controls" id="dc-controls">
+                        <!-- DC channel controls will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Tab 2: AutoSequencer -->
+                <div id="tab-sequencer" class="tab-content">
+                    <div class="sequence-builder">
+                        <div class="sequence-toolbar">
+                            <div class="sequence-buttons">
+                                <button class="seq-btn seq-btn-blue" id="add-sequence-action">
+                                    <i class="fas fa-plus"></i> Add Action
+                                </button>
+                            </div>
+                            <div class="sequence-buttons">
+                                <button class="seq-btn seq-btn-blue" id="upload-sequence">
+                                    <i class="fas fa-upload"></i> Upload
+                                </button>
+                                <button class="seq-btn seq-btn-red" id="clear-sequence">
+                                    <i class="fas fa-trash"></i> Clear
+                                </button>
+                                <button class="seq-btn seq-btn-gray" id="save-sequence">
+                                    <i class="fas fa-save"></i> Save
+                                </button>
+                                <button class="seq-btn seq-btn-gray" id="load-sequence">
+                                    <i class="fas fa-folder-open"></i> Load
+                                </button>
+                                <button class="seq-btn seq-btn-green" id="run-sequence">
+                                    <i class="fas fa-play"></i> Fire
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="sequence-container" id="sequence-blocks">
+                            <!-- Sequence blocks will be added here -->
+                        </div>
+
+                        <div class="command-preview" id="command-preview">command:</div>
+
+                        <!-- Sequence Callback Indicator -->
+                        <div class="sequence-callback">
+                            <div class="callback-indicator" id="callback-indicator"></div>
+                            <div class="callback-text" id="callback-text">Waiting for sequence acknowledgment...</div>
+                            <div class="callback-timestamp" id="callback-timestamp"></div>
+                        </div>
+
+                        <!-- Preset Sequences -->
+                        <div class="preset-sequences">
+                            <div class="preset-title">
+                                <i class="fas fa-star"></i> Preset Sequences
+                            </div>
+                            <div class="preset-grid">
+                                <!-- GOX Purge Preset -->
+                                <div class="preset-card gox">
+                                    <div class="preset-header">
+                                        <span class="preset-name">
+                                            <i class="fas fa-snowflake"></i> GOX Purge
+                                        </span>
+                                        <span class="preset-status empty" id="gox-status">NOT SET</span>
+                                    </div>
+                                    <div class="preset-preview" id="gox-preview">No sequence set</div>
+                                    <div class="preset-buttons">
+                                        <button class="preset-btn preset-btn-set" onclick="setPresetFromCurrent('gox')">
+                                            <i class="fas fa-save"></i> Set
+                                        </button>
+                                        <button class="preset-btn preset-btn-arm" id="gox-upload-btn" onclick="armPreset('gox')" disabled>
+                                            <i class="fas fa-shield-alt"></i> Arm
+                                        </button>
+                                        <button class="preset-btn preset-btn-fire" id="gox-fire-btn" onclick="firePreset('gox')" disabled>
+                                            <i class="fas fa-play"></i> Fire
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Hotfire Preset -->
+                                <div class="preset-card hotfire">
+                                    <div class="preset-header">
+                                        <span class="preset-name">
+                                            <i class="fas fa-fire"></i> Hotfire
+                                        </span>
+                                        <span class="preset-status empty" id="hotfire-status">NOT SET</span>
+                                    </div>
+                                    <div class="preset-preview" id="hotfire-preview">No sequence set</div>
+                                    <div class="preset-buttons">
+                                        <button class="preset-btn preset-btn-set" onclick="setPresetFromCurrent('hotfire')">
+                                            <i class="fas fa-save"></i> Set
+                                        </button>
+                                        <button class="preset-btn preset-btn-arm" id="hotfire-upload-btn" onclick="armPreset('hotfire')" disabled>
+                                            <i class="fas fa-shield-alt"></i> Arm
+                                        </button>
+                                        <button class="preset-btn preset-btn-fire" id="hotfire-fire-btn" onclick="firePreset('hotfire')" disabled>
+                                            <i class="fas fa-play"></i> Fire
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="terminal-panel">
+                            <div class="terminal-header">
+                                <span><i class="fas fa-terminal"></i> PANDA Terminal</span>
+                                <div class="terminal-controls">
+                                    <button class="preset-btn preset-btn-arm" style="max-width:120px;" onclick="requestPresetsFromServer()">
+                                        <i class="fas fa-sync"></i> Force Sync
+                                    </button>
+                                    <button class="preset-btn preset-btn-set" style="max-width:120px;" onclick="clearTerminal()">
+                                        <i class="fas fa-eraser"></i> Clear
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="terminal-body" id="terminal-body"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Telemetry Panel (Right) -->
+        <div class="telemetry-panel">
+            <div class="telemetry-section section-pt">
+                <div class="telemetry-header">
+                    <span class="telemetry-title">Pressure Transducers</span>
+                    <div>
+                        <button class="refresh-btn" onclick="tarePTs()" title="Calibrate PTs (tare to ambient)">
+                            <i class="fas fa-bullseye"></i>
+                        </button>
+                        <button class="refresh-btn" onclick="refreshTelemetry()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <span class="telemetry-count" id="pt-count">16 channels</span>
+                    </div>
+                </div>
+                <div class="telemetry-grid" id="pt-readings">
+                    <!-- PT readings will be populated here -->
+                </div>
+            </div>
+
+            <div class="telemetry-section section-lc">
+                <div class="telemetry-header">
+                    <span class="telemetry-title">Load Cells</span>
+                    <div>
+                        <button class="refresh-btn" onclick="refreshTelemetry()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <span class="telemetry-count" id="lc-count">6 channels</span>
+                    </div>
+                </div>
+                <div class="telemetry-grid" id="lc-readings">
+                    <!-- LC readings will be populated here -->
+                </div>
+            </div>
+
+            <div class="telemetry-section section-tc">
+                <div class="telemetry-header">
+                    <span class="telemetry-title">Thermocouples</span>
+                    <div>
+                        <button class="refresh-btn" onclick="refreshTelemetry()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <span class="telemetry-count" id="tc-count">6 channels</span>
+                    </div>
+                </div>
+                <div class="telemetry-grid" id="tc-readings">
+                    <!-- TC readings will be populated here -->
+                </div>
+            </div>
+
+            <div class="data-timestamp" id="data-timestamp">
+                Last Update: --:--:--
+            </div>
+        </div>
+    </div>
+
+    <div class="help-tooltip">
+        <div onclick="showHelp()">
+            <i class="fas fa-question"></i>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let ws = null;
+        let isWsConnected = false;
+        let connectedSerialPort = null;
+        let dcChannels = {};
+        let ptChannels = {};
+        let lcChannels = {};
+        let tcChannels = {};
+        let ptIndexMap = {};
+        let lcIndexMap = {};
+        let tcIndexMap = {};
+        let dcIndexMap = {};
+        const dcOrder = [7, 6, 5, 4, 3, 2, 1, 0, 11, 10, 9, 8];
+        let currentData = { pt: {}, lc: {}, tc: {}, dc: {} };
+        const PT_RAW_OFFSET = 0.4875;
+        let lastDataUpdate = null;
+        let dcState = {};
+        let currentFirmwareSequence = '';
+        let savedSequence = null;
+        let valveConfig = {};
+        
+        // Preset sequences storage
+        let presetSequences = {
+            gox: null,
+            hotfire: null
+        };
+        
+        // Callback tracking
+        let lastSequenceCallback = null;
+        
+        // Abort state: 'normal' (yellow) -> 'aborted' (red) -> 'safe' (green) -> 'normal'
+        let abortState = 'normal';
+        let runValveIds = [];
+        let gn2PurgeIds = [];
+
+        // Terminal buffer
+        const terminalBuffer = [];
+        const terminalMaxLines = 200;
+
+        // Tab switching
+        function switchTab(tabName) {
+            const tabs = document.querySelectorAll('.tab-content');
+            const buttons = document.querySelectorAll('.tab-button');
+            
+            tabs.forEach(tab => tab.classList.remove('active'));
+            buttons.forEach(btn => btn.classList.remove('active'));
+            
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            event.target.closest('.tab-button').classList.add('active');
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            loadConfigurations();
+            initWebSocket();
+            setupEventListeners();
+            setupSequencerEventListeners();
+            
+            // Initialize valve config
+            for (let i = 1; i <= 12; i++) {
+                valveConfig[i] = {
+                    name: `Solenoid ${i}`,
+                    defaultState: false
+                };
+            }
+            
+            // Kick off preset sync (will send once WS is open)
+            requestPresetsFromServer();
+        });
+
+        // Load channel configurations
+        async function loadConfigurations() {
+            try {
+                const ts = Date.now();
+                const noStore = { cache: 'no-store' };
+                const [dcResp, ptResp, lcResp, tcResp] = await Promise.all([
+                    fetch(`./configs/dc_channels.json?ts=${ts}`, noStore),
+                    fetch(`./configs/pt_channels.json?ts=${ts}`, noStore),
+                    fetch(`./configs/lc_channels.json?ts=${ts}`, noStore),
+                    fetch(`./configs/tc_channels.json?ts=${ts}`, noStore)
+                ]);
+
+                runValveIds = [];
+                gn2PurgeIds = [];
+                dcChannels = (await dcResp.json()).channels.reduce((acc, ch) => {
+                    acc[ch.dc.id] = ch.dc;
+                    valveConfig[ch.dc.id] = { name: ch.dc.name, defaultState: false };
+                    if (ch.dc.abort_role === 'run_valve') runValveIds.push(ch.dc.id);
+                    if (ch.dc.abort_role === 'gn2_purge') gn2PurgeIds.push(ch.dc.id);
+                    return acc;
+                }, {});
+
+                ptChannels = (await ptResp.json()).channels.reduce((acc, ch) => {
+                    acc[ch.pt.id] = ch.pt;
+                    return acc;
+                }, {});
+
+                lcChannels = (await lcResp.json()).channels.reduce((acc, ch) => {
+                    acc[ch.lc.id] = ch.lc;
+                    return acc;
+                }, {});
+
+                tcChannels = (await tcResp.json()).channels.reduce((acc, ch) => {
+                    acc[ch.tc.id] = ch.tc;
+                    return acc;
+                }, {});
+
+                // Build raw index maps
+                ptIndexMap = {};
+                Object.values(ptChannels).forEach(ch => {
+                    const ri = Number.isFinite(ch.raw_index) ? ch.raw_index : ch.id;
+                    ptIndexMap[ri] = ch.id;
+                });
+                lcIndexMap = {};
+                Object.values(lcChannels).forEach(ch => {
+                    const ri = Number.isFinite(ch.raw_index) ? ch.raw_index : ch.id;
+                    lcIndexMap[ri] = ch.id;
+                });
+                tcIndexMap = {};
+                Object.values(tcChannels).forEach(ch => {
+                    const ri = Number.isFinite(ch.raw_index) ? ch.raw_index : ch.id;
+                    tcIndexMap[ri] = ch.id;
+                });
+                dcIndexMap = {};
+                Object.values(dcChannels).forEach(ch => {
+                    const ri = Number.isFinite(ch.raw_index) ? ch.raw_index : ch.id;
+                    dcIndexMap[ri] = ch.id;
+                });
+
+                renderDCControls();
+                renderTelemetryPlaceholders();
+            } catch (error) {
+                console.error('Failed to load configurations:', error);
+                showToast('Configuration Error', 'Failed to load channel configurations', 'error');
+            }
+        }
+
+        // Logging functions
+        async function createNewLog() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                showToast('Connection Error', 'WebSocket not connected', 'error');
+                return;
+            }
+
+            try {
+                ws.send(JSON.stringify({ action: 'create_new_log' }));
+                showToast('New Log Created', 'New log file created and logging started', 'success');
+            } catch (error) {
+                console.error('Failed to create new log:', error);
+                showToast('Error', 'Failed to create new log file', 'error');
+            }
+        }
+
+        function updateLoggingStatus(status) {
+            const infoLogEl = document.getElementById('info-log-file');
+            const topInd = document.getElementById('logging-indicator-top');
+            const topName = document.getElementById('logging-filename-top');
+
+            if (status.active || status.filename) {
+                const filename = status.filename || 'logging.csv';
+                const shortName = filename.split(/[\/\\]/).pop();
+                
+                if (infoLogEl) infoLogEl.innerHTML = `Log: <strong>${shortName}</strong>`;
+                if (topInd) topInd.classList.add('active');
+                if (topName) topName.textContent = `Log: ${shortName}`;
+            } else {
+                if (infoLogEl) infoLogEl.innerHTML = 'Log: <strong>--</strong>';
+                if (topInd) topInd.classList.remove('active');
+                if (topName) topName.textContent = 'No active log';
+            }
+        }
+
+        function pollLoggingStatus() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                try {
+                    ws.send(JSON.stringify({ action: 'get_logging_status' }));
+                } catch (error) {
+                    console.error('Failed to poll logging status:', error);
+                }
+            }
+        }
+
+        setInterval(pollLoggingStatus, 2000);
+
+        // WebSocket connection
+        function initWebSocket() {
+            try {
+                const host = window.location.hostname || 'localhost';
+                const port = 3941;
+                ws = new WebSocket(`ws://${host}:${port}`);
+            } catch (e) {
+                console.error('WebSocket init failed:', e);
+                updateConnectionStatus(false);
+                setTimeout(initWebSocket, 2000);
+                return;
+            }
+            
+            ws.onopen = () => {
+                isWsConnected = true;
+                requestPortList();
+                requestPresetsFromServer();
+                updateConnectionStatus(true);
+                setTimeout(() => {
+                    if (!connectedSerialPort) {
+                        connectToSerialPort('TEST_PORT_1');
+                    }
+                }, 2000);
+                if (!_sentAllOffOnConnect && Object.keys(dcChannels).length > 0) {
+                    _sentAllOffOnConnect = true;
+                    setTimeout(setAllDCOff, 300);
+                }
+            };
+
+            ws.onclose = () => {
+                isWsConnected = false;
+                connectedSerialPort = null;
+                updateConnectionStatus(false);
+                if (!ws || ws.readyState === WebSocket.CLOSED) {
+                    setTimeout(initWebSocket, 2000);
+                }
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    if (msg && typeof msg === 'object') {
+                        if (msg.action === 'preset_save') {
+                            handlePresetSaveResponse(msg);
+                            return;
+                        }
+                        if (msg.action === 'preset_load') {
+                            handlePresetLoadResponse(msg);
+                            return;
+                        }
+                        const maybeLogLines = [];
+                        if (typeof msg.message === 'string' && msg.message.toUpperCase().includes('SEQ')) {
+                            maybeLogLines.push(msg.message);
+                        }
+                        if (typeof msg.raw === 'string' && msg.raw.toUpperCase().includes('SEQ')) {
+                            maybeLogLines.push(msg.raw);
+                        }
+                        maybeLogLines.forEach(line => {
+                            const normalized = line || '';
+                            const type = normalized.toLowerCase().includes('error') ? 'err' : 'seq';
+                            appendTerminalLine(normalized, type);
+                        });
+                    }
+                    if (msg.ports) {
+                        if (msg.ports.length > 0 && !connectedSerialPort) {
+                            const candidates = msg.ports;
+                            const preferred = candidates.find(p => /usbmodem|usbserial|ttyACM|ttyUSB/i.test(p)) || candidates[0];
+                            connectToSerialPort(preferred);
+                        }
+                    } else if (msg.success !== undefined && msg.message && (msg.message.startsWith('Connected to') || msg.message.includes('Already connected to'))) {
+                        const m = msg.message.match(/Connected to\s+([A-Za-z0-9:_\\/.-]+)/) || msg.message.match(/Already connected to\s+([A-Za-z0-9:_\\/.-]+)/);
+                        connectedSerialPort = m && m[1] ? m[1] : connectedSerialPort;
+                        updateConnectionStatus(true);
+                    } else if (msg.type === 'data') {
+                        const rawCtx = {};
+                        if (Array.isArray(msg.pt_mA)) { rawCtx.pt_mA = msg.pt_mA; }
+                        if (typeof msg.raw === 'string' && msg.raw.length > 0) {
+                            try {
+                                const rawFirst = msg.raw.trim()[0];
+                                if (rawFirst === 'p' && msg.raw.includes(',')) {
+                                    rawCtx.pTokens = msg.raw.split(',');
+                                } else if (rawFirst === 't' && msg.raw.includes(',')) {
+                                    rawCtx.tTokens = msg.raw.split(',');
+                                } else if (rawFirst === 's' && msg.raw.includes(',')) {
+                                    rawCtx.sTokens = msg.raw.split(',');
+                                }
+                            } catch (_) {}
+                        }
+                        parseTelemetryData(msg.content, rawCtx);
+                        
+                        const ackText = extractSequenceAckText(msg);
+                        if (ackText) {
+                            handleSequenceCallback(msg, ackText);
+                        }
+                    } else if (msg.success !== undefined && msg.message && (msg.message.includes('Logging') || msg.message.includes('Log file'))) {
+                        if (msg.success) {
+                            showToast('Success', msg.message, 'success');
+                        }
+                        pollLoggingStatus();
+                    } else if (msg.active !== undefined || msg.filename !== undefined) {
+                        updateLoggingStatus(msg);
+                    } else if (msg.type === 'sequence_ack' || msg.sequence_received) {
+                        const ackText = extractSequenceAckText(msg);
+                        // Direct sequence acknowledgment from firmware
+                        handleSequenceCallback(msg, ackText);
+                    }
+                } catch (_) {
+                }
+            };
+
+            ws.onerror = () => {
+                isWsConnected = false;
+                updateConnectionStatus(false);
+            };
+        }
+
+        function requestPortList() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            ws.send(JSON.stringify({ action: 'list_ports' }));
+        }
+
+        function connectToSerialPort(port) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            ws.send(JSON.stringify({ action: 'connect', port }));
+        }
+
+        function tarePTs(){
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            try{
+                ws.send(JSON.stringify({ action: 'tare_pts' }));
+                showToast('Tare PTs', 'Capturing ambient and zeroing...', 'info');
+            }catch(e){ console.error('Failed to send tare_pts', e); }
+        }
+
+        let _sentAllOffOnConnect = false;
+        function setAllDCOff() {
+            Object.keys(dcChannels).forEach(idStr => {
+                const id = parseInt(idStr, 10);
+                if (!Number.isFinite(id)) return;
+                controlDC(id, 0);
+            });
+        }
+
+        function parseTelemetryData(data, rawCtx = {}) {
+            if (typeof data !== 'string' || data.length === 0) return;
+            
+            messageCount++;
+            dataRateHistory.push(Date.now());
+
+            if (data.includes(',')) {
+                const tokens = data.split(',');
+                const first = tokens[0] || '';
+                const id = /^[a-zA-Z]/.test(first) ? first[0] : null;
+                if (id === 'p' || id === 't' || id === 's') {
+                    const values = tokens.map(tok => {
+                        const cleaned = tok.replace(/^[a-zA-Z]+/, '');
+                        const num = parseFloat(cleaned);
+                        return Number.isFinite(num) ? num : null;
+                    }).filter(v => v !== null);
+
+                    if (id === 'p') {
+                        for (let i = 0; i < Math.min(values.length, 16); i++) {
+                            const rawIdx = i + 1;
+                            const channelId = ptIndexMap.hasOwnProperty(rawIdx) ? ptIndexMap[rawIdx] : rawIdx;
+                            const value = values[i];
+                            currentData.pt[channelId] = value;
+                            updateSensorDisplay('pt', channelId, value);
+                            const element = document.getElementById(`pt-${channelId}`);
+                            if (element) {
+                                const rawEl = element.querySelector('.sensor-raw');
+                                if (rawEl) {
+                                    const srcTok = (rawCtx.pTokens && rawCtx.pTokens[i]) ? rawCtx.pTokens[i] : (tokens[i]||'');
+                                    const rawNum = parseFloat(String(srcTok).replace(/^[a-zA-Z]+/, ''));
+                                    const adj = Number.isFinite(rawNum) ? (rawNum + PT_RAW_OFFSET) : null;
+                                    rawEl.textContent = `raw: ${adj !== null ? adj.toFixed(5) : String(srcTok).replace(/^[a-zA-Z]+/, '')}`;
+                                }
+                                const maEl = element.querySelector('.sensor-raw-ma');
+                                if (maEl && rawCtx.pt_mA && Number.isFinite(rawCtx.pt_mA[i])) {
+                                    maEl.textContent = `mA: ${rawCtx.pt_mA[i].toFixed(3)}`;
+                                }
+                            }
+                        }
+                    } else if (id === 't') {
+                        for (let i = 0; i < Math.min(values.length, 6); i++) {
+                            const rawIdx = i + 1;
+                            const channelId = lcIndexMap.hasOwnProperty(rawIdx) ? lcIndexMap[rawIdx] : rawIdx;
+                            const value = values[i];
+                            currentData.lc[channelId] = value;
+                            updateSensorDisplay('lc', channelId, value);
+                            const element = document.getElementById(`lc-${channelId}`);
+                            if (element) {
+                                const rawEl = element.querySelector('.sensor-raw');
+                                if (rawEl) rawEl.textContent = `raw: ${(tokens[i]||'').replace(/^[a-zA-Z]+/, '')}`;
+                            }
+                        }
+                        for (let i = 0; i < Math.min(Math.max(values.length - 6, 0), 6); i++) {
+                            const rawIdx = i + 1;
+                            const value = values[i + 6];
+                            const channelId = tcIndexMap.hasOwnProperty(rawIdx) ? tcIndexMap[rawIdx] : rawIdx;
+                            currentData.tc[channelId] = value;
+                            updateSensorDisplay('tc', channelId, value);
+                            const element = document.getElementById(`tc-${channelId}`);
+                            if (element) {
+                                const rawEl = element.querySelector('.sensor-raw');
+                                if (rawEl) rawEl.textContent = `raw: ${(tokens[i+6]||'').replace(/^[a-zA-Z]+/, '')}`;
+                            }
+                        }
+                    } else if (id === 's') {
+                        for (let i = 0; i < values.length; i++) {
+                            const mappedRawIdx0 = (i < dcOrder.length) ? dcOrder[i] : i;
+                            const rawIdx = mappedRawIdx0 + 1;
+                            const dcId = dcIndexMap.hasOwnProperty(rawIdx) ? dcIndexMap[rawIdx] : rawIdx;
+                            const value = values[i];
+                            currentData.dc[dcId] = value;
+                            const curEl = document.getElementById(`dc-current-${dcId}`);
+                            if (curEl) curEl.textContent = `${value.toFixed(3)} A`;
+                        }
+                    }
+
+                    lastDataUpdate = new Date();
+                    updateTimestamp();
+                    return;
+                }
+            }
+
+            if (data.includes('LC Channel')) {
+                const match = data.match(/LC Channel (\d+): ([\d\.-]+)/);
+                if (match) {
+                    const channelId = parseInt(match[1]);
+                    const value = parseFloat(match[2]);
+                    currentData.lc[channelId] = value;
+                    updateSensorDisplay('lc', channelId, value);
+                    const element = document.getElementById(`lc-${channelId}`);
+                    if (element) {
+                        const rawEl = element.querySelector('.sensor-raw');
+                        if (rawEl) rawEl.textContent = `raw: ${match[2]}`;
+                    }
+                }
+            } else if (data.includes('TC Channel')) {
+                const match = data.match(/TC Channel (\d+): ([\d\.-]+)/);
+                if (match) {
+                    const channelId = parseInt(match[1]);
+                    const value = parseFloat(match[2]);
+                    currentData.tc[channelId] = value;
+                    updateSensorDisplay('tc', channelId, value);
+                    const element = document.getElementById(`tc-${channelId}`);
+                    if (element) {
+                        const rawEl = element.querySelector('.sensor-raw');
+                        if (rawEl) rawEl.textContent = `raw: ${match[2]}`;
+                    }
+                }
+            } else if (data.includes('PT Channel')) {
+                const match = data.match(/PT Channel (\d+): ([\d\.-]+)/);
+                if (match) {
+                    const channelId = parseInt(match[1]);
+                    const value = parseFloat(match[2]);
+                    currentData.pt[channelId] = value;
+                    updateSensorDisplay('pt', channelId, value);
+                    const element = document.getElementById(`pt-${channelId}`);
+                    if (element) {
+                        const rawEl = element.querySelector('.sensor-raw');
+                        if (rawEl) rawEl.textContent = `raw: ${match[2]}`;
+                    }
+                }
+            }
+            lastDataUpdate = new Date();
+            updateTimestamp();
+        }
+
+        function updateSensorDisplay(type, channelId, value) {
+            const element = document.getElementById(`${type}-${channelId}`);
+            if (!element) return;
+
+            const config = type === 'pt' ? ptChannels[channelId] : 
+                          type === 'lc' ? lcChannels[channelId] : 
+                          tcChannels[channelId];
+            
+            if (!config || typeof config !== 'object') return;
+
+            const valueElement = element.querySelector('.sensor-main');
+            if (valueElement) {
+                valueElement.textContent = value.toFixed(2);
+            }
+
+            const lastKey = `${type}_${channelId}`;
+            element._lastValue = element._lastValue ?? value;
+            const delta = value - element._lastValue;
+            element._lastValue = value;
+            let trendClass = 'flat';
+            let trendChar = '→';
+            if (delta > 0.05) { trendClass = 'up'; trendChar = '↑'; }
+            else if (delta < -0.05) { trendClass = 'down'; trendChar = '↓'; }
+            let trendEl = element.querySelector('.trend');
+            if (!trendEl) {
+                trendEl = document.createElement('span');
+                trendEl.className = 'trend flat';
+                element.querySelector('.sensor-value').appendChild(trendEl);
+            }
+            trendEl.className = `trend ${trendClass}`;
+            trendEl.textContent = trendChar;
+
+            element.classList.remove('normal', 'warning', 'critical', 'offline');
+            
+            if (config.critical_high && value >= config.critical_high) {
+                element.classList.add('critical');
+            } else if (config.critical_low && value <= config.critical_low) {
+                element.classList.add('critical');
+            } else if (config.warning_high && value >= config.warning_high) {
+                element.classList.add('warning');
+            } else if (config.warning_low && value <= config.warning_low) {
+                element.classList.add('warning');
+            } else {
+                element.classList.add('normal');
+            }
+
+            element.classList.add('updating');
+            setTimeout(() => element.classList.remove('updating'), 500);
+        }
+
+        function renderDCControls() {
+            const container = document.getElementById('dc-controls');
+            container.innerHTML = '';
+
+            const typeOrder = { fuel: 0, lox: 1, misc: 2 };
+            const channels = Object.values(dcChannels)
+                .slice()
+                .sort((a, b) => {
+                const at = typeOrder[a.type || 'misc'] ?? 99;
+                const bt = typeOrder[b.type || 'misc'] ?? 99;
+                if (at !== bt) return at - bt;
+                const ax = extractOrderKey(a.short_name || a.name || '');
+                const bx = extractOrderKey(b.short_name || b.name || '');
+                return ax - bx;
+            });
+
+            channels.forEach(channel => {
+                const channelDiv = document.createElement('div');
+                const t = (channel.type || 'misc').toLowerCase();
+                channelDiv.className = `dc-channel inactive dc-type-${t}`;
+                channelDiv.onclick = () => controlDCToggle(channel.id);
+                const rawIndex = Number.isFinite(channel.raw_index) ? channel.raw_index : channel.id;
+                channelDiv.innerHTML = `
+                    <div class="dc-header">
+                        <div>
+                            <div class="dc-name">${channel.name}</div>
+                            <div class="dc-short">${channel.short_name} • ${(channel.type || 'misc').toUpperCase()} <span style="color:#94a3b8">#${rawIndex}</span></div>
+                        </div>
+                        <div class="dc-controls-row"><span class="dc-pill off" id="dc-toggle-${channel.id}">OFF</span></div>
+                    </div>
+                    <div style="display:flex; justify-content:flex-end; font-size:9px; color:#718096; margin-top:3px;">
+                        <span id="dc-current-${channel.id}">-- A</span>
+                    </div>
+                `;
+                container.appendChild(channelDiv);
+                dcState[channel.id] = 0;
+            });
+        }
+
+        function extractOrderKey(text) {
+            const m = String(text).match(/(pb)?\s*([0-9]+)(?:-([0-9]+))?/i);
+            if (!m) return Number.MAX_SAFE_INTEGER;
+            const base = parseInt(m[2], 10);
+            return Number.isFinite(base) ? base : Number.MAX_SAFE_INTEGER;
+        }
+
+        function renderSensorGroup(type, channels, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+
+            Object.values(channels).forEach(channel => {
+                const sensorDiv = document.createElement('div');
+                sensorDiv.className = 'sensor-reading offline';
+                sensorDiv.id = `${type}-${channel.id}`;
+                const rawIndex = Number.isFinite(channel.raw_index) ? channel.raw_index : channel.id;
+                let maxPsi = null;
+                if (type === 'pt') {
+                    try {
+                        if (Array.isArray(channel.range) && channel.range.length > 1) {
+                            maxPsi = Number(channel.range[1]);
+                        }
+                    } catch (_) {}
+                    if (!Number.isFinite(maxPsi)) {
+                        maxPsi = (channel.id === 1) ? 10000 : 1500;
+                    }
+                }
+                const channelInfo = type === 'pt' && channel.id !== rawIndex 
+                    ? `PT${channel.id} <span style="color:#94a3b8">(raw #${rawIndex})</span>`
+                    : type === 'pt' 
+                    ? `PT${channel.id} <span style="color:#94a3b8">#${rawIndex}</span>`
+                    : `${channel.short_name} <span style="color:#94a3b8">#${rawIndex}</span>`;
+                
+                sensorDiv.innerHTML = `
+                    <div class="sensor-info">
+                        <div class="sensor-name">${channel.name}</div>
+                        <div class="sensor-short">${channelInfo}</div>
+                    </div>
+                    <div class="sensor-value">
+                        <div class="sensor-main-row">
+                            ${type === 'pt' ? `<div class="sensor-raw-group">
+                                <span class="sensor-raw">raw: --</span>
+                                <span class="sensor-raw-ma">mA: --</span>
+                                ${maxPsi ? `<span class="sensor-config">cfg: ${maxPsi}</span>` : ''}
+                            </div>` : ''}
+                            <span class="sensor-main">--</span>
+                            <span class="sensor-units">${channel.units || ''}</span>
+                        </div>
+                        ${type !== 'pt' ? '<div class="sensor-raw-group"><span class="sensor-raw">raw: --</span></div>' : ''}
+                    </div>
+                `;
+                container.appendChild(sensorDiv);
+            });
+        }
+
+        function renderTelemetryPlaceholders() {
+            try { renderSensorGroup('pt', ptChannels, 'pt-readings'); } catch (e) { console.error('PT render failed', e); }
+            try { renderSensorGroup('lc', lcChannels, 'lc-readings'); } catch (e) { console.error('LC render failed', e); }
+            try { renderSensorGroup('tc', tcChannels, 'tc-readings'); } catch (e) { console.error('TC render failed', e); }
+        }
+
+        function controlDC(channelId, state) {
+            const hexChar = toHexChannelChar(channelId);
+            const command = `S${hexChar}${state}`;
+            serialSend(command);
+            
+            dcState[channelId] = state;
+            const pill = document.getElementById(`dc-toggle-${channelId}`);
+            const channelElement = pill.closest('.dc-channel');
+            if (state === 1) {
+                pill.textContent = 'ON';
+                pill.className = 'dc-pill on';
+                channelElement.classList.remove('inactive');
+                channelElement.classList.add('active');
+            } else {
+                pill.textContent = 'OFF';
+                pill.className = 'dc-pill off';
+                channelElement.classList.remove('active');
+                channelElement.classList.add('inactive');
+            }
+        }
+
+        function serialSend(command) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                console.warn('WS not connected; cannot send', command);
+                return;
+            }
+            try {
+                ws.send(JSON.stringify({ action: 'send', command }));
+            } catch (e) {
+                console.error('Failed to send command', command, e);
+            }
+        }
+
+        function controlDCToggle(channelId) {
+            const next = dcState[channelId] === 1 ? 0 : 1;
+            controlDC(channelId, next);
+        }
+
+        function toHexChannelChar(channelId) {
+            if (channelId >= 1 && channelId <= 9) return String(channelId);
+            const map = {10: 'A', 11: 'B', 12: 'C'};
+            return map[channelId] || String(channelId);
+        }
+
+        function showToast(title, message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icons = {
+                success: 'fa-check-circle',
+                warning: 'fa-exclamation-triangle',
+                error: 'fa-times-circle',
+                info: 'fa-info-circle'
+            };
+            
+            toast.innerHTML = `
+                <i class="fas ${icons[type]} toast-icon"></i>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 1500);
+        }
+
+        function appendTerminalLine(text, type = 'normal') {
+            if (typeof text !== 'string' || text.trim().length === 0) return;
+            const timestamp = new Date().toLocaleTimeString();
+            terminalBuffer.push({ text: `[${timestamp}] ${text.trim()}`, type });
+            if (terminalBuffer.length > terminalMaxLines) {
+                terminalBuffer.shift();
+            }
+            const body = document.getElementById('terminal-body');
+            if (!body) return;
+            body.innerHTML = terminalBuffer
+                .map(entry => `<div class="terminal-line ${entry.type}">${entry.text}</div>`)
+                .join('');
+            body.scrollTop = body.scrollHeight;
+        }
+
+        function clearTerminal() {
+            terminalBuffer.length = 0;
+            const body = document.getElementById('terminal-body');
+            if (body) body.innerHTML = '';
+        }
+
+        function isSequenceAckText(text) {
+            if (typeof text !== 'string' || text.length === 0) return false;
+            const lower = text.toLowerCase();
+            if (lower.includes('firing idx')) return true;
+            if (!lower.includes('sequence')) return false;
+            const keywords = ['ack', 'received', 'upload', 'packet', 'firing', 'saved', 'complete'];
+            return keywords.some(kw => lower.includes(kw));
+        }
+
+        function extractSequenceAckText(msg) {
+            if (!msg) return null;
+            const candidates = [];
+            if (typeof msg === 'string') {
+                candidates.push(msg);
+            } else {
+                if (typeof msg.content === 'string') candidates.push(msg.content);
+                if (typeof msg.message === 'string') candidates.push(msg.message);
+                if (typeof msg.raw === 'string') candidates.push(msg.raw);
+            }
+            for (const candidate of candidates) {
+                if (isSequenceAckText(candidate)) {
+                    return candidate.trim();
+                }
+            }
+            return null;
+        }
+
+        function armSystem() {
+            serialSend('a');
+            document.querySelector('.header').classList.add('armed');
+            showToast('System Armed', 'Arm command sent', 'warning');
+        }
+                
+        function disarmSystem() {
+            serialSend('r');
+            document.querySelector('.header').classList.remove('armed');
+            showToast('System Disarmed', 'Disarm command sent', 'success');
+        }
+
+        function emergencyStop() {
+            serialSend('r');
+            document.querySelector('.header').classList.remove('armed');
+            if (typeof Audio !== 'undefined') {
+                const audio = new Audio('./assets/extremely-loud-incorrect-buzzer_0cDaG20.mp3');
+                audio.play().catch(() => {});
+            }
+            setAllDCOff();
+            showToast('EMERGENCY STOP', 'Emergency stop activated', 'error');
+        }
+
+        function abort() {
+            const btn = document.getElementById('abort_button');
+            
+            if (abortState === 'normal') {
+                // ABORT: close run valves, open GN2 purges (keep system armed)
+                runValveIds.forEach(id => controlDC(id, 0));
+                gn2PurgeIds.forEach(id => controlDC(id, 1));
+                
+                abortState = 'aborted';
+                btn.classList.remove('safe');
+                btn.classList.add('aborted');
+                btn.textContent = 'PURGING';
+                
+                if (typeof Audio !== 'undefined') {
+                    const audio = new Audio('./assets/abort-sound.mp3');
+                    audio.play().catch(() => {});
+                }
+                showToast('ABORT', 'Run valves closed, GN2 purges opened', 'warning');
+                
+            } else if (abortState === 'aborted') {
+                // SAFE: close GN2 purges
+                gn2PurgeIds.forEach(id => controlDC(id, 0));
+                
+                abortState = 'safe';
+                btn.classList.remove('aborted');
+                btn.classList.add('safe');
+                btn.textContent = 'SAFE';
+                
+                showToast('SAFE', 'GN2 purges closed', 'success');
+                
+            } else {
+                // Back to normal/ready state
+                abortState = 'normal';
+                btn.classList.remove('safe', 'aborted');
+                btn.textContent = 'ABORT';
+                
+                showToast('READY', 'Abort system reset', 'info');
+            }
+        }
+
+        function updateConnectionStatus(connected) {
+            const indicator = document.getElementById('connection-indicator');
+            const text = document.getElementById('connection-text');
+            
+            if (connected && connectedSerialPort) {
+                indicator.className = 'connection-indicator connected';
+                text.textContent = `Connected to ${connectedSerialPort}`;
+            } else {
+                indicator.className = 'connection-indicator disconnected';
+                text.textContent = connected ? 'WebSocket Connected' : 'Disconnected';
+            }
+        }
+
+        let messageCount = 0;
+        let dataRateHistory = [];
+        let startTime = Date.now();
+
+        function updateTimestamp() {
+            const element = document.getElementById('data-timestamp');
+            const infoElement = document.getElementById('info-last-update');
+            if (lastDataUpdate) {
+                const timeStr = lastDataUpdate.toLocaleTimeString();
+                element.textContent = `Last Update: ${timeStr}`;
+                if (infoElement) infoElement.textContent = `Last Update: ${timeStr}`;
+            }
+            
+            const staleIndicator = document.getElementById('stale-indicator');
+            const staleText = document.getElementById('stale-text');
+            if (staleIndicator && staleText && lastDataUpdate) {
+                const now = Date.now();
+                const age = now - lastDataUpdate.getTime();
+                const ageSeconds = Math.floor(age / 1000);
+                
+                if (age < 1000) {
+                    staleIndicator.className = 'stale-indicator fresh';
+                    staleText.textContent = 'Live';
+                } else if (age < 5000) {
+                    staleIndicator.className = 'stale-indicator fresh';
+                    staleText.textContent = `${ageSeconds}s ago`;
+                } else if (age < 30000) {
+                    staleIndicator.className = 'stale-indicator stale';
+                    staleText.textContent = `${ageSeconds}s ago`;
+                } else {
+                    staleIndicator.className = 'stale-indicator offline';
+                    staleText.textContent = `${ageSeconds}s ago`;
+                }
+            }
+        }
+
+        function updateInfoBar() {
+            const serialEl = document.getElementById('info-serial-port');
+            if (serialEl) serialEl.textContent = connectedSerialPort || '--';
+
+            const msgEl = document.getElementById('info-message-count');
+            if (msgEl) msgEl.textContent = `${messageCount} messages`;
+
+            const now = Date.now();
+            dataRateHistory = dataRateHistory.filter(t => now - t < 10000);
+            if (dataRateHistory.length > 1) {
+                const rate = dataRateHistory.length / 10;
+                const rateEl = document.getElementById('info-data-rate');
+                if (rateEl) rateEl.textContent = rate.toFixed(1) + ' Hz';
+            }
+
+            const elapsed = now - startTime;
+            const minutes = Math.floor(elapsed / 60000) % 60;
+            const hours = Math.floor(elapsed / 3600000);
+            const uptimeEl = document.getElementById('info-uptime');
+            if (uptimeEl) {
+                uptimeEl.textContent = `Uptime: ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+            }
+        }
+
+        setInterval(updateInfoBar, 1000);
+
+        function refreshTelemetry() {
+            document.querySelectorAll('.refresh-btn i').forEach(icon => {
+                icon.classList.add('fa-spin');
+                setTimeout(() => icon.classList.remove('fa-spin'), 1000);
+            });
+            try { loadConfigurations(); } catch (_) {}
+        }
+
+        function showHelp() {
+            showToast('PANDA DAQ Controls', 'See console for keyboard shortcuts', 'info');
+            console.log('PANDA DAQ Controls:\n' +
+                '- DC Channels: Click ON/OFF to control valves\n' +
+                '- Telemetry: Green=Normal, Orange=Warning, Red=Critical\n' +
+                '- Safety: Abort (yellow→red→green), E-Stop (red), Arm/Disarm (center)');
+        }
+
+        function setupEventListeners() {
+            document.getElementById('arm-btn-top').addEventListener('click', armSystem);
+            document.getElementById('disarm-btn-top').addEventListener('click', disarmSystem);
+            document.getElementById('emergency_stop').addEventListener('click', emergencyStop);
+            document.getElementById('abort_button').addEventListener('click', abort);
+
+            // Capture Enter/Escape in capture phase to intercept before button activation
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' || e.key === 'Enter') {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    if (document.activeElement && document.activeElement.blur) {
+                        document.activeElement.blur();
+                    }
+                    abort();
+                    return false;
+                }
+            }, true);  // true = capture phase
+            
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.key === 'a') {
+                    e.preventDefault();
+                    armSystem();
+                }
+                if (e.ctrlKey && e.key === 'd') {
+                    e.preventDefault();
+                    disarmSystem();
+                }
+            });
+        }
+
+        setInterval(updateTimestamp, 1000);
+        setInterval(() => {
+            if (!isWsConnected && (!ws || ws.readyState === WebSocket.CLOSED)) {
+                initWebSocket();
+            }
+        }, 5000);
+
+        // ===== SEQUENCER FUNCTIONS =====
+        function setupSequencerEventListeners() {
+            document.getElementById('add-sequence-action').addEventListener('click', addSequenceAction);
+            document.getElementById('upload-sequence').addEventListener('click', uploadSequence);
+            document.getElementById('clear-sequence').addEventListener('click', clearSequence);
+            document.getElementById('save-sequence').addEventListener('click', saveSequenceToFile);
+            document.getElementById('load-sequence').addEventListener('click', loadSequenceFromFile);
+            document.getElementById('run-sequence').addEventListener('click', runSequence);
+        }
+
+        function addSequenceAction() {
+            const valveOptions = Object.keys(valveConfig).map(id =>
+                `<option value="${id}">${valveConfig[id].name}</option>`
+            ).join('');
+
+            const block = document.createElement('div');
+            block.className = 'sequence-block';
+            block.dataset.type = 'action';
+
+            block.innerHTML = `
+                <div class="block-header block-action-on">
+                    <span>Action</span>
+                    <button class="remove-block">&times;</button>
+                </div>
+                <div class="block-content">
+                    <label class="form-label">Valve:</label>
+                    <select class="form-select valve-select">
+                        ${valveOptions}
+                    </select>
+                    <label class="form-label">Action:</label>
+                    <select class="form-select action-select">
+                        <option value="on">OPEN</option>
+                        <option value="off">CLOSE</option>
+                    </select>
+                    <label class="form-label">Delay After (ms):</label>
+                    <input type="number" class="form-input delay-input" value="0" min="0" step="1" placeholder="0">
+                </div>
+            `;
+
+            document.getElementById('sequence-blocks').appendChild(block);
+
+            block.querySelector('.remove-block').addEventListener('click', function () {
+                block.remove();
+                updateSequencePreview();
+            });
+
+            const actionSelect = block.querySelector('.action-select');
+            actionSelect.addEventListener('change', function () {
+                const header = block.querySelector('.block-header');
+                if (this.value === 'on') {
+                    header.classList.remove('block-action-off');
+                    header.classList.add('block-action-on');
+                } else {
+                    header.classList.remove('block-action-on');
+                    header.classList.add('block-action-off');
+                }
+                updateSequencePreview();
+            });
+
+            block.querySelector('.valve-select').addEventListener('change', updateSequencePreview);
+            block.querySelector('.delay-input').addEventListener('input', updateSequencePreview);
+
+            updateSequencePreview();
+        }
+
+        function updateSequencePreview() {
+            const blocks = document.querySelectorAll('.sequence-block');
+            let command = 'command:';
+            const firmwareParts = [];
+
+            blocks.forEach((block, index) => {
+                if (block.dataset.type === 'action') {
+                    const channel = block.querySelector('.valve-select').value;
+                    const action = block.querySelector('.action-select').value === 'on' ? '1' : '0';
+                    const delayInput = block.querySelector('.delay-input');
+                    let delay = delayInput.value.trim();
+
+                    command += `s${channel}${action}`;
+
+                    let delayMs = parseInt(delay || '0', 10);
+                    if (isNaN(delayMs) || delayMs < 0) delayMs = 0;
+                    if (delayMs > 99999) delayMs = 99999;
+                    const delayPadded = String(delayMs).padStart(5, '0');
+                    let channelCode = channel;
+                    const channelNum = parseInt(channel, 10);
+                    if (!isNaN(channelNum)) {
+                        if (channelNum === 10) channelCode = 'A';
+                        else if (channelNum === 11) channelCode = 'B';
+                        else if (channelNum === 12) channelCode = 'C';
+                    }
+                    firmwareParts.push(`s${channelCode}${action}.${delayPadded}`);
+
+                    if (index < blocks.length - 1) {
+                        command += `.${delay || '0'},`;
+                    } else {
+                        if (delay && parseInt(delay) > 0) {
+                            command += `.${delay}`;
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('command-preview').textContent = command;
+            currentFirmwareSequence = firmwareParts.join(',');
+        }
+
+        function uploadSequence() {
+            if (!currentFirmwareSequence || currentFirmwareSequence.trim() === '') {
+                showToast('Empty Sequence', 'Add an action first', 'warning');
+                return;
+            }
+
+            resetCallbackIndicator();
+            serialSend(currentFirmwareSequence);
+            savedSequence = currentFirmwareSequence;
+
+            const audio = new Audio('./assets/click.mp3');
+            if (audio) {
+                audio.play().catch(() => {});
+            }
+
+            showToast('Uploaded', 'Sequence saved', 'success');
+        }
+
+        function runSequence() {
+            const builderSequence = (currentFirmwareSequence && currentFirmwareSequence.trim() !== '') ? currentFirmwareSequence : null;
+            const sequenceToFire = builderSequence || savedSequence;
+
+            if (!sequenceToFire) {
+                showToast('No Sequence', 'Create or upload one first.', 'warning');
+                return;
+            }
+
+            resetCallbackIndicator();
+            serialSend(sequenceToFire);
+            savedSequence = sequenceToFire;
+            setTimeout(() => {
+                serialSend('f');
+            }, 100);
+            
+            const audio = new Audio('./assets/click.mp3');
+            if (audio) {
+                audio.play().catch(() => {});
+            }
+
+            showToast('Firing', builderSequence ? 'Current build executing' : 'Sequence executing', 'success');
+        }
+
+        function clearSequence() {
+            document.getElementById('sequence-blocks').innerHTML = '';
+            updateSequencePreview();
+        }
+
+        function saveSequenceToFile() {
+            const blocks = document.querySelectorAll('.sequence-block');
+            const sequence = { blocks: [] };
+
+            blocks.forEach(block => {
+                if (block.dataset.type === 'action') {
+                    sequence.blocks.push({
+                        type: 'action',
+                        channel: block.querySelector('.valve-select').value,
+                        action: block.querySelector('.action-select').value,
+                        delay: block.querySelector('.delay-input').value
+                    });
+                }
+            });
+
+            const blob = new Blob([JSON.stringify(sequence, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sequence.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            const audio = new Audio('./assets/click.mp3');
+            if (audio) {
+                audio.play().catch(() => {});
+            }
+
+            showToast('Saved', 'Sequence downloaded', 'success');
+        }
+
+        function loadSequenceFromFile() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+
+            input.onchange = function (e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    try {
+                        const sequence = JSON.parse(event.target.result);
+                        clearSequence();
+
+                        sequence.blocks.forEach(block => {
+                            if (block.type === 'action') {
+                                addSequenceActionWithData(block.channel, block.action, block.delay);
+                            }
+                        });
+
+                        const audio = new Audio('./assets/click.mp3');
+                        if (audio) {
+                            audio.play().catch(() => {});
+                        }
+
+                        showToast('Loaded', 'Sequence loaded', 'success');
+
+                    } catch (error) {
+                        console.error('Error parsing sequence file:', error);
+                        showToast('Error', 'Invalid sequence file', 'error');
+                    }
+                };
+                reader.readAsText(file);
+            };
+
+            input.click();
+        }
+
+        function addSequenceActionWithData(channel, action, delay) {
+            const valveOptions = Object.keys(valveConfig).map(id =>
+                `<option value="${id}" ${id == channel ? 'selected' : ''}>${valveConfig[id].name}</option>`
+            ).join('');
+
+            const block = document.createElement('div');
+            block.className = 'sequence-block';
+            block.dataset.type = 'action';
+
+            const actionColorClass = action === 'on' ? 'block-action-on' : 'block-action-off';
+
+            block.innerHTML = `
+                <div class="block-header ${actionColorClass}">
+                    <span>Action</span>
+                    <button class="remove-block">&times;</button>
+                </div>
+                <div class="block-content">
+                    <label class="form-label">Valve:</label>
+                    <select class="form-select valve-select">
+                        ${valveOptions}
+                    </select>
+                    <label class="form-label">Action:</label>
+                    <select class="form-select action-select">
+                        <option value="on" ${action === 'on' ? 'selected' : ''}>OPEN</option>
+                        <option value="off" ${action === 'off' ? 'selected' : ''}>CLOSE</option>
+                    </select>
+                    <label class="form-label">Delay After (ms):</label>
+                    <input type="number" class="form-input delay-input" value="${delay || 0}" min="0" step="1">
+                </div>
+            `;
+
+            document.getElementById('sequence-blocks').appendChild(block);
+
+            block.querySelector('.remove-block').addEventListener('click', function () {
+                block.remove();
+                updateSequencePreview();
+            });
+
+            const actionSelect = block.querySelector('.action-select');
+            actionSelect.addEventListener('change', function () {
+                const header = block.querySelector('.block-header');
+                if (this.value === 'on') {
+                    header.classList.remove('block-action-off');
+                    header.classList.add('block-action-on');
+                } else {
+                    header.classList.remove('block-action-on');
+                    header.classList.add('block-action-off');
+                }
+                updateSequencePreview();
+            });
+
+            block.querySelector('.valve-select').addEventListener('change', updateSequencePreview);
+            block.querySelector('.delay-input').addEventListener('input', updateSequencePreview);
+
+            updateSequencePreview();
+        }
+
+        // ===== PRESET SEQUENCES FUNCTIONS =====
+        
+        function requestPresetsFromServer() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            appendTerminalLine('Requesting presets from server...', 'seq');
+            ws.send(JSON.stringify({ action: 'preset_load' }));
+        }
+
+        function savePresetToServer(presetName, sequence) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                showToast('Connection Error', 'WebSocket not connected', 'error');
+                return;
+            }
+             appendTerminalLine(`Saving preset ${String(presetName).toUpperCase()}...`, 'seq');
+            ws.send(JSON.stringify({ action: 'preset_save', name: presetName, sequence }));
+        }
+
+        function handlePresetLoadResponse(msg) {
+            if (!msg || !msg.success || !msg.presets) return;
+            Object.keys(presetSequences).forEach(key => {
+                const val = msg.presets[key];
+                presetSequences[key] = (typeof val === 'string' && val.trim().length > 0) ? val : null;
+                updatePresetUI(key, presetSequences[key]);
+            });
+            appendTerminalLine('Preset set synchronized from server', 'seq');
+        }
+
+        function handlePresetSaveResponse(msg) {
+            if (!msg) return;
+            if (!msg.success) {
+                showToast('Preset Error', msg.message || 'Failed to save preset', 'error');
+                appendTerminalLine(msg.message || 'Preset save failed', 'err');
+                return;
+            }
+            if (msg.presets) {
+                handlePresetLoadResponse(msg);
+            } else if (msg.name && msg.sequence) {
+                presetSequences[msg.name] = msg.sequence;
+                updatePresetUI(msg.name, msg.sequence);
+            }
+            const label = (msg.name || '').toUpperCase();
+            showToast('Preset Saved', label ? `${label} ready` : 'Preset updated', 'success');
+            appendTerminalLine(`Preset ${label || msg.name} saved`, 'seq');
+            if (msg.name) {
+                setTimeout(() => armPreset(msg.name), 50);
+            }
+        }
+
+        function getPresetLabel(name) {
+            const key = (name || '').toLowerCase();
+            if (key === 'gox') return 'GOX Purge';
+            if (key === 'hotfire') return 'Hotfire';
+            return (name || '').toUpperCase();
+        }
+
+        function getPresetSequence(name) {
+            const key = (name || '').toLowerCase();
+            const seq = presetSequences[key];
+            return (typeof seq === 'string' && seq.trim().length > 0) ? seq.trim() : null;
+        }
+
+        function armPreset(name) {
+            const label = getPresetLabel(name);
+            const sequence = getPresetSequence(name);
+            if (!sequence) {
+                showToast('Preset Empty', `No sequence stored for ${label}`, 'error');
+                appendTerminalLine(`Preset ${label} missing; requesting sync`, 'err');
+                requestPresetsFromServer();
+                return false;
+            }
+            resetCallbackIndicator();
+            serialSend(sequence);
+            savedSequence = sequence;
+            const audio = new Audio('./assets/click.mp3');
+            if (audio) {
+                audio.play().catch(() => {});
+            }
+            showToast('Preset Armed', `${label} uploaded`, 'success');
+            appendTerminalLine(`Preset ${label} armed -> ${sequence}`, 'seq');
+            return true;
+        }
+        
+        function setPresetFromCurrent(presetName) {
+            if (!currentFirmwareSequence || currentFirmwareSequence.trim() === '') {
+                showToast('Empty Sequence', 'Build a sequence first', 'warning');
+                return;
+            }
+            
+            const presetLabel = presetName === 'gox' ? 'GOX Purge' : 'Hotfire';
+            
+            Swal.fire({
+                title: `Set ${presetLabel}?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3182ce',
+                cancelButtonColor: '#718096',
+                confirmButtonText: 'Save',
+                timer: 3000
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    savePresetToServer(presetName, currentFirmwareSequence);
+                    const audio = new Audio('./assets/click.mp3');
+                    if (audio) {
+                        audio.play().catch(() => {});
+                    }
+                }
+            });
+        }
+        
+        function updatePresetUI(presetName, sequence) {
+            const statusEl = document.getElementById(`${presetName}-status`);
+            const previewEl = document.getElementById(`${presetName}-preview`);
+            const uploadBtn = document.getElementById(`${presetName}-upload-btn`);
+            const fireBtn = document.getElementById(`${presetName}-fire-btn`);
+            
+            if (sequence && sequence.trim() !== '') {
+                statusEl.textContent = 'SET';
+                statusEl.className = 'preset-status set';
+                previewEl.textContent = sequence;
+                uploadBtn.disabled = false;
+                fireBtn.disabled = false;
+            } else {
+                statusEl.textContent = 'NOT SET';
+                statusEl.className = 'preset-status empty';
+                previewEl.textContent = 'No sequence set';
+                uploadBtn.disabled = true;
+                fireBtn.disabled = true;
+            }
+        }
+        
+        function uploadPreset(presetName) {
+            armPreset(presetName);
+        }
+        
+        function firePreset(presetName) {
+            if (!armPreset(presetName)) return;
+            setTimeout(() => {
+                serialSend('f');
+            }, 100);
+            appendTerminalLine(`Preset ${getPresetLabel(presetName)} fire command sent`, 'seq');
+            showToast('Firing', `${getPresetLabel(presetName)} executing`, 'success');
+        }
+        
+        // ===== SEQUENCE CALLBACK HANDLING =====
+        
+        function handleSequenceCallback(data, messageText = null) {
+            const indicator = document.getElementById('callback-indicator');
+            const textEl = document.getElementById('callback-text');
+            const timestampEl = document.getElementById('callback-timestamp');
+            
+            if (!indicator || !textEl || !timestampEl) return;
+            
+            lastSequenceCallback = new Date();
+            
+            indicator.classList.add('received');
+            textEl.classList.add('received');
+            let displayText = messageText;
+            if (!displayText) {
+                const extracted = extractSequenceAckText(data);
+                displayText = extracted || 'Sequence received by PANDA ✓';
+            }
+            textEl.textContent = displayText;
+            timestampEl.textContent = lastSequenceCallback.toLocaleTimeString();
+            appendTerminalLine(displayText, displayText.toLowerCase().includes('error') ? 'err' : 'seq');
+            
+            const audio = new Audio('./assets/click.mp3');
+            if (audio) {
+                audio.volume = 0.3;
+                audio.play().catch(() => {});
+            }
+            
+            setTimeout(() => {
+                indicator.classList.remove('received');
+                textEl.classList.remove('received');
+                textEl.textContent = 'Waiting for sequence acknowledgment...';
+            }, 5000);
+        }
+        
+        function resetCallbackIndicator() {
+            const indicator = document.getElementById('callback-indicator');
+            const textEl = document.getElementById('callback-text');
+            const timestampEl = document.getElementById('callback-timestamp');
+            
+            if (indicator) indicator.classList.remove('received');
+            if (textEl) {
+                textEl.classList.remove('received');
+                textEl.textContent = 'Waiting for sequence acknowledgment...';
+            }
+            if (timestampEl) timestampEl.textContent = '';
+        }
+    </script>
+</body>
+
+</html>
+

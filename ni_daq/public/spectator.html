@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>NI DAQ Spectator (Read-Only)</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            background-color: #f8fafc;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: stretch;
+            background-color: #f5f5f5;
+            border-bottom: 1px solid #ddd;
+            position: relative;
+            z-index: 1000;
+            height: auto;
+            min-height: 60px;
+            flex-shrink: 0;
+        }
+
+        .abort-controls {
+            width: 250px;
+            height: 100%;
+        }
+
+        .abort {
+            width: 100%;
+            height: 100%;
+            background-color: #ffd700;
+            color: black;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: background-color 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .abort:hover {
+            background-color: #ffed4e;
+        }
+
+        .center-controls {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 20px;
+            gap: 6px;
+        }
+
+        .new-log-btn {
+            padding: 8px 24px;
+            background-color: #3182ce;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .new-log-btn:hover {
+            background-color: #2c5aa0;
+        }
+
+        .log-status {
+            font-size: 11px;
+            color: #4a5568;
+            font-family: monospace;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .log-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #cbd5e0;
+        }
+
+        .log-indicator.active {
+            background-color: #48bb78;
+            animation: pulse 2s infinite;
+        }
+
+        .safety-controls {
+            width: 250px;
+            height: 100%;
+        }
+
+        .emergency-stop {
+            width: 100%;
+            height: 100%;
+            background-color: #8b0000;
+            color: white;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: background-color 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .emergency-stop:hover {
+            background-color: #990000;
+        }
+
+        .info-bar {
+            background-color: #fff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 8px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #4a5568;
+            gap: 8px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .connection-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #cbd5e0;
+        }
+
+        .connection-indicator.connected {
+            background-color: #48bb78;
+            animation: pulse 2s infinite;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: visible;
+            padding: 10px;
+            gap: 10px;
+            min-height: 0;
+        }
+
+        .telemetry-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow: visible;
+            min-height: 0;
+        }
+
+        .telemetry-section {
+            background-color: #fff;
+            border-radius: 12px;
+            padding: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: visible;
+        }
+
+        .section-pt {
+            border-left: 4px solid #3182ce;
+            flex: 3.5;
+        }
+
+        .section-lc {
+            border-left: 4px solid #805ad5;
+            flex: 1.5;
+        }
+
+        .telemetry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .telemetry-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2d3748;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .telemetry-count {
+            font-size: 13px;
+            color: #718096;
+            font-weight: normal;
+        }
+
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 14px;
+            flex: 1;
+            overflow: visible;
+            align-content: start;
+        }
+
+        .telemetry-item {
+            background-color: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 14px;
+            transition: all 0.2s;
+        }
+
+        .telemetry-item:hover {
+            border-color: #cbd5e0;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .telemetry-item.disconnected {
+            background-color: #fff5f5;
+            border-color: #fc8181;
+        }
+
+        .telemetry-item.unconfigured {
+            background-color: #fffaf0;
+            border-color: #f6ad55;
+        }
+
+        .telemetry-label {
+            font-size: 12px;
+            color: #718096;
+            margin-bottom: 6px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .telemetry-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .telemetry-item.disconnected .telemetry-value {
+            color: #e53e3e;
+            font-size: 16px;
+            font-family: Arial, sans-serif;
+        }
+
+        .telemetry-item.unconfigured .telemetry-value {
+            color: #dd6b20;
+            font-size: 16px;
+            font-family: Arial, sans-serif;
+        }
+
+        .telemetry-units {
+            font-size: 13px;
+            color: #a0aec0;
+            font-weight: 500;
+        }
+
+        .telemetry-raw-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 4px;
+            gap: 8px;
+        }
+
+        .telemetry-raw {
+            font-size: 16px;
+            font-weight: 600;
+            color: #4a5568;
+            font-family: 'Courier New', monospace;
+        }
+
+        .telemetry-details {
+            font-size: 10px;
+            color: #718096;
+            font-family: monospace;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .sparkline {
+            width: 100%;
+            height: 60px;
+            margin-top: 6px;
+            max-width: 100%;
+            display: block;
+        }
+        /* ensure crisp canvas on HDPI */
+        canvas.sparkline { 
+            image-rendering: pixelated;
+            max-width: 100% !important;
+            height: 60px !important;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+
+        /* Responsive design for mobile and smaller screens */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                height: auto;
+            }
+
+            .abort-controls, .safety-controls {
+                width: 100%;
+                height: 50px;
+            }
+
+            .center-controls {
+                padding: 10px;
+            }
+
+            .main-container {
+                padding: 5px;
+                gap: 5px;
+            }
+
+            .telemetry-section {
+                padding: 10px;
+            }
+
+            .telemetry-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 10px;
+            }
+
+            .telemetry-value {
+                font-size: 22px;
+            }
+
+            .telemetry-raw {
+                font-size: 14px;
+            }
+
+            .info-bar {
+                padding: 6px 10px;
+                font-size: 10px;
+            }
+
+        }
+
+        @media (min-width: 1920px) {
+            .telemetry-grid {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            }
+
+            .sparkline {
+                height: 80px;
+            }
+
+            canvas.sparkline {
+                height: 80px !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="center-controls">
+            <div style="font-size: 18px; font-weight: bold; color: #e53e3e;">SPECTATOR MODE (READ-ONLY)</div>
+            <div class="log-status">
+                <div class="log-indicator active" id="log-indicator"></div>
+                <span id="log-filename">Logging to: --</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-bar">
+        <div class="info-item">
+            <div class="connection-indicator" id="connection-indicator"></div>
+            <span id="connection-text">Connecting...</span>
+        </div>
+        <div class="info-item">
+            <i class="fas fa-clock"></i>
+            <span id="data-timestamp">Last Update: --:--:--</span>
+        </div>
+        <div class="info-item">
+            <i class="fas fa-signal"></i>
+            <span id="update-rate">-- Hz</span>
+        </div>
+        <div class="info-item">
+            <i class="fas fa-chart-line"></i>
+            <span id="message-count">0 messages</span>
+        </div>
+        <div class="info-item">
+            <i class="fas fa-tachometer-alt"></i>
+            <span id="perf-latency" title="Average read latency">Latency: --</span>
+        </div>
+        <div class="info-item">
+            <i class="fas fa-check-circle"></i>
+            <span id="perf-stale" title="Stale data percentage">Fresh: 100%</span>
+        </div>
+        <div class="info-item">
+            <i class="fas fa-redo"></i>
+            <span id="perf-restarts" title="Task restart count">Restarts: 0</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="telemetry-panel">
+            <!-- Pressure Transducers Section -->
+            <div class="telemetry-section section-pt">
+                <div class="telemetry-header">
+                    <div class="telemetry-title">
+                        <i class="fas fa-gauge-high"></i>
+                        PRESSURE TRANSDUCERS
+                        <span class="telemetry-count" id="pt-count">16 channels</span>
+                    </div>
+                </div>
+                <div class="telemetry-grid" id="pt-readings"></div>
+            </div>
+
+            <!-- Load Cells Section -->
+            <div class="telemetry-section section-lc">
+                <div class="telemetry-header">
+                    <div class="telemetry-title">
+                        <i class="fas fa-scale-balanced"></i>
+                        LOAD CELLS
+                        <span class="telemetry-count" id="lc-count">4 channels</span>
+                    </div>
+                </div>
+                <div class="telemetry-grid" id="lc-readings"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let isWsConnected = false;
+        let messageCount = 0;
+        let lastUpdateTime = null;
+        let updateTimes = [];
+        let startTime = Date.now();
+        let autoStartedLogging = false;
+        let sensorConfig = null;
+
+        async function initTelemetry() {
+            const ptGrid = document.getElementById('pt-readings');
+            const lcGrid = document.getElementById('lc-readings');
+
+            // Create PT placeholders (16 channels)
+            for (let i = 0; i < 16; i++) {
+                const item = createTelemetryItem('PT', i, 'PSI');
+                ptGrid.appendChild(item);
+            }
+
+            // Create LC placeholders (4 channels)
+            for (let i = 0; i < 4; i++) {
+                const item = createTelemetryItem('LC', i, 'lbf');
+                lcGrid.appendChild(item);
+            }
+
+            // Load PT names/ratings from interface_config.json
+            try {
+                const res = await fetch('/api/config');
+                sensorConfig = await res.json();
+                applyPTConfigToUI();
+            } catch (e) {
+                console.warn('Failed to load /api/config', e);
+            }
+        }
+
+        function createTelemetryItem(type, channel, units) {
+            const div = document.createElement('div');
+            div.className = 'telemetry-item';
+            div.id = `${type.toLowerCase()}-${channel}`;
+            div.innerHTML = `
+                <div class="telemetry-label">${type}${channel}</div>
+                <div class="telemetry-value">--</div>
+                <div class="telemetry-units">${units}</div>
+                <div class="telemetry-raw-row">
+                    <div class="telemetry-raw">--</div>
+                    <div class="telemetry-details"></div>
+                </div>
+                <canvas class="sparkline" width="600" height="120"></canvas>
+            `;
+            return div;
+        }
+
+        function applyPTConfigToUI() {
+            if (!sensorConfig || !Array.isArray(sensorConfig.sensors)) return;
+            sensorConfig.sensors.forEach((sensor) => {
+                if (typeof sensor.channel !== 'number') return;
+                const el = document.getElementById(`pt-${sensor.channel}`);
+                if (!el) return;
+                const labelEl = el.querySelector('.telemetry-label');
+                const detailsEl = el.querySelector('.telemetry-details');
+                if (sensor.name) labelEl.textContent = sensor.name;
+                const cal = sensor.calibration || {};
+                const maxPsi = cal.max_psi || cal.maxPSI;
+                if (maxPsi && detailsEl) detailsEl.textContent = `Rating: 0–${maxPsi} PSI`;
+            });
+        }
+
+        function updatePTData(channels) {
+            if (!channels || !Array.isArray(channels)) return;
+
+            channels.forEach((ch, idx) => {
+                const element = document.getElementById(`pt-${idx}`);
+                if (!element) return;
+
+                const valueEl = element.querySelector('.telemetry-value');
+                const rawEl = element.querySelector('.telemetry-raw');
+                const details = ensureDetails(element);
+                
+                element.classList.remove('disconnected', 'unconfigured');
+
+                if (ch.status === 'disconnected') {
+                    valueEl.textContent = 'DISCONNECTED';
+                    if (rawEl) rawEl.textContent = '--';
+                    element.classList.add('disconnected');
+                } else if (ch.status === 'unconfigured') {
+                    valueEl.textContent = 'UNCONFIGURED';
+                    if (rawEl) rawEl.textContent = '--';
+                    element.classList.add('unconfigured');
+                } else {
+                    const psi = ch.pressure_psi !== undefined ? ch.pressure_psi : 0;
+                    valueEl.textContent = psi.toFixed(3);
+                    pushSpark('pt', idx, psi);
+                    
+                    // Show raw current prominently
+                    if (ch.current_ma !== undefined && rawEl) {
+                        rawEl.textContent = `${ch.current_ma.toFixed(3)} mA`;
+                    }
+                }
+                
+                // Details element already contains rating from config, don't clear it
+            });
+        }
+
+        function updateLCData(channels) {
+            if (!channels || !Array.isArray(channels)) return;
+
+            channels.forEach((ch, arrayIdx) => {
+                if (!ch) return;
+                const idx = (typeof ch.channel === 'number') ? ch.channel : arrayIdx;
+                const element = document.getElementById(`lc-${idx}`);
+                if (!element) return;
+
+                const labelEl = element.querySelector('.telemetry-label');
+                const valueEl = element.querySelector('.telemetry-value');
+                const rawEl = element.querySelector('.telemetry-raw');
+                const details = ensureDetails(element);
+                
+                // Update label with name from config
+                if (ch.name) {
+                    labelEl.textContent = ch.name;
+                }
+                
+                // Display lbf value
+                const lbf = ch.lbf !== undefined ? ch.lbf : 0;
+                valueEl.textContent = lbf.toFixed(3);
+                pushSpark('lc', idx, lbf);
+
+                // Show raw V/V prominently
+                if (ch.v_per_v !== undefined && ch.v_per_v !== null && rawEl) {
+                    rawEl.textContent = `${Number(ch.v_per_v).toFixed(6)} V/V`;
+                } else if (rawEl) {
+                    rawEl.textContent = '-- V/V';
+                }
+            });
+        }
+
+        function ensureDetails(el) {
+            let d = el.querySelector('.telemetry-details');
+            if (!d) {
+                d = document.createElement('div');
+                d.className = 'telemetry-details';
+                el.appendChild(d);
+            }
+            return d;
+        }
+
+        function updateTimestamp() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString();
+            document.getElementById('data-timestamp').textContent = `Last Update: ${timeStr}`;
+        }
+
+        function updateUpdateRate() {
+            const now = Date.now();
+            updateTimes.push(now);
+            
+            updateTimes = updateTimes.filter(t => now - t < 10000);
+            
+            if (updateTimes.length > 1) {
+                const rate = updateTimes.length / 10;
+                document.getElementById('update-rate').textContent = rate.toFixed(1) + ' Hz';
+            }
+        }
+
+        function autoStartLogging() {
+            if (!autoStartedLogging && ws && ws.readyState === WebSocket.OPEN) {
+                autoStartedLogging = true;
+                ws.send(JSON.stringify({ action: 'start_logging' }));
+                console.log('Auto-started logging');
+            }
+        }
+
+        function createNewLogFile() {
+            // Disabled in spectator mode
+            return;
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                Swal.fire({
+                    title: 'Connection Error',
+                    text: 'WebSocket not connected',
+                    icon: 'error',
+                    toast: true,
+                    position: 'top-end',
+                    timer: 2500,
+                    showConfirmButton: false,
+                    backdrop: false
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: 'Create New Log File?',
+                text: 'This will close the current log and start a new one',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3182ce',
+                cancelButtonColor: '#a0aec0',
+                confirmButtonText: 'Create New Log'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Stop current logging
+                    ws.send(JSON.stringify({ action: 'stop_logging' }));
+                    
+                    // Start new log after brief delay
+                    setTimeout(() => {
+                        ws.send(JSON.stringify({ action: 'start_logging' }));
+                    }, 100);
+                }
+            });
+        }
+
+        function updateLoggingStatus(status) {
+            const indicator = document.getElementById('log-indicator');
+            const filenameEl = document.getElementById('log-filename');
+
+            if (status.active) {
+                indicator.classList.add('active');
+                const filename = status.filename || 'logging.csv';
+                const shortName = filename.split(/[/\\]/).pop();
+                filenameEl.textContent = `Logging to: ${shortName}`;
+            } else {
+                indicator.classList.remove('active');
+                filenameEl.textContent = 'Not logging';
+            }
+        }
+
+        function pollLoggingStatus() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                try {
+                    ws.send(JSON.stringify({ action: 'get_logging_status' }));
+                } catch (error) {
+                    console.error('Failed to poll logging status:', error);
+                }
+            }
+        }
+
+        function tareLCs() {
+            // Disabled in spectator mode
+            return;
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                Swal.fire({
+                    title: 'Connection Error',
+                    text: 'WebSocket not connected',
+                    icon: 'error',
+                    toast: true,
+                    position: 'top-end',
+                    timer: 2500,
+                    showConfirmButton: false,
+                    backdrop: false
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: 'Tare Load Cells?',
+                text: 'This will zero all load cell readings at their current values',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3182ce',
+                cancelButtonColor: '#a0aec0',
+                confirmButtonText: 'Tare Now'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    try {
+                        ws.send(JSON.stringify({ action: 'tare_lc' }));
+                    } catch (error) {
+                        console.error('Failed to send tare command:', error);
+                        Swal.fire({
+                            title: 'Error',
+                            text: 'Failed to send tare command',
+                            icon: 'error',
+                            toast: true,
+                            position: 'top-end',
+                            timer: 2500,
+                            showConfirmButton: false,
+                            backdrop: false
+                        });
+                    }
+                }
+            });
+        }
+
+        function tarePTs() {
+            // Disabled in spectator mode
+            return;
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                Swal.fire({
+                    title: 'Connection Error',
+                    text: 'WebSocket not connected',
+                    icon: 'error',
+                    toast: true,
+                    position: 'top-end',
+                    timer: 2500,
+                    showConfirmButton: false,
+                    backdrop: false
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: 'Tare Pressure Transducers?',
+                text: 'This will zero all PT readings at their current values',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3182ce',
+                cancelButtonColor: '#a0aec0',
+                confirmButtonText: 'Tare Now'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    try {
+                        ws.send(JSON.stringify({ action: 'tare_pt' }));
+                    } catch (error) {
+                        console.error('Failed to send tare PT command:', error);
+                        Swal.fire({
+                            title: 'Error',
+                            text: 'Failed to send tare command',
+                            icon: 'error',
+                            toast: true,
+                            position: 'top-end',
+                            timer: 2500,
+                            showConfirmButton: false,
+                            backdrop: false
+                        });
+                    }
+                }
+            });
+        }
+
+        function initWebSocket() {
+            try {
+                const host = window.location.hostname || 'localhost';
+                const port = 3000;
+                ws = new WebSocket(`ws://${host}:${port}`);
+            } catch (e) {
+                console.error('WebSocket init failed:', e);
+                updateConnectionStatus(false);
+                setTimeout(initWebSocket, 2000);
+                return;
+            }
+
+            ws.onopen = () => {
+                isWsConnected = true;
+                updateConnectionStatus(true);
+                updateStatusBar('Connected to DAQ server');
+                
+                // Auto-start logging after 1 second
+                setTimeout(autoStartLogging, 1000);
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    
+                    if (msg.type === 'batch' && msg.data) {
+                        // Efficient batch: ts_unix_us, dt_us, channels[], data{key:[...]}
+                        const d = msg.data;
+                        const chs = Array.isArray(d.channels) ? d.channels : [];
+                        // Push samples into sparklines and collect latest values
+                        const ptLatest = new Array(16).fill(undefined);
+                        const lcLatest = new Array(4).fill(undefined);
+                        chs.forEach((key)=>{
+                            const series = d.data && d.data[key];
+                            if (!Array.isArray(series) || series.length===0) return;
+                            // Map key back to card index
+                            let type='pt', idx=0;
+                            const mPT = key.match(/^PT(\d+)_psi$/); const mLC = key.match(/^LC(\d+)_lbf$/);
+                            if (mPT){ type='pt'; idx=Number(mPT[1]); }
+                            else if (mLC){ type='lc'; idx=Number(mLC[1]); }
+                            // Push all samples with inferred timestamps from batch timing
+                            const baseMs = (typeof d.ts_unix_us === 'number') ? d.ts_unix_us/1000 : performance.now();
+                            const dtMs = (typeof d.dt_us === 'number') ? Math.max(1, d.dt_us/1000) : 10;
+                            for (let i=0;i<series.length;i++){
+                                const t = baseMs + i*dtMs;
+                                pushSpark(type, idx, Number(series[i]), t);
+                            }
+                            const lastVal = Number(series[series.length-1]);
+                            if (type==='pt' && idx>=0 && idx<ptLatest.length) ptLatest[idx] = { channel: idx, pressure_psi: lastVal };
+                            if (type==='lc' && idx>=0 && idx<lcLatest.length) lcLatest[idx] = { channel: idx, lbf: lastVal };
+                        });
+                        // Update tile values from latest batch samples
+                        if (ptLatest.some(v=>v!==undefined)) updatePTData(ptLatest);
+                        if (lcLatest.some(v=>v!==undefined)) updateLCData(lcLatest);
+                        messageCount++;
+                        document.getElementById('message-count').textContent = `${messageCount} messages`;
+                        updateTimestamp();
+                        updateUpdateRate();
+                    } else if (msg.type === 'data' && msg.data) {
+                        messageCount++;
+                        document.getElementById('message-count').textContent = `${messageCount} messages`;
+                        
+                        // Update performance monitoring display
+                        if (msg.data.performance) {
+                            const perf = msg.data.performance;
+                            const latencyEl = document.getElementById('perf-latency');
+                            const staleEl = document.getElementById('perf-stale');
+                            
+                            if (latencyEl && typeof perf.avg_latency_ms === 'number') {
+                                const latency = perf.avg_latency_ms;
+                                const color = latency < 10 ? '#10b981' : latency < 50 ? '#f59e0b' : '#ef4444';
+                                latencyEl.innerHTML = `Latency: <span style="color: ${color}; font-weight: bold;">${latency.toFixed(1)}ms</span>`;
+                            }
+                            
+                            if (staleEl && typeof perf.stale_percentage === 'number') {
+                                const freshPct = 100 - perf.stale_percentage;
+                                const color = freshPct > 99 ? '#10b981' : freshPct > 95 ? '#f59e0b' : '#ef4444';
+                                staleEl.innerHTML = `Fresh: <span style="color: ${color}; font-weight: bold;">${freshPct.toFixed(1)}%</span>`;
+                            }
+                            
+                            const restartsEl = document.getElementById('perf-restarts');
+                            if (restartsEl && typeof perf.task_restarts === 'number') {
+                                const restarts = perf.task_restarts;
+                                const color = restarts === 0 ? '#10b981' : restarts < 5 ? '#f59e0b' : '#ef4444';
+                                const detail = perf.restart_counts ? 
+                                    Object.entries(perf.restart_counts).map(([k,v]) => `${k}:${v}`).join(' ') : '';
+                                restartsEl.innerHTML = `Restarts: <span style="color: ${color}; font-weight: bold;" title="${detail}">${restarts}</span>`;
+                            }
+                        }
+                        
+                        if (msg.data.channels && msg.data.channels.length > 0) {
+                            const pt = msg.data.channels.filter(ch => 'pressure_psi' in ch);
+                            const lc = msg.data.channels.filter(ch => ('lbf' in ch) || ('v_per_v' in ch));
+                            if (pt.length) updatePTData(pt);
+                            if (lc.length) updateLCData(lc);
+                            // Also push latest values into rings for charts
+                            pt.forEach((ch, idx)=>{ if (typeof ch.pressure_psi==='number') pushSpark('pt', ch.channel||idx, ch.pressure_psi); });
+                            lc.forEach((ch, idx)=>{ if (typeof ch.lbf==='number') pushSpark('lc', ch.channel||idx, ch.lbf); });
+                        }
+                        
+                        updateTimestamp();
+                        updateUpdateRate();
+                    } else if (msg.type === 'welcome') {
+                        updateStatusBar(msg.message);
+                    } else if (msg.success !== undefined && msg.message && msg.message.includes('Logging')) {
+                        if (msg.success) {
+                            const icon = msg.message.includes('started') ? 'success' : 'info';
+                            Swal.fire({
+                                title: msg.message.includes('started') ? 'Logging Started' : 'Logging Stopped',
+                                text: msg.message,
+                                icon: icon,
+                                timer: 2000,
+                                showConfirmButton: false,
+                                toast: true,
+                                position: 'top-end',
+                                backdrop: false
+                            });
+                        }
+                        pollLoggingStatus();
+                    } else if (msg.success !== undefined && msg.message && msg.message.includes('Tare')) {
+                        if (msg.success) {
+                            Swal.fire({
+                                title: 'Tare Command Sent',
+                                text: msg.message,
+                                icon: 'success',
+                                timer: 3000,
+                                showConfirmButton: false,
+                                toast: true,
+                                position: 'top-end',
+                                backdrop: false
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Tare Failed',
+                                text: msg.message,
+                                icon: 'error',
+                                toast: true,
+                                position: 'top-end',
+                                timer: 2500,
+                                showConfirmButton: false,
+                                backdrop: false
+                            });
+                        }
+                    } else if (msg.active !== undefined) {
+                        updateLoggingStatus(msg);
+                    }
+                } catch (error) {
+                    console.error('Error parsing WebSocket message:', error);
+                }
+            };
+
+            ws.onerror = (error) => {
+                isWsConnected = false;
+                updateConnectionStatus(false);
+                console.error('WebSocket error:', error);
+            };
+
+            ws.onclose = () => {
+                isWsConnected = false;
+                updateConnectionStatus(false);
+                updateStatusBar('Disconnected. Reconnecting...');
+                autoStartedLogging = false;
+                setTimeout(initWebSocket, 2000);
+            };
+        }
+
+        function updateConnectionStatus(connected) {
+            const indicator = document.getElementById('connection-indicator');
+            const text = document.getElementById('connection-text');
+            
+            if (connected) {
+                indicator.classList.add('connected');
+                text.textContent = 'Connected';
+            } else {
+                indicator.classList.remove('connected');
+                text.textContent = 'Disconnected';
+            }
+        }
+
+        function updateStatusBar(message, info = '') {
+            // Status bar removed
+        }
+
+        // Sparkline charts (Chart.js) ---------------------------------
+        const SPARK_WINDOW_MS = 30000; // 30 seconds
+        const charts = { pt: [], lc: [] };
+        const chartUpdateQueue = new Set();
+
+        function resolveTimestamp(epochMs){
+            if (typeof epochMs === 'number') {
+                return epochMs;
+            }
+            return Date.now();
+        }
+
+        function ensureChart(type, idx){
+            if (charts[type][idx]) return charts[type][idx];
+            const container = document.getElementById(`${type}-${idx}`);
+            if (!container) return null;
+            const canvas = container.querySelector('.sparkline');
+            if (!canvas) return null;
+
+            const ctx = canvas.getContext('2d');
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        data: [],
+                        borderColor: type === 'pt' ? '#3182ce' : '#805ad5',
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0,
+                        spanGaps: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    layout: {
+                        padding: { left: 4, right: 4, top: 4, bottom: 4 }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { 
+                            enabled: true,
+                            mode: 'nearest',
+                            intersect: false,
+                            callbacks: {
+                                title: function(context) {
+                                    const d = new Date(context[0].parsed.x);
+                                    return d.toLocaleTimeString();
+                                },
+                                label: function(context) {
+                                    return context.parsed.y.toFixed(3);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            adapters: {
+                                date: {
+                                    locale: undefined
+                                }
+                            },
+                            time: {
+                                unit: 'second',
+                                displayFormats: { second: 'mm:ss' }
+                            },
+                            grid: { display: true, color: 'rgba(0,0,0,0.05)' },
+                            ticks: { 
+                                display: true,
+                                font: { size: 9 },
+                                color: '#718096'
+                            }
+                        },
+                        y: {
+                            grid: { display: true, color: 'rgba(0,0,0,0.05)' },
+                            ticks: { 
+                                display: true,
+                                font: { size: 9 },
+                                color: '#718096',
+                                callback: function(value) {
+                                    return value.toFixed(1);
+                                }
+                            }
+                        }
+                    },
+                    elements: {
+                        line: { borderJoinStyle: 'round', borderWidth: 2 },
+                        point: { radius: 0, hoverRadius: 4 }
+                    }
+                }
+            });
+            charts[type][idx] = chart;
+            return chart;
+        }
+
+        function pushSpark(type, idx, value, epochMs){
+            const chart = ensureChart(type, idx);
+            if (!chart) return;
+
+            const data = chart.data.datasets[0].data;
+            const t = resolveTimestamp(epochMs);
+            data.push({ x: t, y: Number(value) });
+
+            const cutoff = Date.now() - SPARK_WINDOW_MS;
+            while (data.length && data[0].x < cutoff) {
+                data.shift();
+            }
+
+            chartUpdateQueue.add(chart);
+        }
+
+        function startChartRenderLoop(){
+            const render = () => {
+                if (chartUpdateQueue.size > 0) {
+                    const now = Date.now();
+                    chartUpdateQueue.forEach(chart => {
+                        chart.options.scales.x.min = now - SPARK_WINDOW_MS;
+                        chart.options.scales.x.max = now;
+                        chart.update('none');
+                    });
+                    chartUpdateQueue.clear();
+                }
+                requestAnimationFrame(render);
+            };
+            requestAnimationFrame(render);
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            initTelemetry();
+            initWebSocket();
+            updateStatusBar('Connecting to server...');
+            startChartRenderLoop();
+            // Poll logging status every 2 seconds
+            setInterval(pollLoggingStatus, 2000);
+        });
+    </script>
+</body>
+
+</html>

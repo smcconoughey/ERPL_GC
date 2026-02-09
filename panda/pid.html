@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Draco P&ID Control</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; height: 100vh; width: 100vw; display: flex; flex-direction: column; background-color: #f8fafc; overflow: hidden; }
+        .header { display: flex; justify-content: space-between; align-items: center; background-color: #f5f5f5; padding: 10px 20px; border-bottom: 1px solid #ddd; position: relative; z-index: 1000; flex-shrink: 0; }
+        .header.armed { box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4); }
+        .title { font-size: 20px; font-weight: bold; color: #e53e3e; }
+        .toast { position: fixed; top: 80px; right: 20px; background: white; padding: 12px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 12px; z-index: 10000; animation: slideIn 0.2s ease-out; }
+        @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast.warning { border-left: 4px solid #ed8936; } .toast.success { border-left: 4px solid #38a169; } .toast.error { border-left: 4px solid #e53e3e; } .toast.info { border-left: 4px solid #3b82f6; }
+        .toast-icon { font-size: 24px; } .toast.warning .toast-icon { color: #ed8936; } .toast.success .toast-icon { color: #38a169; } .toast.error .toast-icon { color: #e53e3e; } .toast.info .toast-icon { color: #3b82f6; }
+        .toast-content { flex: 1; } .toast-title { font-weight: bold; font-size: 14px; margin-bottom: 2px; } .toast-message { font-size: 12px; color: #718096; }
+        .connection-status { font-size: 11px; color: #4a5568; display: flex; flex-direction: column; gap: 2px; }
+        .conn-row { display: flex; align-items: center; gap: 5px; }
+        .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: #e53e3e; } .conn-dot.connected { background: #38a169; }
+        .safety-controls { position: absolute; top: 0; right: 0; width: 200px; height: 100%; }
+        .emergency-stop { position: absolute; top: 0; right: 0; width: 100%; height: 100%; background-color: #8b0000; color: white; font-weight: bold; border: none; cursor: pointer; font-size: 18px; text-transform: uppercase; }
+        .abort-controls { position: absolute; top: 0; left: 0; width: 200px; height: 100%; }
+        .abort { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: #ffd700; color: black; font-weight: bold; border: none; cursor: pointer; font-size: 18px; text-transform: uppercase; }
+        .log-top-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 8px; }
+        .arm-controls-top { position: absolute; top: 50%; left: 210px; transform: translateY(-50%); display: flex; gap: 6px; }
+        .arm-btn-compact { padding: 8px 16px; border: none; border-radius: 6px; font-weight: bold; font-size: 12px; cursor: pointer; text-transform: uppercase; }
+        .arm-btn-compact.arm { background-color: #ed8936; color: white; } .arm-btn-compact.disarm { background-color: #38a169; color: white; }
+        .logging-indicator.top { width: 8px; height: 8px; border-radius: 50%; background-color: #cbd5e0; } .logging-indicator.top.active { background-color: #48bb78; }
+        .logging-filename-top { font-size: 11px; color: #4a5568; font-family: monospace; }
+        .log-btn { padding: 6px 10px; border: none; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+        .log-btn.start { background-color: #48bb78; color: white; }
+        .log-btn.edit-mode { background-color: #9f7aea; } .log-btn.edit-mode.active { background-color: #6b46c1; }
+        .info-bar { background-color: #fff; border-bottom: 1px solid #e2e8f0; padding: 6px 20px; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #4a5568; flex-shrink: 0; }
+        .main-container { flex: 1; display: flex; overflow: hidden; }
+        .pid-container { flex: 1; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%); padding: 8px; overflow: hidden; position: relative; }
+        .pid-svg { width: 100%; height: 100%; }
+        .sidebar { width: 180px; background: white; border-left: 2px solid #e2e8f0; display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0; font-size: 10px; }
+        .sidebar-section { padding: 6px; border-bottom: 1px solid #e2e8f0; }
+        .sidebar-title { font-size: 9px; font-weight: 600; text-transform: uppercase; color: #718096; margin-bottom: 4px; }
+        .valve-list { display: flex; flex-direction: column; gap: 2px; }
+        .valve-item { display: flex; justify-content: space-between; align-items: center; padding: 3px 5px; background: #f7fafc; border-radius: 3px; border: 1px solid #e2e8f0; cursor: pointer; }
+        .valve-item:hover { border-color: #3182ce; background: #ebf8ff; } .valve-item.active { border-color: #38a169; background: #f0fff4; }
+        .valve-name { font-size: 8px; font-weight: 600; color: #2d3748; }
+        .valve-state { font-size: 7px; font-weight: 700; padding: 2px 4px; border-radius: 2px; } .valve-state.off { background: #edf2f7; color: #718096; } .valve-state.on { background: #48bb78; color: white; }
+        .valve-symbol { cursor: pointer; } .valve-symbol:hover { filter: brightness(0.85); }
+        .valve-symbol .valve-body { fill: #a0aec0; stroke: #718096; stroke-width: 2; } .valve-symbol.active .valve-body { fill: #48bb78; stroke: #38a169; }
+        .valve-symbol .valve-label { fill: white; font-size: 10px; font-weight: 700; font-family: Arial; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+        .pipe { stroke-width: 4; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+        .pipe-lox { stroke: #3182ce; } .pipe-fuel { stroke: #ed8936; } .pipe-gn2 { stroke: #38a169; } .pipe-purge { stroke: #9f7aea; } .pipe-vent { stroke: #a0aec0; stroke-dasharray: 8 4; }
+        .tank { fill: #ffffff; stroke-width: 3; } .tank-lox { stroke: #3182ce; } .tank-fuel { stroke: #ed8936; } .tank-gn2 { stroke: #38a169; } .tank-misc { stroke: #9f7aea; }
+        .tank-label { fill: #2d3748; font-size: 16px; font-weight: 700; font-family: Arial; text-anchor: middle; }
+        .tank-sublabel { fill: #718096; font-size: 9px; font-family: Arial; text-anchor: middle; }
+        .tank-weight { fill: #d97706; font-size: 13px; font-weight: 700; font-family: monospace; text-anchor: middle; }
+        .pt-sensor circle { fill: #ebf8ff; stroke: #3182ce; stroke-width: 2; } .pt-sensor .pt-label { fill: #2d3748; font-size: 8px; font-weight: 700; font-family: Arial; text-anchor: middle; } .pt-sensor .pt-value { fill: #3182ce; font-size: 9px; font-weight: 700; font-family: monospace; text-anchor: middle; }
+        .reg-symbol polygon { fill: #ffffff; stroke: #38a169; stroke-width: 3; } .reg-symbol text { fill: #2d3748; font-size: 11px; font-weight: 700; font-family: Arial; text-anchor: middle; }
+        .venturi-box rect { fill: #fef3c7; stroke: #d97706; stroke-width: 2; } .venturi-box .v-title { fill: #92400e; font-size: 8px; font-weight: 700; font-family: Arial; text-anchor: middle; } .venturi-box .v-label { fill: #78350f; font-size: 7px; font-weight: 600; font-family: Arial; text-anchor: middle; } .venturi-box .v-value { fill: #d97706; font-size: 9px; font-weight: 700; font-family: monospace; text-anchor: middle; }
+        .edit-mode .draggable { cursor: move; } .edit-mode .draggable:hover { filter: drop-shadow(0 0 6px #9f7aea); }
+        .edit-mode .draggable.selected { filter: drop-shadow(0 0 8px #6b46c1); }
+        .edit-toolbar { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: white; padding: 8px 14px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); display: none; gap: 8px; align-items: center; z-index: 100; }
+        .edit-toolbar.visible { display: flex; }
+        .edit-toolbar button { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+        .edit-toolbar .layer-btn { background: #edf2f7; color: #4a5568; } .edit-toolbar .layer-btn:hover { background: #e2e8f0; }
+        .edit-toolbar .save-btn { background: #38a169; color: white; } .edit-toolbar .reset-btn { background: #e53e3e; color: white; } .edit-toolbar .cancel-btn { background: #718096; color: white; }
+        .layer-controls { display: flex; gap: 4px; border-right: 1px solid #e2e8f0; padding-right: 8px; margin-right: 4px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">Draco P&ID</div>
+        <div class="connection-status">
+            <div class="conn-row"><div class="conn-dot" id="panda-dot"></div><span>PANDA: <span id="panda-status">--</span></span></div>
+            <div class="conn-row"><div class="conn-dot" id="nidaq-dot"></div><span>NI DAQ: <span id="nidaq-status">--</span></span></div>
+        </div>
+        <div class="abort-controls"><button class="abort" id="abort_button">ABORT</button></div>
+        <div class="safety-controls"><button class="emergency-stop" id="emergency_stop">E-STOP</button></div>
+        <div class="arm-controls-top">
+            <button class="arm-btn-compact disarm" id="disarm-btn-top"><i class="fas fa-shield-alt"></i> DISARM</button>
+            <button class="arm-btn-compact arm" id="arm-btn-top"><i class="fas fa-exclamation-triangle"></i> ARM</button>
+        </div>
+        <div class="log-top-center">
+            <div class="logging-indicator top" id="logging-indicator-top"></div>
+            <span class="logging-filename-top" id="logging-filename-top">No log</span>
+            <button class="log-btn start" onclick="createNewLog()"><i class="fas fa-file-alt"></i> Log</button>
+            <button class="log-btn start edit-mode" id="edit-mode-btn" onclick="toggleEditMode()"><i class="fas fa-edit"></i> Edit</button>
+            <a href="panda-daq-ui-v2.html" class="log-btn start"><i class="fas fa-gauge"></i> Telem</a>
+        </div>
+    </div>
+    <div class="info-bar">
+        <div class="info-left"><div class="info-item"><i class="fas fa-clock"></i><span id="info-last-update">--:--:--</span></div></div>
+        <div class="info-right"><button class="log-btn start" onclick="allValvesOff()" style="background:#e53e3e;"><i class="fas fa-power-off"></i> All OFF</button></div>
+    </div>
+
+    <div class="main-container">
+        <div class="pid-container" id="pid-container">
+            <svg class="pid-svg" id="pid-svg" viewBox="0 0 1100 720" preserveAspectRatio="xMidYMid meet">
+                <defs>
+                    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e2e8f0" stroke-width="0.5"/>
+                    </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#grid)"/>
+                
+                <!-- 
+                LAYOUT REFERENCE:
+                - LOX Tank: x=320-480, y=240-480 (center x=400)
+                - Fuel Tank: x=620-780, y=240-480 (center x=700)
+                - Valves are 44x24
+                -->
+                
+                <!-- ===== PIPES ===== -->
+                <g id="layer-pipes">
+                    <!-- GN2 Header: bottles to R1/R2 -->
+                    <path class="pipe pipe-gn2" d="M 100 100 H 180"/>
+                    <path class="pipe pipe-gn2" d="M 220 100 H 400 V 55 H 700 V 100 H 880"/>
+                    <path class="pipe pipe-gn2" d="M 920 100 H 1000"/>
+                    
+                    <!-- LOX Press: R1 down to S5/PB1 to tank top -->
+                    <path class="pipe pipe-gn2" d="M 400 100 V 152"/>
+                    <path class="pipe pipe-gn2" d="M 400 200 V 240"/>
+                    
+                    <!-- Fuel Press: R2 down to S6/PB5 to tank top -->
+                    <path class="pipe pipe-gn2" d="M 700 100 V 152"/>
+                    <path class="pipe pipe-gn2" d="M 700 200 V 240"/>
+                    
+                    <!-- LOX Vent: tank to PB3 to vent -->
+                    <path class="pipe pipe-vent" d="M 320 280 H 262"/>
+                    <path class="pipe pipe-vent" d="M 218 280 H 180 V 230"/>
+                    
+                    <!-- LOX Dump: tank to PB10 to dump -->
+                    <path class="pipe pipe-lox" d="M 320 340 H 262"/>
+                    <path class="pipe pipe-lox" d="M 218 340 H 150"/>
+                    
+                    <!-- LOX GOX Purge: tank to PB9 down -->
+                    <path class="pipe pipe-purge" d="M 320 400 H 262"/>
+                    <path class="pipe pipe-purge" d="M 218 400 H 200 V 480"/>
+                    
+                    <!-- Fuel Vent: tank to PB7 to vent -->
+                    <path class="pipe pipe-vent" d="M 780 280 H 838"/>
+                    <path class="pipe pipe-vent" d="M 882 280 H 920 V 230"/>
+                    
+                    <!-- Fuel Muscle: tank to S3 -->
+                    <path class="pipe pipe-purge" d="M 780 340 H 838"/>
+                    <path class="pipe pipe-purge" d="M 882 340 H 950"/>
+                    
+                    <!-- LOX Run: tank bottom through venturi to PB4 -->
+                    <path class="pipe pipe-lox" d="M 400 480 V 540"/>
+                    <path class="pipe pipe-lox" d="M 400 575 V 610"/>
+                    
+                    <!-- Fuel Run: tank bottom through venturi to PB8 -->
+                    <path class="pipe pipe-fuel" d="M 700 480 V 540"/>
+                    <path class="pipe pipe-fuel" d="M 700 575 V 610"/>
+                    
+                    <!-- LOX Run to engine -->
+                    <path class="pipe pipe-lox" d="M 400 634 V 665 H 530"/>
+                    
+                    <!-- Fuel Run to engine -->
+                    <path class="pipe pipe-fuel" d="M 700 634 V 665 H 570"/>
+                    
+                    <!-- Engine inlet -->
+                    <path class="pipe pipe-lox" d="M 530 665 V 685"/>
+                    <path class="pipe pipe-fuel" d="M 570 665 V 685"/>
+                    
+                    <!-- Purge Bus: from downstream of fuel reg, down right side -->
+                    <path class="pipe pipe-purge" d="M 750 100 V 550 H 430"/>
+                    <path class="pipe pipe-purge" d="M 370 550 H 200"/>
+                    
+                    <!-- S1 LOX purge into engine -->
+                    <path class="pipe pipe-purge" d="M 400 550 V 665"/>
+                    
+                    <!-- S2 Fuel purge into engine -->
+                    <path class="pipe pipe-purge" d="M 700 550 V 665"/>
+                    
+                    <!-- Muscle Bus: accumulator to S3 -->
+                    <path class="pipe pipe-purge" d="M 100 500 H 130"/>
+                </g>
+                
+                <!-- ===== TANKS ===== -->
+                <g id="layer-tanks">
+                    <!-- GN2 LOX Side -->
+                    <g class="draggable" data-id="gn2-lox">
+                        <rect x="25" y="60" width="35" height="80" rx="4" class="tank tank-gn2"/>
+                        <rect x="65" y="60" width="35" height="80" rx="4" class="tank tank-gn2"/>
+                        <text x="62" y="50" class="tank-sublabel" fill="#38a169" style="font-weight:600;">GN2 2×6K</text>
+                    </g>
+                    
+                    <!-- GN2 Fuel Side -->
+                    <g class="draggable" data-id="gn2-fuel">
+                        <rect x="1000" y="60" width="35" height="80" rx="4" class="tank tank-gn2"/>
+                        <rect x="1040" y="60" width="35" height="80" rx="4" class="tank tank-gn2"/>
+                        <text x="1037" y="50" class="tank-sublabel" fill="#38a169" style="font-weight:600;">GN2 2×6K</text>
+                    </g>
+                    
+                    <!-- LOX Tank -->
+                    <g class="draggable" data-id="lox-tank">
+                        <rect x="320" y="240" width="160" height="240" rx="6" class="tank tank-lox"/>
+                        <text x="400" y="285" class="tank-label" fill="#3182ce">LOX</text>
+                        <text x="400" y="305" class="tank-sublabel">Tank</text>
+                        <text x="400" y="380" class="tank-weight" id="lox-weight">-- lbf</text>
+                        <text x="400" y="460" class="tank-sublabel">1700 PSI</text>
+                    </g>
+                    
+                    <!-- Fuel Tank -->
+                    <g class="draggable" data-id="fuel-tank">
+                        <rect x="620" y="240" width="160" height="240" rx="6" class="tank tank-fuel"/>
+                        <text x="700" y="285" class="tank-label" fill="#ed8936">FUEL</text>
+                        <text x="700" y="305" class="tank-sublabel">Tank</text>
+                        <text x="700" y="380" class="tank-weight" id="fuel-weight">-- lbf</text>
+                        <text x="700" y="460" class="tank-sublabel">1700 PSI</text>
+                    </g>
+                    
+                    <!-- Muscle Accumulator -->
+                    <g class="draggable" data-id="muscle">
+                        <rect x="30" y="470" width="70" height="55" rx="4" class="tank tank-misc"/>
+                        <text x="65" y="493" class="tank-sublabel" fill="#9f7aea" style="font-weight:600;">Muscle</text>
+                        <text x="65" y="508" class="tank-sublabel">Accum</text>
+                        <text x="65" y="458" class="tank-sublabel" fill="#9f7aea">Muscle Bus</text>
+                    </g>
+                    
+                    <!-- Engine -->
+                    <g class="draggable" data-id="engine">
+                        <polygon points="550,685 600,740 500,740" fill="#ffffff" stroke="#ed8936" stroke-width="3"/>
+                        <text x="550" y="725" class="tank-sublabel" style="font-weight:700;">ENGINE</text>
+                    </g>
+                </g>
+                
+                <!-- ===== REGULATORS ===== -->
+                <g id="layer-regs">
+                    <g class="reg-symbol draggable" data-id="r1" transform="translate(180, 85)">
+                        <polygon points="0,15 40,0 40,30"/>
+                        <text x="20" y="18">R1</text>
+                    </g>
+                    <g class="reg-symbol draggable" data-id="r2" transform="translate(880, 85)">
+                        <polygon points="40,15 0,0 0,30"/>
+                        <text x="20" y="18">R2</text>
+                    </g>
+                </g>
+                
+                <!-- ===== VALVES ===== -->
+                <g id="layer-valves">
+                    <!-- LOX Press: S5 and PB1 (stacked vertically on press line) -->
+                    <g class="valve-symbol draggable" data-channel="12" data-id="s5" onclick="toggleValve(12)" transform="translate(378, 152)">
+                        <rect x="0" y="0" width="44" height="24" rx="4" class="valve-body"/><text x="22" y="12" class="valve-label">S5</text>
+                    </g>
+                    <g class="valve-symbol draggable" data-channel="8" data-id="pb1" onclick="toggleValve(8)" transform="translate(378, 176)">
+                        <rect x="0" y="0" width="44" height="24" rx="4" class="valve-body"/><text x="22" y="12" class="valve-label">PB1</text>
+                    </g>
+                    
+                    <!-- LOX Vent: PB3 -->
+                    <g class="valve-symbol draggable" data-channel="1" data-id="pb3" onclick="toggleValve(1)" transform="translate(218, 268)">
+                        <rect x="0" y="0" width="44" height="24" rx="4" class="valve-body"/><text x="22" y="12" class="valve-label">PB3</text>
+                    </g>
+                    
+                    <!-- LOX Dump: PB10 -->
+                    <g class="valve-symbol draggable" data-channel="2" data-id="pb10" onclick="toggleValve(2)" transform="translate(218, 328)">
+                        <rect x="0" y="0" width="44" height="24" rx="4" class="valve-body"/><text x="22" y="12" class="valve-label">PB10</text>
+                    </g>
+                    
+                    <!-- LOX GOX: PB9 -->
+                    <g class="valve-symbol draggable" data-channel="4" data-id="pb9" onclick="toggleValve(4)" transform="translate(218, 388)">
+                        <rect x="0" y="0" width="44" height="24" rx="4" class="valve-body"/><text x="22" y="12" class="valve-label">PB9</text>
+                    </g>
+                    
+                    <!-- Fuel Press: S6 and PB5 -->
+                    <g class="valve-symbol draggable" data-channel="11" data-id="s6" onclick="toggleValve(11)" transform="translate(678, 152)">
+                        <rect x="0" y="0" width="44" height="24" rx="4" class="valve-body"/><text x="22" y="12" class="valve-label">S6</text>
+                    </g>
+                    <g class="valve-symbol draggable" data-channel="8" data-id="pb5" onclick="toggleValve(8)" transform="translate(678, 176)">
+                        <rect x="0" y="0" width="44" height="24" rx="4" class="valve-body"/><text x="22" y="12" class="valve-label">PB5</text>
+                    </g>
+                    
+                    <!-- Fuel Vent: PB7 -->
+                    <g class="valve-symbol draggable" data-channel="7" data-id="pb7" onclick="toggleValve(7)" transform="translate(838, 268)">
+                        <rect x="0" y="0" width="44" height="24" rx="4" class="valve-body"/><text x="22" y="12" class="valve-label">PB7</text>
+                    </g>
+                    
+                    <!-- Muscle: S3 (next to muscle tank) -->
+                    <g class="valve-symbol draggable" data-channel="6" data-id="s3" onclick="toggleValve(6)" transform="translate(130, 485)">
+                        <rect x="0" y="0" width="44" height="24" rx="4" class="valve-body"/><text x="22" y="12" class="valve-label">S3</text>
+                    </g>
+                    
+                    <!-- LOX Run: PB4 -->
+                    <g class="valve-symbol draggable" data-channel="10" data-id="pb4" onclick="toggleValve(10)" transform="translate(378, 610)">
+                        <rect x="0" y="0" width="44" height="24" rx="4" class="valve-body"/><text x="22" y="12" class="valve-label">PB4</text>
+                    </g>
+                    
+                    <!-- Fuel Run: PB8 -->
+                    <g class="valve-symbol draggable" data-channel="9" data-id="pb8" onclick="toggleValve(9)" transform="translate(678, 610)">
+                        <rect x="0" y="0" width="44" height="24" rx="4" class="valve-body"/><text x="22" y="12" class="valve-label">PB8</text>
+                    </g>
+                    
+                    <!-- LOX Purge: S1 (inline on purge to engine) -->
+                    <g class="valve-symbol draggable" data-channel="5" data-id="s1" onclick="toggleValve(5)" transform="translate(378, 575)">
+                        <rect x="0" y="0" width="44" height="24" rx="4" class="valve-body"/><text x="22" y="12" class="valve-label">S1</text>
+                    </g>
+                    
+                    <!-- Fuel Purge: S2 (inline on purge to engine) -->
+                    <g class="valve-symbol draggable" data-channel="3" data-id="s2" onclick="toggleValve(3)" transform="translate(678, 575)">
+                        <rect x="0" y="0" width="44" height="24" rx="4" class="valve-body"/><text x="22" y="12" class="valve-label">S2</text>
+                    </g>
+                </g>
+                
+                <!-- ===== VENTURIS ===== -->
+                <g id="layer-venturis">
+                    <g class="venturi-box draggable" data-id="venturi-lox" transform="translate(360, 540)">
+                        <rect x="0" y="0" width="80" height="28" rx="4"/>
+                        <text x="40" y="10" class="v-title">LOX Venturi</text>
+                        <text x="20" y="18" class="v-label">PT21</text>
+                        <text x="60" y="18" class="v-label">PT22</text>
+                        <text x="20" y="26" class="v-value" data-ch="12">--</text>
+                        <text x="60" y="26" class="v-value" data-ch="13">--</text>
+                    </g>
+                    <g class="venturi-box draggable" data-id="venturi-fuel" transform="translate(660, 540)">
+                        <rect x="0" y="0" width="80" height="28" rx="4"/>
+                        <text x="40" y="10" class="v-title">Fuel Venturi</text>
+                        <text x="20" y="18" class="v-label">PT23</text>
+                        <text x="60" y="18" class="v-label">PT24</text>
+                        <text x="20" y="26" class="v-value" data-ch="14">--</text>
+                        <text x="60" y="26" class="v-value" data-ch="15">--</text>
+                    </g>
+                </g>
+                
+                <!-- ===== PT SENSORS ===== -->
+                <g id="layer-pts">
+                    <!-- R1: PT1 upstream, PT2 downstream -->
+                    <g class="pt-sensor draggable" data-id="pt1" transform="translate(165, 100)">
+                        <circle cx="0" cy="0" r="14"/><text x="0" y="-3" class="pt-label">PT1</text><text x="0" y="8" class="pt-value" data-ch="0">--</text>
+                    </g>
+                    <g class="pt-sensor draggable" data-id="pt2" transform="translate(235, 100)">
+                        <circle cx="0" cy="0" r="14"/><text x="0" y="-3" class="pt-label">PT2</text><text x="0" y="8" class="pt-value" data-ch="1">--</text>
+                    </g>
+                    
+                    <!-- R2: PT11 upstream, PT12 downstream -->
+                    <g class="pt-sensor draggable" data-id="pt11" transform="translate(935, 100)">
+                        <circle cx="0" cy="0" r="14"/><text x="0" y="-3" class="pt-label">PT11</text><text x="0" y="8" class="pt-value" data-ch="5">--</text>
+                    </g>
+                    <g class="pt-sensor draggable" data-id="pt12" transform="translate(865, 100)">
+                        <circle cx="0" cy="0" r="14"/><text x="0" y="-3" class="pt-label">PT12</text><text x="0" y="8" class="pt-value" data-ch="6">--</text>
+                    </g>
+                    
+                    <!-- LOX Tank: PT3 top, PT4 bottom -->
+                    <g class="pt-sensor draggable" data-id="pt3" transform="translate(308, 260)">
+                        <circle cx="0" cy="0" r="14"/><text x="0" y="-3" class="pt-label">PT3</text><text x="0" y="8" class="pt-value" data-ch="2">--</text>
+                    </g>
+                    <g class="pt-sensor draggable" data-id="pt4" transform="translate(308, 460)">
+                        <circle cx="0" cy="0" r="14"/><text x="0" y="-3" class="pt-label">PT4</text><text x="0" y="8" class="pt-value" data-ch="3">--</text>
+                    </g>
+                    
+                    <!-- Fuel Tank: PT13 top, PT14 bottom -->
+                    <g class="pt-sensor draggable" data-id="pt13" transform="translate(792, 260)">
+                        <circle cx="0" cy="0" r="14"/><text x="0" y="-3" class="pt-label">PT13</text><text x="0" y="8" class="pt-value" data-ch="7">--</text>
+                    </g>
+                    <g class="pt-sensor draggable" data-id="pt14" transform="translate(792, 460)">
+                        <circle cx="0" cy="0" r="14"/><text x="0" y="-3" class="pt-label">PT14</text><text x="0" y="8" class="pt-value" data-ch="8">--</text>
+                    </g>
+                    
+                    <!-- Engine: PT5 LOX, PT15 Fuel -->
+                    <g class="pt-sensor draggable" data-id="pt5" transform="translate(490, 700)">
+                        <circle cx="0" cy="0" r="14"/><text x="0" y="-3" class="pt-label">PT5</text><text x="0" y="8" class="pt-value" data-ch="4">--</text>
+                    </g>
+                    <g class="pt-sensor draggable" data-id="pt15" transform="translate(610, 700)">
+                        <circle cx="0" cy="0" r="14"/><text x="0" y="-3" class="pt-label">PT15</text><text x="0" y="8" class="pt-value" data-ch="9">--</text>
+                    </g>
+                    
+                    <!-- PT31 Muscle (below S3) -->
+                    <g class="pt-sensor draggable" data-id="pt31" transform="translate(152, 530)">
+                        <circle cx="0" cy="0" r="14"/><text x="0" y="-3" class="pt-label">PT31</text><text x="0" y="8" class="pt-value" data-ch="10">--</text>
+                    </g>
+                    
+                    <!-- PT32 Purge Bus -->
+                    <g class="pt-sensor draggable" data-id="pt32" transform="translate(770, 550)">
+                        <circle cx="0" cy="0" r="14"/><text x="0" y="-3" class="pt-label">PT32</text><text x="0" y="8" class="pt-value" data-ch="11">--</text>
+                    </g>
+                </g>
+                
+                <!-- ===== LABELS ===== -->
+                <g id="layer-labels">
+                    <text x="550" y="28" style="font-size:18px;font-weight:700;fill:#2d3748;text-anchor:middle;">DRACO P&ID</text>
+                    <text x="550" y="44" style="font-size:10px;fill:#718096;text-anchor:middle;">Click valves to actuate • Green = OPEN</text>
+                    <text x="180" y="220" style="font-size:9px;fill:#718096;">↑ Vent</text>
+                    <text x="135" y="345" style="font-size:9px;fill:#718096;">← Dump</text>
+                    <text x="185" y="490" style="font-size:9px;fill:#718096;">GOX ↓</text>
+                    <text x="920" y="220" style="font-size:9px;fill:#718096;">Vent ↑</text>
+                    <text x="955" y="345" style="font-size:9px;fill:#718096;">Muscle →</text>
+                    <text x="790" y="565" style="font-size:9px;fill:#9f7aea;">Purge Bus</text>
+                </g>
+            </svg>
+            
+            <div class="edit-toolbar" id="edit-toolbar">
+                <div class="layer-controls">
+                    <button class="layer-btn" onclick="bringToFront()" title="Bring to Front"><i class="fas fa-arrow-up"></i></button>
+                    <button class="layer-btn" onclick="sendToBack()" title="Send to Back"><i class="fas fa-arrow-down"></i></button>
+                    <button class="layer-btn" onclick="moveUp()" title="Move Up"><i class="fas fa-chevron-up"></i></button>
+                    <button class="layer-btn" onclick="moveDown()" title="Move Down"><i class="fas fa-chevron-down"></i></button>
+                </div>
+                <button class="save-btn" onclick="saveLayout()"><i class="fas fa-save"></i> Save</button>
+                <button class="reset-btn" onclick="resetLayout()"><i class="fas fa-undo"></i> Reset</button>
+                <button class="cancel-btn" onclick="toggleEditMode()"><i class="fas fa-times"></i> Done</button>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">Valves</div>
+                <div class="valve-list" id="valve-list"></div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">PT Readings</div>
+                <div id="pt-list" style="font-size: 8px; font-family: monospace;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const PANDA_PORT = 3941, NIDAQ_PORT = 3000;
+        let pandaWs = null, nidaqWs = null, dcState = {}, editMode = false, dragTarget = null, dragOffset = { x: 0, y: 0 };
+        let selectedElement = null;
+        
+        const ptConfig = {
+            0: 'PT1', 1: 'PT2', 2: 'PT3', 3: 'PT4', 4: 'PT5',
+            5: 'PT11', 6: 'PT12', 7: 'PT13', 8: 'PT14', 9: 'PT15',
+            10: 'PT31', 11: 'PT32', 12: 'PT21', 13: 'PT22', 14: 'PT23', 15: 'PT24'
+        };
+        
+        const valveMap = {
+            1: 'PB3', 2: 'PB10', 3: 'S2', 4: 'PB9', 5: 'S1', 6: 'S3',
+            7: 'PB7', 8: 'PB1/5', 9: 'PB8', 10: 'PB4', 11: 'S6', 12: 'S5'
+        };
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            for (let i = 1; i <= 12; i++) dcState[i] = 0;
+            renderValveList(); renderPTList();
+            initPandaWS(); initNidaqWS();
+            setupEventListeners(); setupDragDrop();
+        });
+        
+        function renderValveList() {
+            document.getElementById('valve-list').innerHTML = Object.entries(valveMap).map(([id, name]) => `
+                <div class="valve-item ${dcState[id] ? 'active' : ''}" id="valve-item-${id}" onclick="toggleValve(${id})">
+                    <div class="valve-name">${name}</div>
+                    <div class="valve-state ${dcState[id] ? 'on' : 'off'}" id="valve-state-${id}">${dcState[id] ? 'ON' : 'OFF'}</div>
+                </div>`).join('');
+        }
+        
+        function renderPTList() {
+            document.getElementById('pt-list').innerHTML = Object.entries(ptConfig).map(([ch, name]) => 
+                `<div style="display:flex;justify-content:space-between;padding:2px 0;"><span>${name}</span><span id="pt-side-${ch}">--</span></div>`).join('');
+        }
+        
+        function initPandaWS() {
+            const host = window.location.hostname || 'localhost';
+            try {
+                pandaWs = new WebSocket(`ws://${host}:${PANDA_PORT}`);
+                pandaWs.onopen = () => { updateStatus('panda', true); loadLayoutFromServer(); };
+                pandaWs.onmessage = (e) => {
+                    try {
+                        const msg = JSON.parse(e.data);
+                        if (msg.dc && Array.isArray(msg.dc)) msg.dc.forEach((s, i) => { dcState[i+1] = s; updateValveVisual(i+1, s); });
+                        if (msg.logging !== undefined) updateLoggingStatus(msg.logging, msg.log_file);
+                        if (msg.action === 'load_pid_layout' && msg.layout) applyLayout(msg.layout);
+                        if (msg.action === 'save_pid_layout' && msg.success) showToast('Saved', '', 'success');
+                    } catch (err) {}
+                };
+                pandaWs.onclose = () => { updateStatus('panda', false); setTimeout(initPandaWS, 5000); };
+            } catch (e) { setTimeout(initPandaWS, 5000); }
+        }
+        
+        function initNidaqWS() {
+            const host = window.location.hostname || 'localhost';
+            try {
+                nidaqWs = new WebSocket(`ws://${host}:${NIDAQ_PORT}`);
+                nidaqWs.onopen = () => updateStatus('nidaq', true);
+                nidaqWs.onmessage = (e) => {
+                    try {
+                        const msg = JSON.parse(e.data);
+                        document.getElementById('info-last-update').textContent = new Date().toLocaleTimeString();
+                        if (msg.type === 'batch' && msg.data?.channels && msg.data?.data) {
+                            msg.data.channels.forEach(key => {
+                                const mPT = key.match(/^PT(\d+)_psi$/), mLC = key.match(/^LC(\d+)_lbf$/);
+                                const arr = msg.data.data[key];
+                                if (mPT && arr?.length) updatePT(parseInt(mPT[1]), arr[arr.length-1]);
+                                if (mLC && arr?.length) updateLC(parseInt(mLC[1]), arr[arr.length-1]);
+                            });
+                        }
+                        if (msg.type === 'data' && msg.data?.channels) {
+                            msg.data.channels.forEach(ch => {
+                                if (ch.pressure_psi !== undefined) updatePT(ch.channel, ch.pressure_psi);
+                                if (ch.lbf !== undefined) updateLC(ch.channel, ch.lbf);
+                            });
+                        }
+                    } catch (err) {}
+                };
+                nidaqWs.onclose = () => { updateStatus('nidaq', false); setTimeout(initNidaqWS, 5000); };
+            } catch (e) { setTimeout(initNidaqWS, 5000); }
+        }
+        
+        function updateStatus(type, ok) {
+            document.getElementById(`${type}-dot`).classList.toggle('connected', ok);
+            document.getElementById(`${type}-status`).textContent = ok ? 'OK' : '--';
+        }
+        
+        function updatePT(ch, val) {
+            const str = typeof val === 'number' ? val.toFixed(0) : '--';
+            document.querySelectorAll(`.pt-value[data-ch="${ch}"]`).forEach(el => el.textContent = str);
+            document.querySelectorAll(`.v-value[data-ch="${ch}"]`).forEach(el => el.textContent = str);
+            const side = document.getElementById(`pt-side-${ch}`);
+            if (side) side.textContent = str;
+        }
+        
+        function updateLC(ch, val) {
+            const str = typeof val === 'number' ? val.toFixed(0) + ' lbf' : '-- lbf';
+            if (ch === 2) document.getElementById('lox-weight').textContent = str;
+            if (ch === 3) document.getElementById('fuel-weight').textContent = str;
+        }
+        
+        function updateLoggingStatus(active, filename) {
+            document.getElementById('logging-indicator-top').classList.toggle('active', active);
+            document.getElementById('logging-filename-top').textContent = active ? (filename?.split(/[/\\]/).pop() || 'Logging...') : 'No log';
+        }
+        
+        function setupEventListeners() {
+            document.getElementById('arm-btn-top').addEventListener('click', () => { serialSend('a'); document.querySelector('.header').classList.add('armed'); showToast('Armed', '', 'warning'); });
+            document.getElementById('disarm-btn-top').addEventListener('click', () => { serialSend('r'); document.querySelector('.header').classList.remove('armed'); showToast('Disarmed', '', 'success'); });
+            document.getElementById('emergency_stop').addEventListener('click', emergencyStop);
+            document.getElementById('abort_button').addEventListener('click', () => { serialSend('r'); document.querySelector('.header').classList.remove('armed'); showToast('ABORT', '', 'warning'); });
+            document.addEventListener('keydown', (e) => { if (e.key === 'Escape') emergencyStop(); });
+        }
+        
+        function setupDragDrop() {
+            const svg = document.getElementById('pid-svg');
+            svg.addEventListener('mousedown', (e) => {
+                if (!editMode) return;
+                const target = e.target.closest('.draggable');
+                if (!target) { deselectElement(); return; }
+                selectElement(target);
+                dragTarget = target;
+                const ctm = svg.getScreenCTM(), pt = svg.createSVGPoint();
+                pt.x = e.clientX; pt.y = e.clientY;
+                const svgPt = pt.matrixTransform(ctm.inverse());
+                const transform = target.getAttribute('transform') || '';
+                const match = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+                dragOffset.x = svgPt.x - (match ? parseFloat(match[1]) : 0);
+                dragOffset.y = svgPt.y - (match ? parseFloat(match[2]) : 0);
+                e.preventDefault();
+            });
+            svg.addEventListener('mousemove', (e) => {
+                if (!dragTarget) return;
+                const ctm = svg.getScreenCTM(), pt = svg.createSVGPoint();
+                pt.x = e.clientX; pt.y = e.clientY;
+                const svgPt = pt.matrixTransform(ctm.inverse());
+                dragTarget.setAttribute('transform', `translate(${svgPt.x - dragOffset.x}, ${svgPt.y - dragOffset.y})`);
+            });
+            svg.addEventListener('mouseup', () => { dragTarget = null; });
+            svg.addEventListener('mouseleave', () => { dragTarget = null; });
+        }
+        
+        function selectElement(el) { deselectElement(); selectedElement = el; el.classList.add('selected'); }
+        function deselectElement() { if (selectedElement) selectedElement.classList.remove('selected'); selectedElement = null; }
+        function bringToFront() { if (selectedElement) selectedElement.parentNode.appendChild(selectedElement); }
+        function sendToBack() { if (selectedElement) selectedElement.parentNode.insertBefore(selectedElement, selectedElement.parentNode.firstChild); }
+        function moveUp() { if (selectedElement?.nextElementSibling) selectedElement.parentNode.insertBefore(selectedElement.nextElementSibling, selectedElement); }
+        function moveDown() { if (selectedElement?.previousElementSibling) selectedElement.parentNode.insertBefore(selectedElement, selectedElement.previousElementSibling); }
+        
+        function toggleEditMode() {
+            editMode = !editMode;
+            document.getElementById('pid-container').classList.toggle('edit-mode', editMode);
+            document.getElementById('edit-toolbar').classList.toggle('visible', editMode);
+            document.getElementById('edit-mode-btn').classList.toggle('active', editMode);
+            if (!editMode) deselectElement();
+        }
+        
+        function saveLayout() {
+            const layout = {};
+            document.querySelectorAll('.draggable[data-id]').forEach(el => {
+                layout[el.getAttribute('data-id')] = el.getAttribute('transform') || '';
+            });
+            if (pandaWs?.readyState === WebSocket.OPEN) {
+                pandaWs.send(JSON.stringify({ action: 'save_pid_layout', layout }));
+            } else {
+                try { localStorage.setItem('pid-layout', JSON.stringify(layout)); showToast('Saved locally', '', 'success'); } catch(e) {}
+            }
+        }
+        
+        function loadLayoutFromServer() {
+            if (pandaWs?.readyState === WebSocket.OPEN) {
+                pandaWs.send(JSON.stringify({ action: 'load_pid_layout' }));
+            } else {
+                try { const s = localStorage.getItem('pid-layout'); if (s) applyLayout(JSON.parse(s)); } catch(e) {}
+            }
+        }
+        
+        function applyLayout(layout) {
+            Object.entries(layout).forEach(([id, transform]) => {
+                const el = document.querySelector(`[data-id="${id}"]`);
+                if (el && transform) el.setAttribute('transform', transform);
+            });
+        }
+        
+        function resetLayout() {
+            if (pandaWs?.readyState === WebSocket.OPEN) pandaWs.send(JSON.stringify({ action: 'save_pid_layout', layout: {} }));
+            try { localStorage.removeItem('pid-layout'); } catch(e) {}
+            location.reload();
+        }
+        
+        function toHex(id) { return id <= 9 ? String(id) : {10:'A', 11:'B', 12:'C'}[id] || String(id); }
+        function serialSend(cmd) { if (pandaWs?.readyState === WebSocket.OPEN) pandaWs.send(JSON.stringify({ action: 'send', command: cmd })); }
+        function toggleValve(id) { if (!editMode) controlValve(id, dcState[id] === 1 ? 0 : 1); }
+        function controlValve(id, state) { serialSend(`S${toHex(id)}${state}`); dcState[id] = state; updateValveVisual(id, state); showToast(valveMap[id], state ? 'OPEN' : 'CLOSED', state ? 'success' : 'warning'); }
+        function updateValveVisual(id, state) {
+            document.querySelectorAll(`.valve-symbol[data-channel="${id}"]`).forEach(el => el.classList.toggle('active', state === 1));
+            const item = document.getElementById(`valve-item-${id}`), stateEl = document.getElementById(`valve-state-${id}`);
+            if (item) item.classList.toggle('active', state === 1);
+            if (stateEl) { stateEl.className = `valve-state ${state ? 'on' : 'off'}`; stateEl.textContent = state ? 'ON' : 'OFF'; }
+        }
+        function allValvesOff() { for (let i = 1; i <= 12; i++) { serialSend(`S${toHex(i)}0`); dcState[i] = 0; updateValveVisual(i, 0); } showToast('All OFF', '', 'warning'); }
+        function emergencyStop() { serialSend('r'); document.querySelector('.header').classList.remove('armed'); allValvesOff(); showToast('E-STOP', '', 'error'); }
+        function createNewLog() { if (pandaWs?.readyState === WebSocket.OPEN) pandaWs.send(JSON.stringify({ action: 'create_new_log' })); }
+        function showToast(title, message, type = 'info') {
+            const t = document.createElement('div'); t.className = `toast ${type}`;
+            t.innerHTML = `<i class="fas fa-${{success:'check-circle',error:'times-circle',warning:'exclamation-triangle',info:'info-circle'}[type]} toast-icon"></i><div class="toast-content"><div class="toast-title">${title}</div>${message ? `<div class="toast-message">${message}</div>` : ''}</div>`;
+            document.body.appendChild(t); setTimeout(() => t.remove(), 1500);
+        }
+    </script>
+</body>
+</html>

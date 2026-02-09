@@ -1,0 +1,2095 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sequence Builder</title>
+    <!-- Original scripts -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="assets/react.dev.js" crossorigin=""></script>
+    <script src="assets/reactdomdev.js" crossorigin=""></script>
+    <script src="assets/tailwind.js"></script>
+    <!-- Removed missing local JS includes to prevent 404s -->
+    <!-- SweetAlert2 for notifications -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="icon" type="image/x-icon" href="assets/smurfcat.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #f5f5f5;
+            padding: 10px 20px;
+            border-bottom: 1px solid #ddd;
+            position: relative;
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #e53e3e;
+        }
+
+        .safety-controls {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 250px;
+            height: 100%;
+        }
+
+        .emergency-stop {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #8b0000;
+            /* Dark red */
+            color: white;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: background-color 0.3s;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .emergency-stop:hover {
+            background-color: #990000;
+        }
+
+        .abort-controls {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 250px;
+            /* Specific width for abort */
+            height: 100%;
+        }
+
+        .abort {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ffd700;
+            /* Bright yellow */
+            color: black;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: background-color 0.3s;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .abort:hover {
+            background-color: #ffcc00;
+        }
+
+        .main-container {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .builder-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .add-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-blue {
+            background-color: #3182ce;
+            color: white;
+            border: none;
+        }
+
+        .btn-orange {
+            background-color: #ed8936;
+            color: white;
+            border: none;
+        }
+
+        .btn-green {
+            background-color: #38a169;
+            color: white;
+            border: none;
+        }
+
+        .btn-red {
+            background-color: #e53e3e;
+            color: white;
+            border: none;
+        }
+
+        .btn-gray {
+            background-color: #718096;
+            color: white;
+            border: none;
+        }
+
+        .sequence-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 15px;
+            background-color: #f9fafb;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            min-height: 120px;
+            overflow-x: auto;
+        }
+
+        .block {
+            width: 180px;
+            border-radius: 6px;
+            background-color: white;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .block-header {
+            padding: 8px;
+            border-top-left-radius: 6px;
+            border-top-right-radius: 6px;
+            color: white;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .block-action {
+            background-color: #3182ce;
+        }
+
+        .block-delay {
+            background-color: #d5a65f;
+        }
+
+        .block-content {
+            padding: 10px;
+        }
+
+        .remove-block {
+            cursor: pointer;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 16px;
+        }
+
+        .form-select,
+        .form-input {
+            width: 100%;
+            padding: 5px;
+            margin-bottom: 5px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            color: #4a5568;
+            margin-bottom: 2px;
+        }
+
+        .command-preview {
+            padding: 10px;
+            background-color: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            font-family: monospace;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .custom-command {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .custom-input {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+        }
+
+        .config-panel {
+            display: flex;
+            gap: 20px;
+        }
+
+        .config-section {
+            flex: 1;
+        }
+
+        .config-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .file-input {
+            display: block;
+            margin-top: 5px;
+        }
+
+        .readonly-blocks::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .readonly-blocks::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .sequence-container::-webkit-scrollbar-thumb,
+        .readonly-blocks::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        .sequence-container::-webkit-scrollbar-thumb:hover,
+        .readonly-blocks::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+
+        .sortable-ghost {
+            opacity: 0.4;
+            background-color: #edf2f7;
+            border: 2px dashed #3182ce;
+        }
+
+        .switch-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .switch-label {
+            margin-right: 10px;
+            font-size: 14px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: #3182ce;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(26px);
+        }
+
+        .action-section {
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .action-section:last-child {
+            border-bottom: none;
+        }
+
+        .help-tooltip {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .current-sequence-container {
+            padding: 6px;
+            background-color: #f0fff4;
+            border: 1px solid #38a169;
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+
+        .sequence-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .status-label {
+            font-weight: bold;
+            color: #4a5568;
+        }
+
+        .status-refresh {
+            cursor: pointer;
+            color: #3182ce;
+            font-size: 14px;
+        }
+
+        .status-refresh:hover {
+            color: #2c5282;
+        }
+
+        .current-sequence-display {
+            font-family: monospace;
+            background-color: #edf2f7;
+            padding: 8px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: nowrap;
+            min-height: 24px;
+        }
+
+        .has-sequence {
+            border-color: #38a169;
+            background-color: #f0fff4;
+        }
+
+        .no-sequence {
+            border-color: #e2e8f0;
+            background-color: #f8fafc;
+        }
+
+        .error {
+            border-color: #e53e3e;
+            background-color: #fff5f5;
+        }
+
+        .readonly-blocks {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 6px;
+            padding: 5px;
+            background-color: rgba(56, 161, 105, 0.05);
+            border: 1px solid #38a169;
+            border-radius: 4px;
+            min-height: 40px;
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+
+        .readonly-block {
+            min-width: 120px;
+            max-width: 180px;
+            background-color: rgba(255, 255, 255, 0.9);
+            cursor: default;
+            border-color: #38a169;
+            box-shadow: 0 1px 3px rgba(56, 161, 105, 0.2);
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .readonly-label {
+            font-size: 11px;
+            color: #4a5568;
+            margin-bottom: 1px;
+        }
+
+        .readonly-value {
+            font-weight: 500;
+            padding: 2px 0;
+            font-size: 13px;
+        }
+
+        .no-sequence-message {
+            width: 100%;
+            text-align: center;
+            color: #a0aec0;
+            padding: 20px 0;
+            font-style: italic;
+        }
+
+        .action-on {
+            color: #38a169;
+        }
+
+        .action-off {
+            color: #e53e3e;
+        }
+
+        .block-action-on {
+            background-color: #38a169;
+        }
+
+        .block-action-off {
+            background-color: #e53e3e;
+        }
+
+        .active-block {
+            transform: scale(1.05);
+            box-shadow: 0 0 0 2px #3182ce, 0 4px 6px rgba(49, 130, 206, 0.3);
+            z-index: 10;
+        }
+
+        .completed-block {
+            opacity: 0.8;
+        }
+
+        .progress-indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 4px;
+            background-color: #3182ce;
+            width: 0%;
+            border-top-left-radius: 6px;
+            transition: width 0.2s linear;
+        }
+
+        .sequence-progress {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        .progress-text {
+            font-size: 14px;
+            color: #4a5568;
+        }
+
+        .sequence-status-pill {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-idle {
+            background-color: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .status-running {
+            background-color: #38a169;
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        .reset-btn {
+            background-color: #718096;
+            color: white;
+            border: none;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .reset-btn:hover {
+            background-color: #4a5568;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="title">Sequence Builder</div>
+        <div class="abort-controls">
+            <button class="abort" id="abort_button">ABORT</button>
+        </div>
+        <div class="safety-controls">
+            <button class="emergency-stop" id="emergency_stop">EMERGENCY STOP</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="builder-panel">
+            <!-- Add current sequence display -->
+            <div class="current-sequence-container" id="current-sequence-container">
+                <div class="sequence-status">
+                    <span class="status-label">Currently Uploaded Sequence:</span>
+                    <span class="status-refresh" onclick="fetchCurrentSequence(true)" title="Refresh">
+                        <i class="fas fa-sync-alt"></i>
+                    </span>
+                </div>
+                <div class="current-sequence-display" id="current-sequence">No sequence uploaded</div>
+                <div class="sequence-progress">
+                    <span class="progress-text">Status:</span>
+                    <span class="sequence-status-pill status-idle" id="sequence-status">IDLE</span>
+                    <button class="reset-btn" id="reset-sequence-progress" style="display: none;" onclick="resetSequenceProgress()">
+                        <i class="fas fa-undo"></i> Reset
+                    </button>
+                </div>
+                <div class="readonly-blocks" id="current-sequence-blocks">
+                    <!-- Visual blocks of uploaded sequence will be added here -->
+                </div>
+            </div>
+
+            <div class="toolbar">
+                <div class="add-buttons">
+                    <button class="btn btn-blue" id="add-action">
+                        <i class="fas fa-plus"></i> Add Action
+                    </button>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-blue" id="upload-sequence">
+                        <i class="fas fa-upload"></i> Upload
+                    </button>
+                    <button class="btn btn-red" id="clear-sequence">
+                        <i class="fas fa-trash"></i> Clear
+                    </button>
+                    <button class="btn btn-blue" id="save-sequence">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                    <button class="btn btn-gray" id="load-sequence">
+                        <i class="fas fa-folder-open"></i> Load
+                    </button>
+                    <button class="btn btn-green" id="run-sequence">
+                        <i class="fas fa-play"></i> Fire
+                    </button>
+                </div>
+            </div>
+
+            <div class="sequence-container" id="sequence-blocks">
+                <!-- Blocks will be added here -->
+            </div>
+
+            <div class="command-preview" id="command-preview">command:</div>
+
+            <div class="custom-command">
+                <label for="custom-command-input">Custom Command:</label>
+                <input type="text" id="custom-command-input" class="custom-input"
+                    placeholder="Enter custom command (e.g., command:s11.5000000.s10)">
+                <button id="send-custom-command" class="btn btn-blue">Upload</button>
+            </div>
+        </div>
+
+        <div class="config-panel">
+            <div class="config-section">
+                <div class="config-title">Load Channel Names:</div>
+                <input type="file" id="channelNamingJSON" accept=".json" class="file-input">
+            </div>
+            <div class="config-section">
+                <div class="config-title">Load Default Valve States:</div>
+                <input type="file" id="channelStateJSON" accept=".json" class="file-input">
+            </div>
+        </div>
+    </div>
+
+    <div class="help-tooltip">
+        <div style="cursor: pointer; background-color: #3182ce; color: white;
+                width: 30px; height: 30px; border-radius: 50%; 
+                display: flex; justify-content: center; align-items: center;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+            <i class="fas fa-question"></i>
+        </div>
+    </div>
+
+    <script>
+        // Global variable to store the last uploaded sequence
+        let savedSequence = null;
+        let savedSequenceJson = null;
+        // Global valve configuration
+        let valveConfig = {};
+        // Sequence execution tracking
+        let sequenceSteps = [];
+        let currentStepIndex = -1;
+        let isSequenceRunning = false;
+        let sequenceTimer = null;
+        let totalSequenceTime = 0;
+        // WebSocket / Serial bridge state
+        let ws = null;
+        let isWsConnected = false;
+        let availableSerialPorts = [];
+        let connectedSerialPort = null;
+        let currentFirmwareSequence = '';
+
+        // Function to parse JSON sequence string into valve and delay steps
+        function parseJsonSequence(jsonSequenceStr) {
+            try {
+                // Try to parse the JSON string
+                const jsonObj = JSON.parse(jsonSequenceStr);
+                
+                if (!jsonObj.active_sequence) return [];
+                
+                const sequenceStr = jsonObj.active_sequence;
+                const parts = sequenceStr.split(',');
+                const steps = [];
+                
+                parts.forEach(part => {
+                    // Remove "ms" suffix
+                    part = part.replace(/ms$/, '');
+                    
+                    // Valve action - format "s20" (valve 2 off) or "s51" (valve 5 on)
+                    if (part.startsWith('s')) {
+                        const match = part.match(/^s(\d+)([01])?$/);
+                        if (match) {
+                            const valveId = match[1];
+                            // If no action specified, default to "on"
+                            const action = match[2] ? (match[2] === '1' ? 'on' : 'off') : 'on';
+                            
+                            steps.push({
+                                type: 'valve',
+                                valveId: valveId,
+                                action: action,
+                                duration: 0
+                            });
+                        }
+                    }
+                });
+                
+                return steps;
+            } catch (error) {
+                console.error("Error parsing JSON sequence:", error);
+                return [];
+            }
+        }
+
+        // Convert JSON format to command format
+        function convertJsonToCommand(jsonSequence) {
+            if (!jsonSequence) return null;
+            
+            // Parse JSON format
+            const steps = parseJsonSequence(jsonSequence);
+            if (steps.length === 0) return null;
+            
+            // Create command string
+            let commandFormat = "command:";
+            
+            steps.forEach((step, index) => {
+                if (step.type === 'valve') {
+                    const actionCode = step.action === 'on' ? '1' : '0';
+                    commandFormat += `s${step.valveId}${actionCode}`;
+                    
+                    // Add delay if needed
+                    if (index < steps.length - 1 && step.delay > 0) {
+                        commandFormat += `.${step.delay}`;
+                    }
+                }
+                
+                // Add separator between steps
+                if (index < steps.length - 1) {
+                    commandFormat += '.';
+                }
+            });
+            
+            return commandFormat;
+        }
+
+        // Function to fetch current sequence from the backend
+        function fetchCurrentSequence(showAnimation = false) {
+            const container = document.getElementById('current-sequence-container');
+            const display = document.getElementById('current-sequence');
+            const blocksContainer = document.getElementById('current-sequence-blocks');
+            const statusElement = document.getElementById('sequence-status');
+
+            // Optional animation for manual refresh
+            if (showAnimation) {
+                const refreshIcon = document.querySelector('.status-refresh i');
+                refreshIcon.classList.add('fa-spin');
+                setTimeout(() => refreshIcon.classList.remove('fa-spin'), 500);
+            }
+
+            // Use locally saved sequence (no HTTP backend)
+            if (savedSequenceJson) {
+                display.textContent = savedSequenceJson;
+                try {
+                    const jsonData = JSON.parse(savedSequenceJson);
+                    if (jsonData.active_sequence) {
+                        displayJsonSequenceAsBlocks(jsonData.active_sequence, blocksContainer);
+                        if (statusElement.textContent !== 'RUNNING') {
+                            statusElement.textContent = 'COMPLETED';
+                            statusElement.classList.remove('status-running');
+                            statusElement.classList.add('status-idle');
+                        }
+                        document.getElementById('reset-sequence-progress').style.display = 'inline-flex';
+                    }
+                } catch (_) {
+                    blocksContainer.innerHTML = '<div class="no-sequence-message">No sequence data found</div>';
+                    statusElement.textContent = 'IDLE';
+                    statusElement.classList.remove('status-running');
+                    statusElement.classList.add('status-idle');
+                    document.getElementById('reset-sequence-progress').style.display = 'none';
+                }
+            } else if (savedSequence) {
+                display.textContent = savedSequence;
+                displayFirmwareSequenceAsBlocks(savedSequence, blocksContainer);
+                if (statusElement.textContent !== 'RUNNING') {
+                    statusElement.textContent = 'COMPLETED';
+                    statusElement.classList.remove('status-running');
+                    statusElement.classList.add('status-idle');
+                }
+                document.getElementById('reset-sequence-progress').style.display = 'inline-flex';
+            } else {
+                display.textContent = 'No sequence uploaded';
+                blocksContainer.innerHTML = '<div class="no-sequence-message">No sequence uploaded</div>';
+                statusElement.textContent = 'IDLE';
+                statusElement.classList.remove('status-running');
+                statusElement.classList.add('status-idle');
+                document.getElementById('reset-sequence-progress').style.display = 'none';
+            }
+
+            if (savedSequence || savedSequenceJson) {
+                container.classList.add('has-sequence');
+                container.classList.remove('no-sequence');
+                container.classList.remove('error');
+            } else {
+                container.classList.remove('has-sequence');
+                container.classList.add('no-sequence');
+                container.classList.remove('error');
+            }
+        }
+
+        // Display the JSON sequence as blocks
+        function displayJsonSequenceAsBlocks(sequenceStr, container) {
+            // Clear the container
+            container.innerHTML = '';
+            
+            if (!sequenceStr) {
+                const placeholderDiv = document.createElement('div');
+                placeholderDiv.className = 'no-sequence-message';
+                placeholderDiv.textContent = 'No sequence data';
+                container.appendChild(placeholderDiv);
+                return;
+            }
+            
+            // Split by commas
+            const steps = sequenceStr.split(',');
+            let blockIndex = 0;
+            
+            steps.forEach(step => {
+                // Remove "ms" suffix
+                step = step.replace(/ms$/, '');
+                
+                // Check if it's a valve action (s21, s50, etc.)
+                if (step.match(/^s\d+[01]?$/)) {
+                    const match = step.match(/^s(\d+)([01])?$/);
+                    if (match) {
+                        const valveId = match[1];
+                        // If no action specified, default to "on"
+                        const action = match[2] ? (match[2] === '1' ? 'on' : 'off') : 'on';
+                        
+                        // Create valve block
+                        const block = createReadOnlyValveBlock(valveId, action, blockIndex++);
+                        container.appendChild(block);
+                    }
+                }
+                // Otherwise, it might be just a number (delay)
+                else if (step.match(/^\d+$/)) {
+                    const delayValue = step;
+                    // Create delay block
+                    const block = createReadOnlyDelayBlock(delayValue, blockIndex++);
+                    container.appendChild(block);
+                }
+            });
+            
+            // Parse steps for sequence execution
+            parseSequenceSteps(sequenceStr);
+        }
+
+        // Function to parse a command string and create visual blocks
+        function displayCommandAsBlocks(commandString, container) {
+            // Clear the container
+            container.innerHTML = '';
+
+            // If no command, show a message
+            if (!commandString || commandString === 'command:') {
+                const placeholderDiv = document.createElement('div');
+                placeholderDiv.className = 'no-sequence-message';
+                placeholderDiv.textContent = 'No sequence uploaded';
+                container.appendChild(placeholderDiv);
+                return;
+            }
+
+            // Remove the command: prefix
+            let command = commandString.replace(/^command:/, '');
+
+            // Parse the command to extract valve actions and delays
+            let parts = [];
+            let i = 0;
+            let blockIndex = 0;
+
+            while (i < command.length) {
+                // If we find a valve action
+                if (command[i] === 's') {
+                    let valveMatch = command.substring(i).match(/^s(\d+)([01])/);
+                    if (valveMatch) {
+                        const valveId = valveMatch[1];
+                        const valveAction = valveMatch[2] === '1' ? 'on' : 'off';
+
+                        // Create valve block
+                        const block = createReadOnlyValveBlock(valveId, valveAction, blockIndex++);
+                        container.appendChild(block);
+
+                        // Move index past this valve action
+                        i += valveMatch[0].length;
+                    } else {
+                        i++; // Move to next character if not a valid valve action
+                    }
+                }
+                // If we find a delay
+                else if (command[i] === '.') {
+                    i++; // Skip the dot
+                    let delayValue = '';
+
+                    // Extract all consecutive digits for the delay
+                    while (i < command.length && (command[i] >= '0' && command[i] <= '9')) {
+                        delayValue += command[i];
+                        i++;
+                    }
+
+                    if (delayValue) {
+                        // Create delay block with the actual number, not "NaN"
+                        const block = createReadOnlyDelayBlock(delayValue, blockIndex++);
+                        container.appendChild(block);
+                    }
+                } else {
+                    i++; // Skip any other characters
+                }
+            }
+
+            // Re-parse for sequence execution
+            parseSequenceSteps(commandString);
+        }
+
+        // Display firmware CSV as read-only blocks, e.g. "s11.00010,s10.02000,sA1.02000"
+        function displayFirmwareSequenceAsBlocks(csv, container) {
+            container.innerHTML = '';
+            if (!csv) {
+                const placeholderDiv = document.createElement('div');
+                placeholderDiv.className = 'no-sequence-message';
+                placeholderDiv.textContent = 'No sequence uploaded';
+                container.appendChild(placeholderDiv);
+                return;
+            }
+            const parts = csv.split(',');
+            let blockIndex = 0;
+            parts.forEach((part) => {
+                // Expect s<chanHex><state>.<delay5>
+                const m = part.match(/^s([0-9ABCDEFabcdef]+)([01])\.(\d{1,5})$/);
+                if (m) {
+                    let valveIdRaw = m[1];
+                    const state = m[2] === '1' ? 'on' : 'off';
+                    const delay = m[3];
+                    // Convert hex-ish channels A,B,C -> 10,11,12 for display lookup
+                    let displayId = valveIdRaw;
+                    if (/^[ABCabc]$/.test(valveIdRaw)) {
+                        const map = { 'A': '10', 'B': '11', 'C': '12' };
+                        displayId = map[valveIdRaw.toUpperCase()];
+                    }
+                    const valveBlock = createReadOnlyValveBlock(displayId, state, blockIndex++);
+                    container.appendChild(valveBlock);
+                    const delayBlock = createReadOnlyDelayBlock(String(parseInt(delay, 10)), blockIndex++);
+                    container.appendChild(delayBlock);
+                }
+            });
+            parseSequenceSteps('command:' + csv.replaceAll(',', '.'));
+        }
+
+        // Create a read-only valve block (more compact)
+        function createReadOnlyValveBlock(valveId, action, index) {
+            const block = document.createElement('div');
+            block.className = 'block readonly-block';
+            block.dataset.index = index;
+            block.dataset.type = 'valve';
+            block.dataset.valveId = valveId;
+            block.dataset.action = action;
+
+            // Try to get the valve name from the config, or use default
+            const valveName = valveConfig[valveId] ? valveConfig[valveId].name : `Solenoid ${valveId}`;
+
+            // Add progress indicator div
+            const progressIndicator = document.createElement('div');
+            progressIndicator.className = 'progress-indicator';
+            block.appendChild(progressIndicator);
+
+            block.innerHTML += `
+            <div class="block-header block-action ${action === 'on' ? 'block-action-on' : 'block-action-off'}">
+                <span>Valve</span>
+            </div>
+            <div class="block-content">
+                <div class="readonly-value">${valveName}</div>
+                <div class="readonly-value action-${action}">${action.toUpperCase()}</div>
+            </div>
+        `;
+
+            return block;
+        }
+
+        // Create a read-only delay block (more compact)
+        function createReadOnlyDelayBlock(milliseconds, index) {
+            const block = document.createElement('div');
+            block.className = 'block readonly-block';
+            block.dataset.index = index;
+            block.dataset.type = 'delay';
+            block.dataset.delay = milliseconds;
+
+            // Format the milliseconds for display
+            let displayValue;
+            if (milliseconds === "0") {
+                displayValue = "0";
+            } else {
+                // Try to parse the number
+                const numValue = parseInt(milliseconds);
+                displayValue = isNaN(numValue) ? "0" : numValue.toLocaleString();
+            }
+
+            // Add progress indicator div
+            const progressIndicator = document.createElement('div');
+            progressIndicator.className = 'progress-indicator';
+            block.appendChild(progressIndicator);
+
+            block.innerHTML += `
+            <div class="block-header block-delay">
+                <span>Delay</span>
+            </div>
+            <div class="block-content">
+                <div class="readonly-value">${displayValue} ms</div>
+            </div>
+        `;
+
+            return block;
+        }
+
+        // Parse sequence into steps for execution
+        function parseSequenceSteps(commandOrJson) {
+            // Clear previous steps
+            sequenceSteps = [];
+            
+            // If JSON format
+            if (typeof commandOrJson === 'string' && commandOrJson.includes('ms')) {
+                // This is likely the JSON active_sequence string
+                const parts = commandOrJson.split(',');
+                totalSequenceTime = 0;
+                
+                parts.forEach(part => {
+                    // Remove "ms" suffix
+                    part = part.replace(/ms$/, '');
+                    
+                    // Check if valve action
+                    if (part.match(/^s\d+[01]?$/)) {
+                        const match = part.match(/^s(\d+)([01])?$/);
+                        if (match) {
+                            const valveId = match[1];
+                            const action = match[2] ? (match[2] === '1' ? 'on' : 'off') : 'on';
+                            
+                            sequenceSteps.push({
+                                type: 'valve',
+                                valveId: valveId,
+                                action: action,
+                                duration: 0
+                            });
+                        }
+                    }
+                    // Check if delay
+                    else if (part.match(/^\d+$/)) {
+                        const delay = parseInt(part);
+                        if (!isNaN(delay)) {
+                            sequenceSteps.push({
+                                type: 'delay',
+                                delay: delay,
+                                duration: delay
+                            });
+                            totalSequenceTime += delay;
+                        }
+                    }
+                });
+                
+                return;
+            }
+            
+            // If command format
+            if (!commandOrJson || typeof commandOrJson !== 'string' || !commandOrJson.includes('command:')) {
+                return;
+            }
+            
+            // Remove the command: prefix
+            let command = commandOrJson.replace(/^command:/, '');
+            
+            // Parse the command to extract valve actions and delays
+            let i = 0;
+            totalSequenceTime = 0;
+            
+            while (i < command.length) {
+                // If we find a valve action
+                if (command[i] === 's') {
+                    let valveMatch = command.substring(i).match(/^s(\d+)([01])/);
+                    if (valveMatch) {
+                        const valveId = valveMatch[1];
+                        const valveAction = valveMatch[2] === '1' ? 'on' : 'off';
+                        
+                        sequenceSteps.push({
+                            type: 'valve',
+                            valveId: valveId,
+                            action: valveAction,
+                            duration: 0 // Valve actions are instantaneous
+                        });
+                        
+                        // Move index past this valve action
+                        i += valveMatch[0].length;
+                    } else {
+                        i++; // Move to next character if not a valid valve action
+                    }
+                }
+                // If we find a delay
+                else if (command[i] === '.') {
+                    i++; // Skip the dot
+                    let delayValue = '';
+                    
+                    // Extract all consecutive digits for the delay
+                    while (i < command.length && (command[i] >= '0' && command[i] <= '9')) {
+                        delayValue += command[i];
+                        i++;
+                    }
+                    
+                    if (delayValue) {
+                        const delay = parseInt(delayValue);
+                        sequenceSteps.push({
+                            type: 'delay',
+                            delay: delay,
+                            duration: delay
+                        });
+                        totalSequenceTime += delay;
+                    }
+                } else {
+                    i++; // Skip any other characters
+                }
+            }
+        }
+
+        // Simulate sequence execution with visual progression
+        function simulateSequenceExecution() {
+            // Don't start if already running
+            if (isSequenceRunning) return;
+            
+            // Reset progress
+            resetSequenceProgress();
+            
+            // Set running state
+            isSequenceRunning = true;
+            
+            // Update UI
+            document.getElementById('sequence-status').textContent = 'RUNNING';
+            document.getElementById('sequence-status').classList.remove('status-idle');
+            document.getElementById('sequence-status').classList.add('status-running');
+            document.getElementById('reset-sequence-progress').style.display = 'inline-flex';
+            
+            // Start execution
+            currentStepIndex = 0;
+            executeCurrentStep();
+        }
+
+        // Execute current step in sequence
+        function executeCurrentStep() {
+            if (!isSequenceRunning || currentStepIndex >= sequenceSteps.length) {
+                completeSequence();
+                return;
+            }
+            
+            const step = sequenceSteps[currentStepIndex];
+            const blocks = document.querySelectorAll('.readonly-block');
+            
+            // Reset all blocks
+            blocks.forEach(block => {
+                block.classList.remove('active-block');
+                block.classList.remove('completed-block');
+                block.querySelector('.progress-indicator').style.width = '0%';
+            });
+            
+            for (let i = 0; i < currentStepIndex; i++) {
+                if (i < blocks.length) {
+                    blocks[i].classList.add('completed-block');
+                    blocks[i].querySelector('.progress-indicator').style.width = '100%';
+                }
+            }
+            
+            // Highlight current block
+            if (currentStepIndex < blocks.length) {
+                const currentBlock = blocks[currentStepIndex];
+                currentBlock.classList.add('active-block');
+                
+                // Show progress for delays
+                if (step.type === 'delay') {
+                    const progressIndicator = currentBlock.querySelector('.progress-indicator');
+                    const duration = step.delay;
+                    const startTime = Date.now();
+                    const endTime = startTime + Math.min(Math.max(duration / 1000, 500), 5000);
+                    
+                    // Update progress text
+                    document.getElementById('progress-text').textContent = 
+                        `Executing: ${formatMilliseconds(step.delay)} delay`;
+                    
+                    // Animate progress
+                    const updateProgress = () => {
+                        if (!isSequenceRunning) return;
+                        
+                        const now = Date.now();
+                        const elapsed = now - startTime;
+                        const total = endTime - startTime;
+                        const percent = Math.min(elapsed / total * 100, 100);
+                        
+                        progressIndicator.style.width = percent + '%';
+                        
+                        if (now < endTime && isSequenceRunning) {
+                            requestAnimationFrame(updateProgress);
+                        } else if (isSequenceRunning) {
+                            // Move to next step
+                            currentStepIndex++;
+                            setTimeout(executeCurrentStep, 100);
+                        }
+                    };
+                    
+                    requestAnimationFrame(updateProgress);
+                } else {
+                    const valveName = valveConfig[step.valveId] ? 
+                        valveConfig[step.valveId].name : `Solenoid ${step.valveId}`;
+                    
+                    // Show full progress immediately for valve action
+                    currentBlock.querySelector('.progress-indicator').style.width = '100%';
+                    
+                    // Move to next step after brief delay
+                    setTimeout(() => {
+                        if (isSequenceRunning) {
+                            currentStepIndex++;
+                            executeCurrentStep();
+                        }
+                    }, 500);
+                }
+            } else {
+                // No more blocks to execute
+                completeSequence();
+            }
+        }
+
+        // Complete the sequence execution
+        function completeSequence() {
+            isSequenceRunning = false;
+            
+            // Mark all blocks as completed
+            const blocks = document.querySelectorAll('.readonly-block');
+            blocks.forEach(block => {
+                block.classList.remove('active-block');
+                block.classList.add('completed-block');
+                block.querySelector('.progress-indicator').style.width = '100%';
+            });
+            
+            // Update status
+            document.getElementById('sequence-status').textContent = 'COMPLETED';
+            document.getElementById('sequence-status').classList.remove('status-running');
+            document.getElementById('sequence-status').classList.add('status-idle');
+        }
+
+        // Reset sequence progress display
+        function resetSequenceProgress() {
+            // Stop any running sequence
+            isSequenceRunning = false;
+            if (sequenceTimer) {
+                clearTimeout(sequenceTimer);
+                sequenceTimer = null;
+            }
+            
+            // Reset UI elements
+            currentStepIndex = -1;
+            document.getElementById('sequence-status').textContent = 'IDLE';
+            document.getElementById('sequence-status').classList.remove('status-running');
+            document.getElementById('sequence-status').classList.add('status-idle');
+            
+            // Reset all block styles
+            const blocks = document.querySelectorAll('.readonly-block');
+            blocks.forEach(block => {
+                block.classList.remove('active-block');
+                block.classList.remove('completed-block');
+                block.querySelector('.progress-indicator').style.width = '0%';
+            });
+        }
+
+        function formatMilliseconds(milliseconds) {
+            if (milliseconds >= 1000) {
+                return `${(milliseconds / 1000).toFixed(1)}s`;
+            } else {
+                return `${milliseconds}ms`;
+            }
+        }
+
+        // ===== WebSocket bridge to Python main.py =====
+        function initWebSocket() {
+            try {
+                const host = window.location.hostname || 'localhost';
+                const port = 3941;
+                ws = new WebSocket(`ws://${host}:${port}`);
+            } catch (e) {
+                console.error('WebSocket init failed:', e);
+                return;
+            }
+
+            ws.onopen = () => {
+                isWsConnected = true;
+                requestPortList();
+                checkConnectionStatus();
+            };
+
+            ws.onclose = () => {
+                isWsConnected = false;
+                connectedSerialPort = null;
+                checkConnectionStatus();
+                setTimeout(initWebSocket, 2000);
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    if (msg.ports) {
+                        availableSerialPorts = msg.ports || [];
+                        if (availableSerialPorts.length > 0 && !connectedSerialPort) {
+                            connectToSerialPort(availableSerialPorts[0]);
+                        }
+                    } else if (msg.success !== undefined && msg.message && msg.message.startsWith('Connected to')) {
+                        connectedSerialPort = (msg.message.split('Connected to ')[1] || '').trim();
+                    }
+                    if (msg.type === 'data') {
+                        // Telemetry line available in msg.content
+                    }
+                } catch (_) {
+                    // ignore non-JSON frames
+                }
+                checkConnectionStatus();
+            };
+
+            ws.onerror = () => {
+                isWsConnected = false;
+                checkConnectionStatus();
+            };
+        }
+
+        function requestPortList() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            ws.send(JSON.stringify({ action: 'list_ports' }));
+        }
+
+        function connectToSerialPort(port) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            ws.send(JSON.stringify({ action: 'connect', port }));
+        }
+
+        function serialSend(command, callback) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                console.warn('WebSocket not connected');
+                if (callback) callback();
+                return;
+            }
+            ws.send(JSON.stringify({ action: 'send', command }));
+            if (callback) callback();
+        }
+
+        // Override old HTTP sender to use WS
+        function sendHTTPRequest(_method, _path, body, callback) {
+            serialSend(body, callback);
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // Initialize valve config with default names
+            for (let i = 1; i <= 12; i++) {
+                valveConfig[i] = {
+                    name: `Solenoid ${i}`,
+                    defaultState: false
+                };
+            }
+
+            // Add event listeners for buttons
+            document.getElementById('add-action').addEventListener('click', addActionBlock);
+            document.getElementById('upload-sequence').addEventListener('click', uploadSequence);
+            document.getElementById('run-sequence').addEventListener('click', runSequence);
+            document.getElementById('clear-sequence').addEventListener('click', clearSequence);
+            document.getElementById('save-sequence').addEventListener('click', saveSequence);
+            document.getElementById('load-sequence').addEventListener('click', loadSequence);
+            document.getElementById('emergency_stop').addEventListener('click', emergencyStop);
+            document.getElementById('abort_button').addEventListener('click', abortSequence);
+            document.getElementById('send-custom-command').addEventListener('click', sendCustomCommand);
+            document.getElementById('channelNamingJSON').addEventListener('change', channelNameFromFile);
+            document.getElementById('channelStateJSON').addEventListener('change', channelStateFromFile);
+            document.getElementById('reset-sequence-progress').addEventListener('click', resetSequenceProgress);
+
+            document.addEventListener('keydown', handleKeyboardShortcuts);
+
+            document.querySelector('.help-tooltip').addEventListener('click', showHelpTooltip);
+
+            setupDragAndDrop();
+
+            initWebSocket();
+            checkConnectionStatus();
+
+            // Check connection every 10 seconds
+            setInterval(checkConnectionStatus, 10000);
+
+            // Set up interval to periodically check the current sequence
+            setInterval(fetchCurrentSequence, 3000); // Check every 3 seconds
+
+            // Initial fetch when page loads
+            fetchCurrentSequence();
+
+            function updateValveOptions() {
+                const valveOptions = Object.keys(valveConfig).map(id =>
+                    `<option value="${id}">${valveConfig[id].name}</option>`
+                ).join('');
+
+                // Update all existing valve selectors
+                document.querySelectorAll('.valve-select').forEach(select => {
+                    const currentValue = select.value;
+                    select.innerHTML = valveOptions;
+                    select.value = currentValue;
+                });
+            }
+
+            function addActionBlock(channel = '1', action = 'on', delay = '') {
+                const valveOptions = Object.keys(valveConfig).map(id =>
+                    `<option value="${id}" ${id === channel ? 'selected' : ''}>${valveConfig[id].name}</option>`
+                ).join('');
+
+                const block = document.createElement('div');
+                block.className = 'block';
+                block.draggable = true;
+                block.dataset.type = 'action';
+
+                // Determine initial action color based on current action
+                const actionColorClass = action === 'on' ? 'block-action-on' : 'block-action-off';
+
+                block.innerHTML = `
+        <div class="block-header block-action ${actionColorClass}">
+            <span>Action</span>
+            <button class="remove-block">&times;</button>
+        </div>
+        <div class="block-content">
+            <div class="action-section">
+                <label class="form-label">Valve:</label>
+                <select class="form-select valve-select">
+                    ${valveOptions}
+                </select>
+                <select class="form-select action-select">
+                    <option value="on" ${action === 'on' ? 'selected' : ''}>OPEN</option>
+                    <option value="off" ${action === 'off' ? 'selected' : ''}>CLOSE</option>
+                </select>
+            </div>
+            <div class="action-section">
+                <label class="form-label">Delay After (ms):</label>
+                <input type="number" class="form-input delay-input" value="${delay}" min="0" step="1" placeholder="0 = no delay">
+            </div>
+        </div>
+    `;
+
+                document.getElementById('sequence-blocks').appendChild(block);
+
+                // Add event listeners
+                block.querySelector('.remove-block').addEventListener('click', function () {
+                    block.remove();
+                    updateCommandPreview();
+                });
+
+                const actionSelect = block.querySelector('.action-select');
+                actionSelect.addEventListener('change', function () {
+                    // Update block header color when action changes
+                    const header = block.querySelector('.block-header');
+                    if (this.value === 'on') {
+                        header.classList.remove('block-action-off');
+                        header.classList.add('block-action-on');
+                    } else {
+                        header.classList.remove('block-action-on');
+                        header.classList.add('block-action-off');
+                    }
+                    updateCommandPreview();
+                });
+
+                block.querySelector('.valve-select').addEventListener('change', updateCommandPreview);
+                block.querySelector('.delay-input').addEventListener('input', updateCommandPreview);
+
+                // Add drag events
+                block.addEventListener('dragstart', handleDragStart);
+                block.addEventListener('dragend', handleDragEnd);
+
+                updateCommandPreview();
+            }
+
+
+            function updateCommandPreview() {
+                const blocks = document.querySelectorAll('.block:not(.readonly-block)');
+                let command = 'command:';
+                const firmwareParts = [];
+
+                blocks.forEach((block, index) => {
+                    if (block.dataset.type === 'action') {
+                        const channel = block.querySelector('.valve-select').value;
+                        const action = block.querySelector('.action-select').value === 'on' ? '1' : '0';
+                        const delayInput = block.querySelector('.delay-input');
+                        let delay = delayInput.value.trim();
+
+                        // Add the valve action
+                        command += `s${channel}${action}`;
+
+                        // Firmware CSV: s<chanHex><state>.<5-digit delay in milliseconds>
+                        let delayMs = parseInt(delay || '0', 10);
+                        if (isNaN(delayMs) || delayMs < 0) delayMs = 0;
+                        if (delayMs > 99999) delayMs = 99999;
+                        const delayPadded = String(delayMs).padStart(5, '0');
+                        let channelCode = channel;
+                        const channelNum = parseInt(channel, 10);
+                        if (!isNaN(channelNum)) {
+                            if (channelNum === 10) channelCode = 'A';
+                            else if (channelNum === 11) channelCode = 'B';
+                            else if (channelNum === 12) channelCode = 'C';
+                        }
+                        firmwareParts.push(`s${channelCode}${action}.${delayPadded}`);
+
+                        // If this is not the last block, add a delay (use 0 if not specified)
+                        if (index < blocks.length - 1) {
+                            // Add the dot and either the specified delay or 0
+                            // command += `.${delay || '0'}.`;
+                            command += `.${delay || '0'},`;
+                        } else {
+                            // Last block - only add delay if specified and greater than 0
+                            if (delay && parseInt(delay) > 0) {
+                                // command += `.${delay}`;
+                                command += `.${delay}`;
+                            }
+                            // Otherwise, no dot or delay for the last action
+                        }
+                    }
+                });
+
+                document.getElementById('command-preview').textContent = command;
+                currentFirmwareSequence = firmwareParts.join(',');
+            }
+
+            function uploadSequence() {
+                if (!currentFirmwareSequence || currentFirmwareSequence.trim() === '') {
+                    Swal.fire({
+                        title: 'Empty Sequence',
+                        text: 'Please add at least one action to your sequence.',
+                        icon: 'warning',
+                        confirmButtonColor: '#3182ce'
+                    });
+                    return;
+                }
+
+                // Send firmware CSV directly over serial
+                serialSend(currentFirmwareSequence, function () {
+                    // Store the sequence locally for display
+                    savedSequence = currentFirmwareSequence;
+
+                    // Update the display immediately
+                    fetchCurrentSequence();
+
+                    // Play click sound
+                    const audio = new Audio('./assets/click.mp3');
+                    if (audio) {
+                        audio.play();
+                    }
+
+                    // Show confirmation
+                    Swal.fire({
+                        title: 'Sequence Uploaded',
+                        text: 'Your sequence has been saved to the system.',
+                        icon: 'success',
+                        confirmButtonColor: '#38a169',
+                        timer: 2000,
+                        timerProgressBar: true,
+                        showConfirmButton: false
+                    });
+                });
+            }
+
+            function runSequence() {
+                // Check if a sequence has been uploaded
+                if (!savedSequence && !savedSequenceJson) {
+                    Swal.fire({
+                        title: 'No Sequence Uploaded',
+                        text: 'Please upload a sequence first.',
+                        icon: 'warning',
+                        confirmButtonColor: '#3182ce'
+                    });
+                    return;
+                }
+
+                // Re-send last uploaded firmware CSV
+                serialSend(savedSequence || currentFirmwareSequence, function () {
+                    // Send fire command to execute the sequence
+                    setTimeout(() => {
+                        serialSend('f');
+                    }, 100);
+                    
+                    // Play click sound
+                    const audio = new Audio('./assets/click.mp3');
+                    if (audio) {
+                        audio.play();
+                    }
+
+                    // Show confirmation
+                    Swal.fire({
+                        title: 'Sequence Running',
+                        text: 'The saved sequence is now executing.',
+                        icon: 'success',
+                        confirmButtonColor: '#38a169',
+                        timer: 2000,
+                        timerProgressBar: true,
+                        showConfirmButton: false
+                    });
+                    
+                    // Start the sequence visualization
+                    simulateSequenceExecution();
+                });
+            }
+
+            function clearSequence() {
+                document.getElementById('sequence-blocks').innerHTML = '';
+                updateCommandPreview();
+            }
+
+            function saveSequence() {
+                const blocks = document.querySelectorAll('.block:not(.readonly-block)');
+                const sequence = {
+                    blocks: []
+                };
+
+                blocks.forEach(block => {
+                    if (block.dataset.type === 'action') {
+                        sequence.blocks.push({
+                            type: 'action',
+                            channel: block.querySelector('.valve-select').value,
+                            action: block.querySelector('.action-select').value,
+                            delay: block.querySelector('.delay-input').value
+                        });
+                    }
+                });
+
+                const blob = new Blob([JSON.stringify(sequence, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'sequence.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                // Play click sound
+                const audio = new Audio('./assets/click.mp3');
+                if (audio) {
+                    audio.play();
+                }
+
+                // Show confirmation
+                Swal.fire({
+                    title: 'Sequence Saved',
+                    text: 'Your sequence has been downloaded.',
+                    icon: 'success',
+                    confirmButtonColor: '#3182ce',
+                    timer: 1500,
+                    timerProgressBar: true,
+                    showConfirmButton: false
+                });
+            }
+
+            function loadSequence() {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+
+                input.onchange = function (e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    const reader = new FileReader();
+                    reader.onload = function (event) {
+                        try {
+                            const sequence = JSON.parse(event.target.result);
+                            clearSequence();
+
+                            sequence.blocks.forEach(block => {
+                                if (block.type === 'action') {
+                                    addActionBlock(block.channel, block.action, block.delay);
+                                } else if (block.type === 'valve') {
+                                    // Support for legacy format
+                                    const delay = '0'; // No delay by default
+                                    addActionBlock(block.channel, block.action, delay);
+                                }
+                            });
+
+                            // Play click sound
+                            const audio = new Audio('./assets/click.mp3');
+                            if (audio) {
+                                audio.play();
+                            }
+
+                            // Show confirmation
+                            Swal.fire({
+                                title: 'Sequence Loaded',
+                                text: 'Your sequence has been loaded successfully.',
+                                icon: 'success',
+                                confirmButtonColor: '#3182ce',
+                                timer: 1500,
+                                timerProgressBar: true,
+                                showConfirmButton: false
+                            });
+
+                        } catch (error) {
+                            console.error('Error parsing sequence file:', error);
+                            Swal.fire({
+                                title: 'Error',
+                                text: 'Invalid sequence file.',
+                                icon: 'error',
+                                confirmButtonColor: '#e53e3e'
+                            });
+                        }
+                    };
+                    reader.readAsText(file);
+                };
+
+                input.click();
+            }
+
+            function emergencyStop() {
+                // Map to firmware reset/disarm 'r'
+                serialSend('r', null);
+                if (typeof Audio !== 'undefined') {
+                    var audio = new Audio('./assets/extremely-loud-incorrect-buzzer_0cDaG20.mp3');
+                    audio.play();
+                }
+
+                // Reset any sequence visualization
+                resetSequenceProgress();
+
+                Swal.fire({
+                    title: 'EMERGENCY STOP',
+                    text: 'Emergency stop command sent!',
+                    icon: 'warning',
+                    confirmButtonColor: '#e53e3e',
+                    background: '#ffdddd'
+                });
+            }
+
+            function abortSequence() {
+                // Map to firmware reset/disarm 'r'
+                serialSend('r', null);
+                if (typeof Audio !== 'undefined') {
+                    var audio = new Audio('./assets/abort-sound.mp3');
+                    audio.play();
+                }
+
+                // Reset any sequence visualization
+                resetSequenceProgress();
+
+                Swal.fire({
+                    title: 'Sequence Aborted',
+                    text: 'Abort command sent to the system.',
+                    icon: 'warning',
+                    confirmButtonColor: '#ed8936',
+                    background: '#fff8e1'
+                });
+            }
+
+            function sendCustomCommand() {
+                 const customCommand = document.getElementById('custom-command-input').value;
+                 if (customCommand.trim() === '') {
+                     Swal.fire({
+                         title: 'Empty Command',
+                         text: 'Please enter a command.',
+                         icon: 'warning',
+                         confirmButtonColor: '#3182ce'
+                     });
+                     return;
+                 }
+
+                // Send the command directly
+                serialSend(customCommand, null);
+                document.getElementById('custom-command-input').value = '';
+
+                // If this looks like a firmware CSV sequence, store it
+                if (/^s[0-9A-Fa-f]+[01]\.[0-9]+(,s[0-9A-Fa-f]+[01]\.[0-9]+)*$/.test(customCommand.trim())) {
+                    savedSequence = customCommand.trim();
+                    fetchCurrentSequence();
+                }
+
+                // Play click sound
+                const audio = new Audio('./assets/click.mp3');
+                if (audio) {
+                    audio.play();
+                }
+
+                // Show confirmation
+                Swal.fire({
+                    title: 'Command Uploaded',
+                    text: 'Your custom command has been sent.',
+                    icon: 'success',
+                    confirmButtonColor: '#3182ce',
+                    timer: 1500,
+                    timerProgressBar: true,
+                    showConfirmButton: false
+                });
+            }
+
+            function channelNameFromFile() {
+                const fileInput = document.getElementById('channelNamingJSON');
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    Swal.fire({
+                        title: 'No File Selected',
+                        text: 'Please select a file.',
+                        icon: 'warning',
+                        confirmButtonColor: '#3182ce'
+                    });
+                    return;
+                }
+
+                const file = fileInput.files[0];
+                if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
+                    Swal.fire({
+                        title: 'Invalid File Type',
+                        text: 'Please select a JSON file.',
+                        icon: 'error',
+                        confirmButtonColor: '#e53e3e'
+                    });
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    try {
+                        const channels = JSON.parse(event.target.result);
+                        channels.channels.forEach(element => {
+                            if (element.dc) {
+                                valveConfig[element.dc.id] = {
+                                    ...valveConfig[element.dc.id],
+                                    name: element.dc.name
+                                };
+                            }
+                        });
+
+                        updateValveOptions();
+                        if (savedSequence || savedSequenceJson) {
+                            fetchCurrentSequence();
+                        }
+
+                        const audio = new Audio('./assets/click.mp3');
+                        if (audio) {
+                            audio.play();
+                        }
+
+                        Swal.fire({
+                            title: 'Channel Names Loaded',
+                            text: 'Channel names have been updated.',
+                            icon: 'success',
+                            confirmButtonColor: '#3182ce',
+                            timer: 1500,
+                            timerProgressBar: true,
+                            showConfirmButton: false
+                        });
+
+                    } catch (error) {
+                        console.error('Error parsing JSON:', error);
+                        Swal.fire({
+                            title: 'Error',
+                            text: 'Error parsing valve configuration.',
+                            icon: 'error',
+                            confirmButtonColor: '#e53e3e'
+                        });
+                    }
+                };
+                reader.readAsText(file);
+            }
+
+            function channelStateFromFile() {
+                const fileInput = document.getElementById('channelStateJSON');
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    Swal.fire({
+                        title: 'No File Selected',
+                        text: 'Please select a file.',
+                        icon: 'warning',
+                        confirmButtonColor: '#3182ce'
+                    });
+                    return;
+                }
+
+                const file = fileInput.files[0];
+                if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
+                    Swal.fire({
+                        title: 'Invalid File Type',
+                        text: 'Please select a JSON file.',
+                        icon: 'error',
+                        confirmButtonColor: '#e53e3e'
+                    });
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    try {
+                        const channels = JSON.parse(event.target.result);
+                        channels.channels.forEach(element => {
+                            if (element.dc) {
+                                valveConfig[element.dc.id] = {
+                                    ...valveConfig[element.dc.id],
+                                    defaultState: element.dc.default_state
+                                };
+                            }
+                        });
+
+                        const audio = new Audio('./assets/click.mp3');
+                        if (audio) {
+                            audio.play();
+                        }
+
+                        Swal.fire({
+                            title: 'Valve States Loaded',
+                            text: 'Default valve states have been updated.',
+                            icon: 'success',
+                            confirmButtonColor: '#3182ce',
+                            timer: 1500,
+                            timerProgressBar: true,
+                            showConfirmButton: false
+                        });
+
+                    } catch (error) {
+                        console.error('Error parsing JSON:', error);
+                        Swal.fire({
+                            title: 'Error',
+                            text: 'Error parsing valve state configuration.',
+                            icon: 'error',
+                            confirmButtonColor: '#e53e3e'
+                        });
+                    }
+                };
+                reader.readAsText(file);
+            }
+
+            function setupDragAndDrop() {
+                const container = document.getElementById('sequence-blocks');
+
+                container.addEventListener('dragover', function (e) {
+                    e.preventDefault();
+                    const afterElement = getDragAfterElement(container, e.clientX);
+                    const draggable = document.querySelector('.dragging');
+                    if (afterElement == null) {
+                        container.appendChild(draggable);
+                    } else {
+                        container.insertBefore(draggable, afterElement);
+                    }
+                });
+            }
+
+            function handleDragStart(e) {
+                this.classList.add('dragging');
+            }
+
+            function handleDragEnd(e) {
+                this.classList.remove('dragging');
+                updateCommandPreview();
+            }
+
+            function getDragAfterElement(container, x) {
+                const draggableElements = [...container.querySelectorAll('.block:not(.dragging):not(.readonly-block)')];
+
+                return draggableElements.reduce((closest, child) => {
+                    const box = child.getBoundingClientRect();
+                    const offset = x - box.left - box.width / 2;
+
+                    if (offset < 0 && offset > closest.offset) {
+                        return { offset: offset, element: child };
+                    } else {
+                        return closest;
+                    }
+                }, { offset: Number.NEGATIVE_INFINITY }).element;
+            }
+
+            if (typeof sortable !== 'undefined') {
+                try {
+                    sortable('#sequence-blocks', {
+                        items: '.block:not(.readonly-block)',
+                        placeholderClass: 'sortable-ghost'
+                    })[0].addEventListener('sortupdate', updateCommandPreview);
+                } catch (error) {
+                    console.log('Sortable library not fully initialized:', error);
+                }
+            }
+
+            function formatCommand(command) {
+                // Make sure the command always starts with "command:"
+                if (!command.startsWith('command:')) {
+                    command = 'command:' + command;
+                }
+
+                // Remove trailing dot if present
+                if (command.endsWith('.')) {
+                    command = command.slice(0, -1);
+                }
+
+                return command;
+            }
+
+            // Handle keyboard shortcuts
+            function handleKeyboardShortcuts(e) {
+                // Ctrl+Enter to upload sequence
+                if (e.ctrlKey && e.key === 'Enter') {
+                    document.getElementById('upload-sequence').click();
+                }
+
+                // Ctrl+S to save sequence
+                if (e.ctrlKey && e.key === 's') {
+                    e.preventDefault(); // Prevent browser save dialog
+                    document.getElementById('save-sequence').click();
+                }
+
+                // Ctrl+O to load sequence
+                if (e.ctrlKey && e.key === 'o') {
+                    e.preventDefault(); // Prevent browser open dialog
+                    document.getElementById('load-sequence').click();
+                }
+
+                // Ctrl+N to add new action
+                if (e.ctrlKey && e.key === 'n') {
+                    e.preventDefault();
+                    document.getElementById('add-action').click();
+                }
+
+                // Escape key for emergency stop (with confirmation)
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    Swal.fire({
+                        title: 'EMERGENCY STOP?',
+                        text: 'Press Confirm to trigger emergency stop',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#e53e3e',
+                        cancelButtonColor: '#718096',
+                        confirmButtonText: 'CONFIRM EMERGENCY STOP'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            document.getElementById('emergency_stop').click();
+                        }
+                    });
+                }
+            }
+
+            // Show help tooltip
+            function showHelpTooltip() {
+                Swal.fire({
+                    title: 'Keyboard Shortcuts',
+                    html: `
+                       <div style="text-align: left;">
+                           <p><strong>Ctrl+Enter</strong> - Upload sequence</p>
+                           <p><strong>Ctrl+S</strong> - Save sequence</p>
+                           <p><strong>Ctrl+O</strong> - Load sequence</p>
+                           <p><strong>Ctrl+N</strong> - Add new action</p>
+                           <p><strong>Escape</strong> - Emergency stop (with confirmation)</p>
+                       </div>
+                   `,
+                    icon: 'info',
+                    confirmButtonColor: '#3182ce'
+                });
+            }
+
+            // Check connection status
+            function checkConnectionStatus() {
+                const ok = isWsConnected && !!connectedSerialPort;
+                document.querySelector('.title').style.color = ok ? '#333' : '#e53e3e';
+                if (typeof updateConnectionDisplay === 'function') {
+                    updateConnectionDisplay(ok);
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

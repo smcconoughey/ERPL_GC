@@ -1,0 +1,118 @@
+{
+    "channels": [
+        {
+            "dc": {
+                "id": 1,
+                "raw_index": 1,
+                "name": "PB3 LOX Vent",
+                "short_name": "pb3",
+                "type": "lox"
+            }
+        },
+        {
+            "dc": {
+                "id": 2,
+                "raw_index": 2,
+                "name": "PB10 LOX Dump",
+                "short_name": "pb10",
+                "type": "fuel"
+            }
+        },
+        {
+            "dc": {
+                "id": 3,
+                "raw_index": 3,
+                "name": "S2 Fuel Purge",
+                "short_name": "s2",
+                "type": "misc",
+                "abort_role": "gn2_purge"
+            }
+        },
+        {
+            "dc": {
+                "id": 4,
+                "raw_index": 4,
+                "name": "PB9 GOX Purge",
+                "short_name": "pb9",
+                "bb": true,
+                "type": "lox"
+            }
+        },
+        {
+            "dc": {
+                "id": 5,
+                "raw_index": 5,
+                "name": "S1 LOX Purge",
+                "short_name": "s1",
+                "type": "misc",
+                "abort_role": "gn2_purge"
+            }
+        },
+        {
+            "dc": {
+                "id": 6,
+                "raw_index": 6,
+                "name": "S3 Muscle Purge",
+                "short_name": "s3",
+                "type": "misc"
+            }
+        },
+        {
+            "dc": {
+                "id": 7,
+                "raw_index": 7,
+                "name": "PB7 Fuel Vent",
+                "short_name": "pb7",
+                "bb": true,
+                "type": "fuel"
+            }
+        },
+        {
+            "dc": {
+                "id": 8,
+                "raw_index": 8,
+                "name": "PB1-5 Main press valves",
+                "short_name": "pb1-5",
+                "type": "lox-fuel"
+            }
+        },
+        {
+            "dc": {
+                "id": 9,
+                "raw_index": 9,
+                "name": "PB8 Fuel Main Run",
+                "short_name": "pb8",
+                "type": "fuel",
+                "abort_role": "run_valve"
+            }
+        },
+        {
+            "dc": {
+                "id": 10,
+                "raw_index": 10,
+                "name": "PB4 LOX Main Run",
+                "short_name": "pb4",
+                "type": "lox",
+                "abort_role": "run_valve"
+            }
+        },
+        {
+            "dc": {
+                "id": 11,
+                "raw_index": 11,
+                "name": "S6 Fuel Slow Press",
+                "short_name": "s6",
+                "type": "fuel"
+            }
+        },
+        {
+            "dc": {
+                "id": 12,
+                "raw_index": 12,
+                "name": "S5 LOX Slow Press",
+                "short_name": "s5",
+                "type": "lox"
+            }
+        }
+    ]
+}

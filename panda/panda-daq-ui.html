@@ -1,0 +1,2042 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PANDA DAQ Control</title>
+    <link rel="icon" type="image/x-icon" href="assets/smurfcat.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            background-color: #f8fafc;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #f5f5f5;
+            padding: 10px 20px;
+            border-bottom: 1px solid #ddd;
+            position: relative;
+            z-index: 1000;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .header.armed {
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4), 0 0 40px rgba(239, 68, 68, 0.3), inset 0 -3px 15px rgba(239, 68, 68, 0.2);
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #e53e3e;
+        }
+
+        /* Toast notification styles */
+        .toast {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: white;
+            padding: 16px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 10000;
+            animation: slideIn 0.3s ease-out, slideOut 0.3s ease-in 2.7s;
+            opacity: 0;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
+        .toast.warning {
+            border-left: 4px solid #ed8936;
+        }
+
+        .toast.success {
+            border-left: 4px solid #38a169;
+        }
+
+        .toast.error {
+            border-left: 4px solid #e53e3e;
+        }
+
+        .toast.info {
+            border-left: 4px solid #3b82f6;
+        }
+
+        .toast-icon {
+            font-size: 24px;
+        }
+
+        .toast.warning .toast-icon {
+            color: #ed8936;
+        }
+
+        .toast.success .toast-icon {
+            color: #38a169;
+        }
+
+        .toast.error .toast-icon {
+            color: #e53e3e;
+        }
+
+        .toast.info .toast-icon {
+            color: #3b82f6;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .toast-message {
+            font-size: 12px;
+            color: #718096;
+        }
+
+        .connection-status {
+            font-size: 14px;
+            color: #4a5568;
+        }
+
+        .safety-controls {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 250px;
+            height: 100%;
+        }
+
+        .emergency-stop {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #8b0000;
+            color: white;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: background-color 0.3s;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .emergency-stop:hover {
+            background-color: #990000;
+        }
+
+        .abort-controls {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 250px;
+            height: 100%;
+        }
+
+        .abort {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ffd700;
+            color: black;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: background-color 0.3s;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .abort:hover {
+            background-color: #ffcc00;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            height: calc(100vh - 60px);
+            overflow: hidden;
+        }
+
+        /* Top-center logging controls */
+        .log-top-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .arm-controls-top {
+            position: absolute;
+            top: 50%;
+            left: 260px;
+            transform: translateY(-50%);
+            display: flex;
+            gap: 8px;
+        }
+
+        .arm-btn-compact {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        .arm-btn-compact:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .arm-btn-compact.arm {
+            background-color: #ed8936;
+            color: white;
+        }
+
+        .arm-btn-compact.disarm {
+            background-color: #38a169;
+            color: white;
+        }
+
+        .logging-indicator.top {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #cbd5e0;
+        }
+
+        .logging-indicator.top.active {
+            background-color: #48bb78;
+        }
+
+        .logging-filename-top {
+            font-size: 12px;
+            color: #4a5568;
+            font-family: monospace;
+        }
+
+        .log-btn.small {
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+
+        .controls-panel {
+            flex: 2;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            background-color: white;
+            border-right: 3px solid #e2e8f0;
+        }
+        
+        .info-bar {
+            background-color: #fff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 8px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: #4a5568;
+            gap: 20px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .info-left, .info-right {
+            display: flex;
+            gap: 20px;
+        }
+
+        .stale-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .stale-indicator.fresh {
+            background-color: #d4edda;
+            color: #38a169;
+        }
+
+        .stale-indicator.stale {
+            background-color: #fff3cd;
+            color: #ed8936;
+        }
+
+        .stale-indicator.offline {
+            background-color: #f8d7da;
+            color: #e53e3e;
+        }
+
+        .telemetry-panel {
+            flex: 1.5;
+            padding: 2px;
+            background-color: #ffffff;
+            color: #1a202c;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            grid-template-areas:
+                "pt lc"
+                "pt tc";
+            gap: 8px;
+            height: calc(100vh - 60px);
+        }
+
+        .dc-controls {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(185px, 1fr));
+            gap: 8px;
+        }
+
+        .dc-channel {
+            background-color: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 8px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        /* Type color accents */
+        .dc-type-fuel { background-color: #fff4e6; border-color: #f6ad55; }
+        .dc-type-lox { background-color: #e6f4ff; border-color: #63b3ed; }
+        .dc-type-misc { background-color: #e8fff0; border-color: #68d391; }
+
+        .dc-channel:hover {
+            border-color: #3182ce;
+            box-shadow: 0 4px 12px rgba(49, 130, 206, 0.15);
+        }
+
+        .dc-channel.active {
+            border-color: #38a169;
+            background-color: #f0fff4;
+        }
+
+        .dc-channel.inactive {
+            border-color: #e53e3e;
+            background-color: #fff5f5;
+        }
+
+        .dc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .dc-name {
+            font-weight: bold;
+            font-size: 13px;
+            color: #2d3748;
+            line-height: 1.2;
+        }
+
+        .dc-short {
+            font-size: 9px;
+            color: #718096;
+            text-transform: uppercase;
+            line-height: 1.2;
+        }
+
+        .dc-controls-row { display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
+
+        .dc-status {
+            flex: 1;
+            text-align: center;
+            padding: 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .dc-status.on {
+            background-color: #38a169;
+            color: white;
+        }
+
+        .dc-status.off {
+            background-color: #e53e3e;
+            color: white;
+        }
+
+        .dc-pill { padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 12px; }
+        .dc-pill.on { background:#38a169; color:#fff; }
+        .dc-pill.off { background:#e53e3e; color:#fff; }
+
+        .telemetry-section {
+            background-color: #ffffff;
+            border-radius: 4px;
+            padding: 2px;
+            border: 1px solid #e2e8f0;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            min-height: 0;
+        }
+        .section-pt { grid-area: pt; }
+        .section-lc { grid-area: lc; }
+        .section-tc { grid-area: tc; }
+
+        .telemetry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+            padding-bottom: 2px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .telemetry-title {
+            font-weight: bold;
+            font-size: 12px;
+            color: #2d3748;
+            text-transform: uppercase;
+        }
+
+        .telemetry-count {
+            font-size: 10px;
+            color: #a0aec0;
+        }
+
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-auto-rows: 1fr;
+            gap: 1px;
+            overflow: hidden;
+        }
+
+        .sensor-reading {
+            display: grid;
+            grid-template-columns: auto auto;
+            align-items: center;
+            justify-content: space-between;
+            padding: 2px 4px;
+            background-color: #f9fafb;
+            border-radius: 2px;
+            border-left: 2px solid #cbd5e1;
+            transition: all 0.2s ease;
+            min-height: 0;
+        }
+
+        .sensor-reading.normal { border-left-color: #16a34a; }
+        .sensor-reading.warning { border-left-color: #f59e0b; background-color: #fff7ed; }
+        .sensor-reading.critical { border-left-color: #ef4444; background-color: #fef2f2; }
+        .sensor-reading.offline { border-left-color: #94a3b8; background-color: #f1f5f9; }
+
+        .sensor-info {
+            flex: 1;
+        }
+
+        .sensor-name {
+            font-size: 10px;
+            color: #4a5568;
+            text-transform: uppercase;
+            margin-bottom: 1px;
+        }
+
+        .sensor-short {
+            font-size: 9px;
+            color: #718096;
+        }
+
+        .sensor-value {
+            text-align: right;
+            font-weight: bold;
+        }
+
+        .sensor-main-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: flex-end;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .sensor-main {
+            font-size: 14px;
+            color: #1a202c;
+        }
+
+        .sensor-raw-group {
+            display: flex;
+            gap: 4px;
+            font-size: 7px;
+            color: #94a3b8;
+            font-weight: normal;
+            flex-wrap: nowrap;
+            white-space: nowrap;
+        }
+
+        .sensor-raw, .sensor-raw-ma, .sensor-config {
+            font-size: 7px;
+            color: #94a3b8;
+            font-weight: normal;
+            white-space: nowrap;
+        }
+
+        .sensor-reading.warning .sensor-main {
+            color: #fbd38d;
+        }
+
+        .sensor-reading.critical .sensor-main {
+            color: #feb2b2;
+        }
+
+        .arm-controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            padding: 20px;
+            background-color: #f7fafc;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+        }
+
+        .arm-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+
+        .arm-btn.arm {
+            background-color: #ed8936;
+            color: white;
+        }
+
+        .arm-btn.arm:hover {
+            background-color: #dd6b20;
+            transform: translateY(-1px);
+        }
+
+        .arm-btn.disarm {
+            background-color: #38a169;
+            color: white;
+        }
+
+        .arm-btn.disarm:hover {
+            background-color: #2f855a;
+            transform: translateY(-1px);
+        }
+
+        .connection-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-left: 8px;
+        }
+
+        .connection-indicator.connected {
+            background-color: #38a169;
+            box-shadow: 0 0 8px rgba(56, 161, 105, 0.6);
+        }
+
+        .connection-indicator.disconnected {
+            background-color: #e53e3e;
+            box-shadow: 0 0 8px rgba(229, 62, 62, 0.6);
+        }
+
+        .refresh-btn {
+            background: none;
+            border: none;
+            color: #3182ce;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 4px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background-color: rgba(49, 130, 206, 0.1);
+        }
+
+        .data-timestamp {
+            font-size: 8px;
+            color: #718096;
+            text-align: center;
+            margin-top: 4px;
+        }
+
+        .logging-controls {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 10px 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .logging-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .logging-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .logging-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #cbd5e0;
+        }
+
+        .logging-indicator.active {
+            background-color: #48bb78;
+            animation: pulse 2s infinite;
+        }
+
+        .logging-filename {
+            font-size: 10px;
+            color: #718096;
+            margin-bottom: 8px;
+            text-align: center;
+            font-family: monospace;
+            word-break: break-all;
+        }
+
+        .logging-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .log-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .log-btn.start {
+            background-color: #48bb78;
+            color: white;
+        }
+
+        .log-btn.start:hover {
+            background-color: #38a169;
+        }
+
+        .log-btn.stop {
+            background-color: #f56565;
+            color: white;
+        }
+
+        .log-btn.stop:hover {
+            background-color: #e53e3e;
+        }
+
+        .log-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .sensor-reading.updating {
+            animation: pulse 0.35s ease-in-out;
+        }
+
+        /* Trend arrows */
+        .trend {
+            margin-left: 6px;
+            font-size: 11px;
+        }
+        .trend.up { color: #38a169; }
+        .trend.down { color: #e53e3e; }
+        .trend.flat { color: #a0aec0; }
+
+        .help-tooltip {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .help-tooltip div {
+            cursor: pointer;
+            background-color: #3182ce;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+
+<body>
+        <div class="header">
+        <div class="title">PANDA DAQ Control</div>
+        <div class="connection-status">
+            <span id="connection-text">Connecting...</span>
+            <div class="connection-indicator disconnected" id="connection-indicator"></div>
+        </div>
+        <div class="abort-controls">
+            <button class="abort" id="abort_button">ABORT</button>
+            </div>
+            <div class="safety-controls">
+            <button class="emergency-stop" id="emergency_stop">EMERGENCY STOP</button>
+        </div>
+        <div class="arm-controls-top">
+            <button class="arm-btn-compact disarm" id="disarm-btn-top">
+                <i class="fas fa-shield-alt"></i> DISARM
+            </button>
+            <button class="arm-btn-compact arm" id="arm-btn-top">
+                <i class="fas fa-exclamation-triangle"></i> ARM
+            </button>
+        </div>
+        <div class="log-top-center">
+            <div class="logging-indicator top" id="logging-indicator-top"></div>
+            <span class="logging-filename-top" id="logging-filename-top">No active log</span>
+            <button class="log-btn start small" id="start-log-btn-top" onclick="startLogging()"><i class="fas fa-play"></i> Start</button>
+            <button class="log-btn stop small" id="stop-log-btn-top" onclick="stopLogging()" disabled><i class="fas fa-stop"></i> Stop</button>
+        </div>
+    </div>
+
+    <div class="info-bar">
+        <div class="info-left">
+            <div class="info-item">
+                <i class="fas fa-microchip"></i>
+                <span>Serial: <strong id="info-serial-port">--</strong></span>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-clock"></i>
+                <span id="info-last-update">Last Update: --:--:--</span>
+            </div>
+            <div class="info-item">
+                <span id="stale-indicator" class="stale-indicator offline">
+                    <i class="fas fa-circle"></i>
+                    <span id="stale-text">No Data</span>
+                </span>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-file-csv"></i>
+                <span id="info-log-file">Log: <strong>--</strong></span>
+            </div>
+        </div>
+        <div class="info-right">
+            <div class="info-item">
+                <i class="fas fa-signal"></i>
+                <span id="info-data-rate">-- Hz</span>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-chart-line"></i>
+                <span id="info-message-count">0 messages</span>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-hourglass-half"></i>
+                <span id="info-uptime">Uptime: 00:00</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- DC Controls Panel (Left 3/4) -->
+        <div class="controls-panel">
+            <div class="dc-controls" id="dc-controls">
+                <!-- DC channel controls will be populated here -->
+                    </div>
+            <!-- Bang-Bang Config Panel -->
+            <div id="bb-config" style="margin-top:8px; background:#fff; border-radius:8px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:2px solid #e2e8f0; padding-bottom:8px;">
+                    <span style="font-weight:bold; font-size:15px; color:#2d3748; text-transform:uppercase; letter-spacing:0.5px;">
+                        <i class="fas fa-cogs" style="margin-right:6px; color:#3182ce;"></i>Bang-Bang
+                    </span>
+                    <div style="display:flex; gap:8px;">
+                        <button class="log-btn start small" onclick="uploadBBConfig('fuel')" style="background:#ed8936; padding:8px 14px; font-size:12px; font-weight:bold;">
+                            <i class="fas fa-upload"></i> Fuel
+                </button>
+                        <button class="log-btn start small" onclick="uploadBBConfig('lox')" style="background:#3b82f6; padding:8px 14px; font-size:12px; font-weight:bold;">
+                            <i class="fas fa-upload"></i> LOX
+                </button>
+        </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                    <!-- Fuel BB -->
+                    <div style="border:2px solid #f6ad55; border-radius:6px; padding:12px; background:linear-gradient(to bottom, #fff4e6, #ffffff);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span style="font-weight:bold; font-size:14px; color:#dd6b20;">
+                                <i class="fas fa-fire" style="margin-right:5px;"></i>FUEL
+                            </span>
+                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                <input type="checkbox" id="fuel-bb-enable" style="width:18px; height:18px; cursor:pointer;">
+                                <span style="font-weight:bold; font-size:13px; color:#dd6b20;">ENABLE</span>
+                            </label>
+                        </div>
+                        <div style="font-size:12px; color:#718096; margin:0 0 6px 0;">PT(FUEL) raw: <span id="fuel-bb-now">--</span></div>
+                        <div style="font-size:11px; color:#94a3b8; margin:-2px 0 6px 0;">
+                            <span id="fuel-bb-map-pt">Plot: Feed=?, Tank=?</span>
+                            <span style="margin-left:8px;" id="fuel-bb-map-dc">Valve: ?</span>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px;">
+                            <div>
+                                <label style="font-size:11px; color:#718096; font-weight:600;">TARGET</label>
+                                <input type="number" id="fuel-bb-set" value="150" style="width:100%; padding:6px; border:1px solid #cbd5e0; border-radius:4px; font-size:13px; font-weight:bold;">
+                            </div>
+                            <div>
+                                <label style="font-size:11px; color:#718096; font-weight:600;">WAIT</label>
+                                <input type="number" id="fuel-bb-wait" value="250" style="width:100%; padding:6px; border:1px solid #cbd5e0; border-radius:4px; font-size:13px;">
+                            </div>
+                            <div>
+                                <label style="font-size:11px; color:#718096; font-weight:600;">DB↑</label>
+                                <input type="number" id="fuel-bb-dead-high" value="10" style="width:100%; padding:6px; border:1px solid #cbd5e0; border-radius:4px; font-size:13px;">
+                            </div>
+                            <div>
+                                <label style="font-size:11px; color:#718096; font-weight:600;">DB↓</label>
+                                <input type="number" id="fuel-bb-dead-low" value="10" style="width:100%; padding:6px; border:1px solid #cbd5e0; border-radius:4px; font-size:13px;">
+                            </div>
+                        </div>
+                        <div style="background:#fff; border-radius:4px; padding:4px; box-shadow:inset 0 1px 2px rgba(0,0,0,0.1);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                                <span style="font-size:8px; font-weight:600; color:#718096;">PRESSURE</span>
+                                <div style="display:flex; gap:6px; font-size:7px;">
+                                    <span style="color:#3b82f6;">■Feed</span>
+                                    <span style="color:#ef4444;">■Tank</span>
+                                </div>
+                            </div>
+                            <canvas id="fuel-bb-plot" width="600" height="80" style="width:100%; display:block;"></canvas>
+                        </div>
+                    </div>
+                    <!-- LOX BB -->
+                    <div style="border:2px solid #63b3ed; border-radius:6px; padding:12px; background:linear-gradient(to bottom, #e6f4ff, #ffffff);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span style="font-weight:bold; font-size:14px; color:#2c5282;">
+                                <i class="fas fa-snowflake" style="margin-right:5px;"></i>LOX
+                            </span>
+                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                <input type="checkbox" id="lox-bb-enable" style="width:18px; height:18px; cursor:pointer;">
+                                <span style="font-weight:bold; font-size:13px; color:#2c5282;">ENABLE</span>
+                            </label>
+                        </div>
+                        <div style="font-size:12px; color:#718096; margin:0 0 6px 0;">PT(LOX) raw: <span id="lox-bb-now">--</span></div>
+                        <div style="font-size:11px; color:#94a3b8; margin:-2px 0 6px 0;">
+                            <span id="lox-bb-map-pt">Plot: Feed=?, Tank=?</span>
+                            <span style="margin-left:8px;" id="lox-bb-map-dc">Valve: ?</span>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px;">
+                            <div>
+                                <label style="font-size:11px; color:#718096; font-weight:600;">TARGET</label>
+                                <input type="number" id="lox-bb-set" value="150" style="width:100%; padding:6px; border:1px solid #cbd5e0; border-radius:4px; font-size:13px; font-weight:bold;">
+                            </div>
+                            <div>
+                                <label style="font-size:11px; color:#718096; font-weight:600;">WAIT</label>
+                                <input type="number" id="lox-bb-wait" value="250" style="width:100%; padding:6px; border:1px solid #cbd5e0; border-radius:4px; font-size:13px;">
+                            </div>
+                            <div>
+                                <label style="font-size:11px; color:#718096; font-weight:600;">DB↑</label>
+                                <input type="number" id="lox-bb-dead-high" value="10" style="width:100%; padding:6px; border:1px solid #cbd5e0; border-radius:4px; font-size:13px;">
+                            </div>
+                            <div>
+                                <label style="font-size:11px; color:#718096; font-weight:600;">DB↓</label>
+                                <input type="number" id="lox-bb-dead-low" value="10" style="width:100%; padding:6px; border:1px solid #cbd5e0; border-radius:4px; font-size:13px;">
+                            </div>
+                        </div>
+                        <div style="background:#fff; border-radius:4px; padding:4px; box-shadow:inset 0 1px 2px rgba(0,0,0,0.1);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                                <span style="font-size:8px; font-weight:600; color:#718096;">PRESSURE</span>
+                                <div style="display:flex; gap:6px; font-size:7px;">
+                                    <span style="color:#3b82f6;">■Feed</span>
+                                    <span style="color:#ef4444;">■Tank</span>
+                                </div>
+                            </div>
+                            <canvas id="lox-bb-plot" width="600" height="80" style="width:100%; display:block;"></canvas>
+                        </div>
+                    </div>
+                </div>
+                    </div>
+                </div>
+                
+        <!-- Telemetry Panel (Right 1/4) -->
+        <div class="telemetry-panel">
+            <div class="telemetry-section section-pt">
+                <div class="telemetry-header">
+                    <span class="telemetry-title">Pressure Transducers</span>
+                    <div>
+                        <button class="refresh-btn" onclick="tarePTs()" title="Calibrate PTs (tare to ambient)">
+                            <i class="fas fa-bullseye"></i>
+                        </button>
+                        <button class="refresh-btn" onclick="refreshTelemetry()">
+                            <i class="fas fa-sync-alt"></i>
+                                </button>
+                        <span class="telemetry-count" id="pt-count">16 channels</span>
+                            </div>
+                            </div>
+                <div class="telemetry-grid" id="pt-readings">
+                    <!-- PT readings will be populated here -->
+                </div>
+            </div>
+
+            <div class="telemetry-section section-lc">
+                <div class="telemetry-header">
+                    <span class="telemetry-title">Load Cells</span>
+                    <div>
+                        <button class="refresh-btn" onclick="refreshTelemetry()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <span class="telemetry-count" id="lc-count">6 channels</span>
+                    </div>
+                    </div>
+                <div class="telemetry-grid" id="lc-readings">
+                    <!-- LC readings will be populated here -->
+                    </div>
+                </div>
+
+            <div class="telemetry-section section-tc">
+                <div class="telemetry-header">
+                    <span class="telemetry-title">Thermocouples</span>
+                    <div>
+                        <button class="refresh-btn" onclick="refreshTelemetry()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <span class="telemetry-count" id="tc-count">6 channels</span>
+                    </div>
+                    </div>
+                <div class="telemetry-grid" id="tc-readings">
+                    <!-- TC readings will be populated here -->
+                </div>
+            </div>
+
+            <div class="logging-controls" style="display:none;">
+                <div class="logging-header">
+                    <span class="logging-title">Data Logging</span>
+                    <div class="logging-indicator" id="logging-indicator"></div>
+                </div>
+                <div class="logging-filename" id="logging-filename">No active log file</div>
+                <div class="logging-buttons">
+                    <button class="log-btn start" id="start-log-btn" onclick="startLogging()">
+                        <i class="fas fa-play"></i> Start
+                    </button>
+                    <button class="log-btn stop" id="stop-log-btn" onclick="stopLogging()" disabled>
+                        <i class="fas fa-stop"></i> Stop
+                    </button>
+                </div>
+            </div>
+            
+            <div class="data-timestamp" id="data-timestamp">
+                Last Update: --:--:--
+            </div>
+        </div>
+    </div>
+
+    <div class="help-tooltip">
+        <div onclick="showHelp()">
+        <i class="fas fa-question"></i>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let ws = null;
+        let isWsConnected = false;
+        let connectedSerialPort = null;
+        let dcChannels = {};
+        let ptChannels = {};
+        let lcChannels = {};
+        let tcChannels = {};
+        // Raw index -> configured id maps
+        let ptIndexMap = {};
+        let lcIndexMap = {};
+        let tcIndexMap = {};
+        let dcIndexMap = {};
+        // Board-provided solenoid current order mapping (0-based indices)
+        // mapping[i] = physical channel index for value at position i
+        const dcOrder = [7, 6, 5, 4, 3, 2, 1, 0, 11, 10, 9, 8];
+        let currentData = {
+            pt: {},
+            lc: {},
+            tc: {},
+            dc: {}
+        };
+        // Offset to shift raw PT volts so ambient (~-0.4875 V) displays near 0.00000
+        const PT_RAW_OFFSET = 0.4875;
+        let lastDataUpdate = null;
+        let dcState = {}; // Track DC channel states for toggle buttons
+        // Bang-bang UI state
+        let fuelBB = { enable: false, set: 150, deadHigh: 10, deadLow: 10, wait: 250 };
+        let loxBB = { enable: false, set: 150, deadHigh: 10, deadLow: 10, wait: 250 };
+        // Simple ring buffers for plots (30s @ 10 Hz)
+        const bbBufLen = 300;
+        let fuelBufA = new Array(bbBufLen).fill(null), fuelBufB = new Array(bbBufLen).fill(null); // pf_fuel, pt_fuel
+        let loxBufA = new Array(bbBufLen).fill(null), loxBufB = new Array(bbBufLen).fill(null);   // pf_lox, pt_lox
+        let bbIdx = 0;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            loadConfigurations();
+            initWebSocket();
+            setupEventListeners();
+            // Hook inputs
+            const hook = (id, obj, key) => { const el = document.getElementById(id); if (el) { el.addEventListener('input', () => { obj[key] = (el.type === 'checkbox') ? el.checked : Number(el.value); }); obj[key] = (el.type === 'checkbox') ? el.checked : Number(el.value); } };
+            hook('fuel-bb-enable', fuelBB, 'enable'); hook('fuel-bb-set', fuelBB, 'set'); hook('fuel-bb-dead-high', fuelBB, 'deadHigh'); hook('fuel-bb-dead-low', fuelBB, 'deadLow'); hook('fuel-bb-wait', fuelBB, 'wait');
+            hook('lox-bb-enable', loxBB, 'enable'); hook('lox-bb-set', loxBB, 'set'); hook('lox-bb-dead-high', loxBB, 'deadHigh'); hook('lox-bb-dead-low', loxBB, 'deadLow'); hook('lox-bb-wait', loxBB, 'wait');
+
+            // Send immediate enable/disable on checkbox toggle
+            try {
+                const fuelEn = document.getElementById('fuel-bb-enable');
+                if (fuelEn) fuelEn.addEventListener('change', () => { serialSend(`B1${fuelEn.checked ? 1 : 0}`); });
+                const loxEn = document.getElementById('lox-bb-enable');
+                if (loxEn) loxEn.addEventListener('change', () => { serialSend(`B2${loxEn.checked ? 1 : 0}`); });
+            } catch (_) {}
+            setInterval(drawBBPlots, 250);
+        });
+
+        // Load channel configurations (disable caching so edits propagate immediately)
+        async function loadConfigurations() {
+            try {
+                const ts = Date.now();
+                const noStore = { cache: 'no-store' };
+                const [dcResp, ptResp, lcResp, tcResp] = await Promise.all([
+                    fetch(`./configs/dc_channels.json?ts=${ts}`, noStore),
+                    fetch(`./configs/pt_channels.json?ts=${ts}`, noStore),
+                    fetch(`./configs/lc_channels.json?ts=${ts}`, noStore),
+                    fetch(`./configs/tc_channels.json?ts=${ts}`, noStore)
+                ]);
+
+                dcChannels = (await dcResp.json()).channels.reduce((acc, ch) => {
+                    acc[ch.dc.id] = ch.dc;
+                    return acc;
+                }, {});
+
+                ptChannels = (await ptResp.json()).channels.reduce((acc, ch) => {
+                    acc[ch.pt.id] = ch.pt;
+                    return acc;
+                }, {});
+
+                lcChannels = (await lcResp.json()).channels.reduce((acc, ch) => {
+                    acc[ch.lc.id] = ch.lc;
+                    return acc;
+                }, {});
+
+                tcChannels = (await tcResp.json()).channels.reduce((acc, ch) => {
+                    acc[ch.tc.id] = ch.tc;
+                    return acc;
+                }, {});
+
+                // Build raw index maps
+                ptIndexMap = {};
+                Object.values(ptChannels).forEach(ch => {
+                    const ri = Number.isFinite(ch.raw_index) ? ch.raw_index : ch.id; // 1-based
+                    ptIndexMap[ri] = ch.id;
+                });
+                lcIndexMap = {};
+                Object.values(lcChannels).forEach(ch => {
+                    const ri = Number.isFinite(ch.raw_index) ? ch.raw_index : ch.id; // 1-based
+                    lcIndexMap[ri] = ch.id;
+                });
+                tcIndexMap = {};
+                Object.values(tcChannels).forEach(ch => {
+                    const ri = Number.isFinite(ch.raw_index) ? ch.raw_index : ch.id; // 1-based
+                    tcIndexMap[ri] = ch.id;
+                });
+                dcIndexMap = {};
+                Object.values(dcChannels).forEach(ch => {
+                    const ri = Number.isFinite(ch.raw_index) ? ch.raw_index : ch.id; // 1-based
+                    dcIndexMap[ri] = ch.id;
+                });
+
+                // Update BB channel mapping labels
+                try { updateBBChannelInfo(); } catch (_) {}
+                renderDCControls();
+                renderTelemetryPlaceholders();
+            } catch (error) {
+                console.error('Failed to load configurations:', error);
+                showToast('Configuration Error', 'Failed to load channel configurations', 'error');
+            }
+        }
+
+        function updateBBChannelInfo() {
+            const findByShort = (coll, key) => {
+                const list = Object.values(coll || {});
+                return list.find(x => (x.short_name || '').toLowerCase() === key) || null;
+            };
+            // Fuel
+            const pfFuel = findByShort(ptChannels, 'pf_fuel');
+            const ptFuel = findByShort(ptChannels, 'pt_fuel');
+            const fuelPtEl = document.getElementById('fuel-bb-map-pt');
+            if (fuelPtEl) {
+                if (pfFuel || ptFuel) {
+                    const feed = pfFuel ? `${pfFuel.short_name} #${(Number.isFinite(pfFuel.raw_index)?pfFuel.raw_index:pfFuel.id)}` : '?';
+                    const tank = ptFuel ? `${ptFuel.short_name} #${(Number.isFinite(ptFuel.raw_index)?ptFuel.raw_index:ptFuel.id)}` : '?';
+                    fuelPtEl.textContent = `Plot: Feed=${feed}, Tank=${tank}`;
+                } else {
+                    fuelPtEl.textContent = 'Plot: Feed=PF_FUEL(#?), Tank=PT_FUEL(#?)';
+                }
+            }
+            const fuelValve = findByShort(dcChannels, 'fuel_bb');
+            const fuelDcEl = document.getElementById('fuel-bb-map-dc');
+            if (fuelDcEl) {
+                if (fuelValve) {
+                    const raw = Number.isFinite(fuelValve.raw_index) ? fuelValve.raw_index : fuelValve.id;
+                    fuelDcEl.textContent = `Valve: ${fuelValve.short_name} #${raw}`;
+                } else {
+                    fuelDcEl.textContent = 'Valve: FUEL_BB #?';
+                }
+            }
+
+            // LOX
+            const pfLox = findByShort(ptChannels, 'pf_lox');
+            const ptLox = findByShort(ptChannels, 'pt_lox');
+            const loxPtEl = document.getElementById('lox-bb-map-pt');
+            if (loxPtEl) {
+                if (pfLox || ptLox) {
+                    const feed = pfLox ? `${pfLox.short_name} #${(Number.isFinite(pfLox.raw_index)?pfLox.raw_index:pfLox.id)}` : '?';
+                    const tank = ptLox ? `${ptLox.short_name} #${(Number.isFinite(ptLox.raw_index)?ptLox.raw_index:ptLox.id)}` : '?';
+                    loxPtEl.textContent = `Plot: Feed=${feed}, Tank=${tank}`;
+                } else {
+                    loxPtEl.textContent = 'Plot: Feed=PF_LOX(#?), Tank=PT_LOX(#?)';
+                }
+            }
+            const loxValve = findByShort(dcChannels, 'lox_bb');
+            const loxDcEl = document.getElementById('lox-bb-map-dc');
+            if (loxDcEl) {
+                if (loxValve) {
+                    const raw = Number.isFinite(loxValve.raw_index) ? loxValve.raw_index : loxValve.id;
+                    loxDcEl.textContent = `Valve: ${loxValve.short_name} #${raw}`;
+                } else {
+                    loxDcEl.textContent = 'Valve: LOX_BB #?';
+                }
+            }
+        }
+
+        // Logging functions
+        async function startLogging() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                showToast('Connection Error', 'WebSocket not connected', 'error');
+                return;
+            }
+
+            try {
+                ws.send(JSON.stringify({ action: 'start_logging' }));
+                showToast('Logging Started', 'Data logging initiated', 'success');
+            } catch (error) {
+                console.error('Failed to start logging:', error);
+                showToast('Error', 'Failed to start logging', 'error');
+            }
+        }
+
+        async function stopLogging() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            try {
+                ws.send(JSON.stringify({ action: 'stop_logging' }));
+            } catch (error) {
+                console.error('Failed to stop logging:', error);
+            }
+        }
+
+        function updateLoggingStatus(status) {
+            const indicator = document.getElementById('logging-indicator');
+            const filenameEl = document.getElementById('logging-filename');
+            const startBtn = document.getElementById('start-log-btn-top');
+            const stopBtn = document.getElementById('stop-log-btn-top');
+            const infoLogEl = document.getElementById('info-log-file');
+            const topInd = document.getElementById('logging-indicator-top');
+            const topName = document.getElementById('logging-filename-top');
+            const topStart = document.getElementById('start-log-btn-top');
+            const topStop = document.getElementById('stop-log-btn-top');
+
+            if (status.active) {
+                indicator && indicator.classList.add('active');
+                const filename = status.filename || 'logging.csv';
+                const shortName = filename.split(/[\/\\]/).pop();
+                filenameEl && (filenameEl.textContent = `Logging to: ${shortName}`);
+                if (infoLogEl) infoLogEl.innerHTML = `Log: <strong>${shortName}</strong>`;
+                startBtn && (startBtn.disabled = true);
+                stopBtn && (stopBtn.disabled = false);
+                // Top controls
+                topInd && topInd.classList.add('active');
+                topName && (topName.textContent = `Log: ${shortName}`);
+                topStart && (topStart.disabled = true);
+                topStop && (topStop.disabled = false);
+            } else {
+                indicator && indicator.classList.remove('active');
+                filenameEl && (filenameEl.textContent = 'No active log file');
+                if (infoLogEl) infoLogEl.innerHTML = 'Log: <strong>--</strong>';
+                startBtn && (startBtn.disabled = false);
+                stopBtn && (stopBtn.disabled = true);
+                // Top controls
+                topInd && topInd.classList.remove('active');
+                topName && (topName.textContent = 'No active log');
+                topStart && (topStart.disabled = false);
+                topStop && (topStop.disabled = true);
+            }
+        }
+
+        // Poll logging status periodically
+        function pollLoggingStatus() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                try {
+                    ws.send(JSON.stringify({ action: 'get_logging_status' }));
+                } catch (error) {
+                    console.error('Failed to poll logging status:', error);
+                }
+            }
+        }
+
+        // Poll every 2 seconds
+        setInterval(pollLoggingStatus, 2000);
+
+        // WebSocket connection
+        function initWebSocket() {
+            try {
+                const host = window.location.hostname || 'localhost';
+                const port = 3941; // Keep in sync with server
+                ws = new WebSocket(`ws://${host}:${port}`);
+            } catch (e) {
+                console.error('WebSocket init failed:', e);
+                updateConnectionStatus(false);
+                setTimeout(initWebSocket, 2000);
+                return;
+            }
+            
+            ws.onopen = () => {
+                isWsConnected = true;
+                requestPortList();
+                updateConnectionStatus(true);
+                // Fallback connect if no serial within 2s
+                setTimeout(() => {
+                    if (!connectedSerialPort) {
+                        connectToSerialPort('TEST_PORT_1');
+                    }
+                }, 2000);
+                // After config loaded and first connect, send all OFF once
+                if (!_sentAllOffOnConnect && Object.keys(dcChannels).length > 0) {
+                    _sentAllOffOnConnect = true;
+                    setTimeout(setAllDCOff, 300);
+                }
+            };
+
+            ws.onclose = () => {
+                isWsConnected = false;
+                connectedSerialPort = null;
+                updateConnectionStatus(false);
+                if (!ws || ws.readyState === WebSocket.CLOSED) {
+                setTimeout(initWebSocket, 2000);
+                }
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const                     msg = JSON.parse(event.data);
+                    if (msg.ports) {
+                        if (msg.ports.length > 0 && !connectedSerialPort) {
+                            // Prefer likely USB serial devices
+                            const candidates = msg.ports;
+                            const preferred = candidates.find(p => /usbmodem|usbserial|ttyACM|ttyUSB/i.test(p)) || candidates[0];
+                            connectToSerialPort(preferred);
+                        }
+                    } else if (msg.success !== undefined && msg.message && (msg.message.startsWith('Connected to') || msg.message.includes('Already connected to'))) {
+                        const m = msg.message.match(/Connected to\s+([A-Za-z0-9:_\\/.-]+)/) || msg.message.match(/Already connected to\s+([A-Za-z0-9:_\\/.-]+)/);
+                        connectedSerialPort = m && m[1] ? m[1] : connectedSerialPort;
+                        updateConnectionStatus(true);
+                    } else if (msg.type === 'data') {
+                        // Prepare raw context so we can show true raw values (e.g., PT volts) while displaying calibrated PSI
+                        const rawCtx = {};
+                        if (Array.isArray(msg.pt_mA)) { rawCtx.pt_mA = msg.pt_mA; }
+                        if (typeof msg.raw === 'string' && msg.raw.length > 0) {
+                            try {
+                                const rawFirst = msg.raw.trim()[0];
+                                if (rawFirst === 'p' && msg.raw.includes(',')) {
+                                    rawCtx.pTokens = msg.raw.split(',');
+                                } else if (rawFirst === 't' && msg.raw.includes(',')) {
+                                    rawCtx.tTokens = msg.raw.split(',');
+                                } else if (rawFirst === 's' && msg.raw.includes(',')) {
+                                    rawCtx.sTokens = msg.raw.split(',');
+                                }
+                            } catch (_) {}
+                        }
+                parseTelemetryData(msg.content, rawCtx);
+                    } else if (msg.success !== undefined && msg.message && msg.message.includes('Logging')) {
+                        // Handle logging start/stop responses
+                        if (msg.success) {
+                            showToast('Success', msg.message, 'success');
+                        }
+                        // Update status immediately
+                        pollLoggingStatus();
+                    } else if (msg.active !== undefined) {
+                        // Handle logging status update
+                        updateLoggingStatus(msg);
+                    }
+                } catch (_) {
+                    // Ignore non-JSON frames
+                }
+            };
+
+            ws.onerror = () => {
+                isWsConnected = false;
+                updateConnectionStatus(false);
+            };
+        }
+
+        function requestPortList() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            ws.send(JSON.stringify({ action: 'list_ports' }));
+        }
+
+        function connectToSerialPort(port) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            ws.send(JSON.stringify({ action: 'connect', port }));
+        }
+
+        function tarePTs(){
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            try{
+                ws.send(JSON.stringify({ action: 'tare_pts' }));
+                showToast('Tare PTs', 'Capturing ambient and zeroing...', 'info');
+            }catch(e){ console.error('Failed to send tare_pts', e); }
+        }
+
+        // Helper: set all DC channels OFF once (on startup or E-Stop)
+        let _sentAllOffOnConnect = false;
+        function setAllDCOff() {
+            Object.keys(dcChannels).forEach(idStr => {
+                const id = parseInt(idStr, 10);
+                if (!Number.isFinite(id)) return;
+                controlDC(id, 0);
+            });
+        }
+
+        // Parse telemetry data from firmware (supports CSV with per-value identifiers 's','p','t' and legacy text)
+        function parseTelemetryData(data, rawCtx = {}) {
+            if (typeof data !== 'string' || data.length === 0) return;
+            
+            // Track message count and data rate
+            messageCount++;
+            dataRateHistory.push(Date.now());
+
+            // CSV mode: each value starts with an identifier letter, e.g., "p100.1,p200.2,..."
+            // Determine identifier from the first token
+            if (data.includes(',')) {
+                const tokens = data.split(',');
+                const first = tokens[0] || '';
+                const id = /^[a-zA-Z]/.test(first) ? first[0] : null;
+                if (id === 'p' || id === 't' || id === 's') {
+                    // Strip leading letters from each token and parse floats
+                    const values = tokens.map(tok => {
+                        const cleaned = tok.replace(/^[a-zA-Z]+/, '');
+                        const num = parseFloat(cleaned);
+                        return Number.isFinite(num) ? num : null;
+                    }).filter(v => v !== null);
+
+                    if (id === 'p') {
+                        for (let i = 0; i < Math.min(values.length, 16); i++) {
+                            const rawIdx = i + 1;
+                            const channelId = ptIndexMap.hasOwnProperty(rawIdx) ? ptIndexMap[rawIdx] : rawIdx;
+                            const value = values[i];
+                            currentData.pt[channelId] = value;
+                            // Capture for BB plots using short_name keys
+                            try {
+                                const ch = ptChannels[channelId];
+                                if (ch && ch.short_name) {
+                                    const k = ch.short_name.toLowerCase();
+                                    if (k === 'pf_fuel') fuelBufA[bbIdx % bbBufLen] = value;
+                                    if (k === 'pt_fuel') fuelBufB[bbIdx % bbBufLen] = value;
+                                    if (k === 'pf_lox') loxBufA[bbIdx % bbBufLen] = value;
+                                    if (k === 'pt_lox') loxBufB[bbIdx % bbBufLen] = value;
+                                }
+                            } catch (_) {}
+                            // Fallback mapping: use last two PTs if no named mapping provided
+                            try {
+                                if (i === 14) { // second to last -> fuel
+                                    fuelBufA[bbIdx % bbBufLen] = value;
+                                    const fNow = document.getElementById('fuel-bb-now');
+                                    if (fNow) {
+                                        const tok = (rawCtx.pTokens && rawCtx.pTokens[i]) ? rawCtx.pTokens[i] : (tokens[i]||'');
+                                        const rv = parseFloat(String(tok).replace(/^[a-zA-Z]+/, ''));
+                                        const adj = Number.isFinite(rv) ? (rv + PT_RAW_OFFSET).toFixed(5) : value.toFixed(5);
+                                        fNow.textContent = adj;
+                                    }
+                                }
+                                if (i === 15) { // last -> lox
+                                    loxBufA[bbIdx % bbBufLen] = value;
+                                    const lNow = document.getElementById('lox-bb-now');
+                                    if (lNow) {
+                                        const tok = (rawCtx.pTokens && rawCtx.pTokens[i]) ? rawCtx.pTokens[i] : (tokens[i]||'');
+                                        const rv = parseFloat(String(tok).replace(/^[a-zA-Z]+/, ''));
+                                        const adj = Number.isFinite(rv) ? (rv + PT_RAW_OFFSET).toFixed(5) : value.toFixed(5);
+                                        lNow.textContent = adj;
+                                    }
+                                }
+                            } catch(_){}
+                            updateSensorDisplay('pt', channelId, value);
+                            const element = document.getElementById(`pt-${channelId}`);
+                            if (element) {
+                                const rawEl = element.querySelector('.sensor-raw');
+                                if (rawEl) {
+                                    // Prefer original raw token from the unprocessed frame (e.g., volts), fallback to processed token
+                                    const srcTok = (rawCtx.pTokens && rawCtx.pTokens[i]) ? rawCtx.pTokens[i] : (tokens[i]||'');
+                                    const rawNum = parseFloat(String(srcTok).replace(/^[a-zA-Z]+/, ''));
+                                    const adj = Number.isFinite(rawNum) ? (rawNum + PT_RAW_OFFSET) : null;
+                                    rawEl.textContent = `raw: ${adj !== null ? adj.toFixed(5) : String(srcTok).replace(/^[a-zA-Z]+/, '')}`;
+                                }
+                                const maEl = element.querySelector('.sensor-raw-ma');
+                                if (maEl && rawCtx.pt_mA && Number.isFinite(rawCtx.pt_mA[i])) {
+                                    maEl.textContent = `mA: ${rawCtx.pt_mA[i].toFixed(3)}`;
+                                }
+                            }
+                        }
+                        bbIdx++;
+                    } else if (id === 't') {
+                        // First 6 = LC (raw indices 0..5)
+                        for (let i = 0; i < Math.min(values.length, 6); i++) {
+                            const rawIdx = i + 1;
+                            const channelId = lcIndexMap.hasOwnProperty(rawIdx) ? lcIndexMap[rawIdx] : rawIdx;
+                            const value = values[i];
+                            currentData.lc[channelId] = value;
+                            updateSensorDisplay('lc', channelId, value);
+                            const element = document.getElementById(`lc-${channelId}`);
+                            if (element) {
+                                const rawEl = element.querySelector('.sensor-raw');
+                                if (rawEl) rawEl.textContent = `raw: ${(tokens[i]||'').replace(/^[a-zA-Z]+/, '')}`;
+                            }
+                        }
+                        // Next 6 = TC (raw indices 1..6)
+                        for (let i = 0; i < Math.min(Math.max(values.length - 6, 0), 6); i++) {
+                            const rawIdx = i + 1;
+                            const value = values[i + 6];
+                            const channelId = tcIndexMap.hasOwnProperty(rawIdx) ? tcIndexMap[rawIdx] : rawIdx;
+                            currentData.tc[channelId] = value;
+                            updateSensorDisplay('tc', channelId, value);
+                            const element = document.getElementById(`tc-${channelId}`);
+                            if (element) {
+                                const rawEl = element.querySelector('.sensor-raw');
+                                if (rawEl) rawEl.textContent = `raw: ${(tokens[i+6]||'').replace(/^[a-zA-Z]+/, '')}`;
+                            }
+                        }
+                    } else if (id === 's') {
+                        // Solenoid/DC currents; map using board order -> configured channel IDs
+                        for (let i = 0; i < values.length; i++) {
+                            const mappedRawIdx0 = (i < dcOrder.length) ? dcOrder[i] : i; // fallback identity
+                            const rawIdx = mappedRawIdx0 + 1; // convert to 1-based raw index
+                            const dcId = dcIndexMap.hasOwnProperty(rawIdx) ? dcIndexMap[rawIdx] : rawIdx;
+                            const value = values[i];
+                            currentData.dc[dcId] = value;
+                            const curEl = document.getElementById(`dc-current-${dcId}`);
+                            if (curEl) curEl.textContent = `${value.toFixed(3)} A`;
+                        }
+                    }
+
+                    lastDataUpdate = new Date();
+                    updateTimestamp();
+                    return;
+                }
+            }
+
+            // Legacy text mode fallback (e.g., "LC Channel 1: 123.456")
+            if (data.includes('LC Channel')) {
+                const match = data.match(/LC Channel (\d+): ([\d\.-]+)/);
+                if (match) {
+                    const channelId = parseInt(match[1]);
+                    const value = parseFloat(match[2]);
+                    currentData.lc[channelId] = value;
+                    updateSensorDisplay('lc', channelId, value);
+                    const element = document.getElementById(`lc-${channelId}`);
+                    if (element) {
+                        const rawEl = element.querySelector('.sensor-raw');
+                        if (rawEl) rawEl.textContent = `raw: ${match[2]}`;
+                    }
+                }
+            } else if (data.includes('TC Channel')) {
+                const match = data.match(/TC Channel (\d+): ([\d\.-]+)/);
+                if (match) {
+                    const channelId = parseInt(match[1]);
+                    const value = parseFloat(match[2]);
+                    currentData.tc[channelId] = value;
+                    updateSensorDisplay('tc', channelId, value);
+                    const element = document.getElementById(`tc-${channelId}`);
+                    if (element) {
+                        const rawEl = element.querySelector('.sensor-raw');
+                        if (rawEl) rawEl.textContent = `raw: ${match[2]}`;
+                    }
+                }
+            } else if (data.includes('PT Channel')) {
+                const match = data.match(/PT Channel (\d+): ([\d\.-]+)/);
+                if (match) {
+                    const channelId = parseInt(match[1]);
+                    const value = parseFloat(match[2]);
+                    currentData.pt[channelId] = value;
+                    updateSensorDisplay('pt', channelId, value);
+                    const element = document.getElementById(`pt-${channelId}`);
+                    if (element) {
+                        const rawEl = element.querySelector('.sensor-raw');
+                        if (rawEl) rawEl.textContent = `raw: ${match[2]}`;
+                    }
+                }
+            }
+            lastDataUpdate = new Date();
+            updateTimestamp();
+        }
+
+        // Update sensor display with real-time data
+        function updateSensorDisplay(type, channelId, value) {
+            const element = document.getElementById(`${type}-${channelId}`);
+            if (!element) return;
+
+            const config = type === 'pt' ? ptChannels[channelId] : 
+                          type === 'lc' ? lcChannels[channelId] : 
+                          tcChannels[channelId];
+            
+            if (!config || typeof config !== 'object') return;
+
+            // Update value
+            const valueElement = element.querySelector('.sensor-main');
+            if (valueElement) {
+                valueElement.textContent = value.toFixed(2);
+            }
+
+            // Do not touch raw/mA here; raw/mA are set in the parser from the original frames
+
+            // Update trend arrow using last value snapshot
+            const lastKey = `${type}_${channelId}`;
+            element._lastValue = element._lastValue ?? value;
+            const delta = value - element._lastValue;
+            element._lastValue = value;
+            let trendClass = 'flat';
+            let trendChar = '→';
+            if (delta > 0.05) { trendClass = 'up'; trendChar = '↑'; }
+            else if (delta < -0.05) { trendClass = 'down'; trendChar = '↓'; }
+            let trendEl = element.querySelector('.trend');
+            if (!trendEl) {
+                trendEl = document.createElement('span');
+                trendEl.className = 'trend flat';
+                element.querySelector('.sensor-value').appendChild(trendEl);
+            }
+            trendEl.className = `trend ${trendClass}`;
+            trendEl.textContent = trendChar;
+
+            // Update status based on thresholds
+            element.classList.remove('normal', 'warning', 'critical', 'offline');
+            
+            if (config.critical_high && value >= config.critical_high) {
+                element.classList.add('critical');
+            } else if (config.critical_low && value <= config.critical_low) {
+                element.classList.add('critical');
+            } else if (config.warning_high && value >= config.warning_high) {
+                element.classList.add('warning');
+            } else if (config.warning_low && value <= config.warning_low) {
+                element.classList.add('warning');
+            } else {
+                element.classList.add('normal');
+            }
+
+            // Add update animation
+            element.classList.add('updating');
+            setTimeout(() => element.classList.remove('updating'), 500);
+        }
+
+        // Render DC controls
+        function renderDCControls() {
+            const container = document.getElementById('dc-controls');
+            container.innerHTML = '';
+
+            // Group by type order: fuel, lox, misc; sort within group by PB/number inferred from short_name
+            const typeOrder = { fuel: 0, lox: 1, misc: 2 };
+            const channels = Object.values(dcChannels)
+                .slice()
+                .sort((a, b) => {
+                const at = typeOrder[a.type || 'misc'] ?? 99;
+                const bt = typeOrder[b.type || 'misc'] ?? 99;
+                if (at !== bt) return at - bt;
+                // Extract first number in short_name or name for ordering (PB designation)
+                const ax = extractOrderKey(a.short_name || a.name || '');
+                const bx = extractOrderKey(b.short_name || b.name || '');
+                return ax - bx;
+            });
+
+            channels.forEach(channel => {
+                const channelDiv = document.createElement('div');
+                const t = (channel.type || 'misc').toLowerCase();
+                channelDiv.className = `dc-channel inactive dc-type-${t}`;
+                channelDiv.onclick = () => controlDCToggle(channel.id);
+                const rawIndex = Number.isFinite(channel.raw_index) ? channel.raw_index : channel.id;
+                channelDiv.innerHTML = `
+                    <div class="dc-header">
+                        <div>
+                            <div class="dc-name">${channel.name}</div>
+                            <div class="dc-short">${channel.short_name} • ${(channel.type || 'misc').toUpperCase()} <span style="color:#94a3b8">#${rawIndex}</span></div>
+                        </div>
+                        <div class="dc-controls-row"><span class="dc-pill off" id="dc-toggle-${channel.id}">OFF</span></div>
+                    </div>
+                    <div style="display:flex; justify-content:flex-end; font-size:9px; color:#718096; margin-top:3px;">
+                        <span id="dc-current-${channel.id}">-- A</span>
+                    </div>
+                `;
+                container.appendChild(channelDiv);
+                dcState[channel.id] = 0;
+            });
+        }
+
+        function extractOrderKey(text) {
+            const m = String(text).match(/(pb)?\s*([0-9]+)(?:-([0-9]+))?/i);
+            if (!m) return Number.MAX_SAFE_INTEGER;
+            const base = parseInt(m[2], 10);
+            return Number.isFinite(base) ? base : Number.MAX_SAFE_INTEGER;
+        }
+
+        // Render telemetry placeholders
+        function renderSensorGroup(type, channels, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+
+            Object.values(channels).forEach(channel => {
+                const sensorDiv = document.createElement('div');
+                sensorDiv.className = 'sensor-reading offline';
+                sensorDiv.id = `${type}-${channel.id}`;
+                const rawIndex = Number.isFinite(channel.raw_index) ? channel.raw_index : channel.id;
+                // For PTs, compute configured max (fallback: PT1=10000, others=1500)
+                let maxPsi = null;
+                if (type === 'pt') {
+                    try {
+                        if (Array.isArray(channel.range) && channel.range.length > 1) {
+                            maxPsi = Number(channel.range[1]);
+                        }
+                    } catch (_) {}
+                    if (!Number.isFinite(maxPsi)) {
+                        maxPsi = (channel.id === 1) ? 10000 : 1500;
+                    }
+                }
+                // For PTs, show both channel ID and raw index if different
+                const channelInfo = type === 'pt' && channel.id !== rawIndex 
+                    ? `PT${channel.id} <span style="color:#94a3b8">(raw #${rawIndex})</span>`
+                    : type === 'pt' 
+                    ? `PT${channel.id} <span style="color:#94a3b8">#${rawIndex}</span>`
+                    : `${channel.short_name} <span style="color:#94a3b8">#${rawIndex}</span>`;
+                
+                sensorDiv.innerHTML = `
+                    <div class="sensor-info">
+                        <div class="sensor-name">${channel.name}</div>
+                        <div class="sensor-short">${channelInfo}</div>
+                    </div>
+                    <div class="sensor-value">
+                        <div class="sensor-main-row">
+                            ${type === 'pt' ? `<div class="sensor-raw-group">
+                                <span class="sensor-raw">raw: --</span>
+                                <span class="sensor-raw-ma">mA: --</span>
+                                ${maxPsi ? `<span class="sensor-config">cfg: ${maxPsi}</span>` : ''}
+                            </div>` : ''}
+                            <span class="sensor-main">--</span>
+                            <span class="sensor-units">${channel.units || ''}</span>
+                        </div>
+                        ${type !== 'pt' ? '<div class="sensor-raw-group"><span class="sensor-raw">raw: --</span></div>' : ''}
+                    </div>
+                `;
+                container.appendChild(sensorDiv);
+            });
+        }
+
+        function renderTelemetryPlaceholders() {
+            try { renderSensorGroup('pt', ptChannels, 'pt-readings'); } catch (e) { console.error('PT render failed', e); }
+            try { renderSensorGroup('lc', lcChannels, 'lc-readings'); } catch (e) { console.error('LC render failed', e); }
+            try { renderSensorGroup('tc', tcChannels, 'tc-readings'); } catch (e) { console.error('TC render failed', e); }
+        }
+
+        // DC control functions
+        function controlDC(channelId, state) {
+            // PANDA expects: S<hexChannel><state>, where hexChannel is 1-9,A-C for channels 1-12
+            const hexChar = toHexChannelChar(channelId);
+            const command = `S${hexChar}${state}`;
+            serialSend(command);
+            
+            // Update UI immediately for responsiveness
+            dcState[channelId] = state;
+            const pill = document.getElementById(`dc-toggle-${channelId}`);
+            const channelElement = pill.closest('.dc-channel');
+            if (state === 1) {
+                pill.textContent = 'ON';
+                pill.className = 'dc-pill on';
+                channelElement.className = 'dc-channel active';
+            } else {
+                pill.textContent = 'OFF';
+                pill.className = 'dc-pill off';
+                channelElement.className = 'dc-channel inactive';
+            }
+        }
+
+        // Low-level serial send via WebSocket bridge
+        function serialSend(command) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                console.warn('WS not connected; cannot send', command);
+                return;
+            }
+            try {
+                ws.send(JSON.stringify({ action: 'send', command }));
+            } catch (e) {
+                console.error('Failed to send command', command, e);
+            }
+        }
+
+        function controlDCToggle(channelId) {
+            const next = dcState[channelId] === 1 ? 0 : 1;
+            controlDC(channelId, next);
+        }
+
+        function toHexChannelChar(channelId) {
+            // 1..12 -> '1'..'9','A','B','C'
+            if (channelId >= 1 && channelId <= 9) return String(channelId);
+            const map = {10: 'A', 11: 'B', 12: 'C'};
+            return map[channelId] || String(channelId);
+        }
+
+        // Toast notification function
+        function showToast(title, message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icons = {
+                success: 'fa-check-circle',
+                warning: 'fa-exclamation-triangle',
+                error: 'fa-times-circle',
+                info: 'fa-info-circle'
+            };
+            
+            toast.innerHTML = `
+                <i class="fas ${icons[type]} toast-icon"></i>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        // Arm/Disarm functions
+        function armSystem() {
+            serialSend('a');
+            document.querySelector('.header').classList.add('armed');
+            showToast('System Armed', 'Arm command sent', 'warning');
+        }
+                
+        function disarmSystem() {
+            serialSend('r');
+            document.querySelector('.header').classList.remove('armed');
+            showToast('System Disarmed', 'Disarm command sent', 'success');
+        }
+
+        // Safety functions
+        function emergencyStop() {
+            serialSend('r');
+            document.querySelector('.header').classList.remove('armed');
+            if (typeof Audio !== 'undefined') {
+                const audio = new Audio('./assets/extremely-loud-incorrect-buzzer_0cDaG20.mp3');
+                audio.play().catch(() => {});
+            }
+            // Force all DC channels OFF
+            setAllDCOff();
+            showToast('EMERGENCY STOP', 'Emergency stop activated', 'error');
+        }
+
+        function abort() {
+            serialSend('r');
+            document.querySelector('.header').classList.remove('armed');
+            if (typeof Audio !== 'undefined') {
+                const audio = new Audio('./assets/abort-sound.mp3');
+                audio.play().catch(() => {});
+            }
+            showToast('ABORT', 'Abort command sent', 'warning');
+        }
+
+        // Utility functions
+        function updateConnectionStatus(connected) {
+            const indicator = document.getElementById('connection-indicator');
+            const text = document.getElementById('connection-text');
+            
+            if (connected && connectedSerialPort) {
+                indicator.className = 'connection-indicator connected';
+                text.textContent = `Connected to ${connectedSerialPort}`;
+                } else {
+                indicator.className = 'connection-indicator disconnected';
+                text.textContent = connected ? 'WebSocket Connected' : 'Disconnected';
+            }
+        }
+
+        let messageCount = 0;
+        let dataRateHistory = [];
+        let startTime = Date.now();
+
+        function updateTimestamp() {
+            const element = document.getElementById('data-timestamp');
+            const infoElement = document.getElementById('info-last-update');
+            if (lastDataUpdate) {
+                const timeStr = lastDataUpdate.toLocaleTimeString();
+                element.textContent = `Last Update: ${timeStr}`;
+                if (infoElement) infoElement.textContent = `Last Update: ${timeStr}`;
+            }
+            
+            // Update stale indicator
+            const staleIndicator = document.getElementById('stale-indicator');
+            const staleText = document.getElementById('stale-text');
+            if (staleIndicator && staleText && lastDataUpdate) {
+                const now = Date.now();
+                const age = now - lastDataUpdate.getTime();
+                const ageSeconds = Math.floor(age / 1000);
+                
+                if (age < 1000) {
+                    staleIndicator.className = 'stale-indicator fresh';
+                    staleText.textContent = 'Live';
+                } else if (age < 5000) {
+                    staleIndicator.className = 'stale-indicator fresh';
+                    staleText.textContent = `${ageSeconds}s ago`;
+                } else if (age < 30000) {
+                    staleIndicator.className = 'stale-indicator stale';
+                    staleText.textContent = `${ageSeconds}s ago`;
+                } else {
+                    staleIndicator.className = 'stale-indicator offline';
+                    staleText.textContent = `${ageSeconds}s ago`;
+                }
+            }
+        }
+
+        function updateInfoBar() {
+            // Update serial port
+            const serialEl = document.getElementById('info-serial-port');
+            if (serialEl) serialEl.textContent = connectedSerialPort || '--';
+
+            // Update message count
+            const msgEl = document.getElementById('info-message-count');
+            if (msgEl) msgEl.textContent = `${messageCount} messages`;
+
+            // Calculate and update data rate
+            const now = Date.now();
+            dataRateHistory = dataRateHistory.filter(t => now - t < 10000);
+            if (dataRateHistory.length > 1) {
+                const rate = dataRateHistory.length / 10;
+                const rateEl = document.getElementById('info-data-rate');
+                if (rateEl) rateEl.textContent = rate.toFixed(1) + ' Hz';
+            }
+
+            // Update uptime
+            const elapsed = now - startTime;
+            const minutes = Math.floor(elapsed / 60000) % 60;
+            const hours = Math.floor(elapsed / 3600000);
+            const uptimeEl = document.getElementById('info-uptime');
+            if (uptimeEl) {
+                uptimeEl.textContent = `Uptime: ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+            }
+        }
+
+        // Update info bar every second
+        setInterval(updateInfoBar, 1000);
+
+        function refreshTelemetry() {
+            // Visual feedback for refresh
+            document.querySelectorAll('.refresh-btn i').forEach(icon => {
+                icon.classList.add('fa-spin');
+                setTimeout(() => icon.classList.remove('fa-spin'), 1000);
+            });
+            // Reload configurations to pick up any renamed channels
+            try { loadConfigurations(); } catch (_) {}
+        }
+
+        function showHelp() {
+            showToast('PANDA DAQ Controls', 'See console for keyboard shortcuts', 'info');
+            console.log('PANDA DAQ Controls:\n' +
+                '- DC Channels: Click ON/OFF to control valves\n' +
+                '- Telemetry: Green=Normal, Orange=Warning, Red=Critical\n' +
+                '- Safety: Abort (yellow), E-Stop (red), Arm/Disarm (center)');
+        }
+
+        // Upload BB config
+        function uploadBBConfig(which) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            const cfg = which === 'fuel' ? fuelBB : loxBB;
+            // Find the DC id for this bb solenoid by short_name
+            const targetShort = which === 'fuel' ? 'fuel_bb' : 'lox_bb';
+            let dcId = null;
+            for (const idStr of Object.keys(dcChannels)) {
+                const ch = dcChannels[idStr];
+                if (ch && (ch.short_name || '').toLowerCase() === targetShort) { dcId = Number(idStr); break; }
+            }
+            const payload = { action: 'bb_config', which, id: dcId, enable: !!cfg.enable, set: Number(cfg.set), deadHigh: Number(cfg.deadHigh), deadLow: Number(cfg.deadLow), wait: Number(cfg.wait) };
+            try { 
+                ws.send(JSON.stringify(payload)); 
+                showToast('Bang-Bang', `Uploaded ${which.toUpperCase()} config`, 'success');
+            } catch (_) {}
+        }
+
+        // Draw BB plots (two series + target and deadbands)
+        function drawSeries(ctx, data, color) {
+            const w = ctx.canvas.width, h = ctx.canvas.height; const n = data.length;
+            const vals = data.filter(v => Number.isFinite(v)); if (vals.length < 2) return;
+            const min = Math.min(...vals), max = Math.max(...vals), rng = Math.max(1e-3, max - min);
+            ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.beginPath();
+            for (let i = 0; i < n; i++) { const v = data[(bbIdx + i) % n]; if (!Number.isFinite(v)) continue; const x = (i / (n - 1)) * (w - 2) + 1; const y = h - 1 - ((v - min) / rng) * (h - 2); if (ctx._started) ctx.lineTo(x, y); else { ctx.moveTo(x, y); ctx._started = true; } }
+            ctx.stroke(); ctx._started = false;
+        }
+
+        function drawTargets(ctx, cfg, min, max) {
+            const w = ctx.canvas.width, h = ctx.canvas.height; const rng = Math.max(1e-3, max - min);
+            const yFor = (v) => h - 1 - ((v - min) / rng) * (h - 2);
+            const t = cfg.set, dh = cfg.deadHigh, dl = cfg.deadLow;
+            const ys = [t, t + dh, t - dl].map(yFor);
+            const colors = ['#22c55e', '#f59e0b', '#f59e0b'];
+            ctx.lineWidth = 2; ctx.setLineDash([]);
+            ctx.strokeStyle = colors[0]; ctx.beginPath(); ctx.moveTo(0, ys[0]); ctx.lineTo(w, ys[0]); ctx.stroke();
+            ctx.lineWidth = 1; ctx.setLineDash([4,2]);
+            ctx.strokeStyle = colors[1]; ctx.beginPath(); ctx.moveTo(0, ys[1]); ctx.lineTo(w, ys[1]); ctx.stroke();
+            ctx.strokeStyle = colors[2]; ctx.beginPath(); ctx.moveTo(0, ys[2]); ctx.lineTo(w, ys[2]); ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function drawBBPlots() {
+            const fuelCv = document.getElementById('fuel-bb-plot');
+            const loxCv = document.getElementById('lox-bb-plot');
+            if (fuelCv) {
+                const ctx = fuelCv.getContext('2d'); const w = fuelCv.width = fuelCv.clientWidth; const h = fuelCv.height;
+                ctx.clearRect(0,0,w,h);
+                const vals = [...fuelBufA, ...fuelBufB].filter(v => Number.isFinite(v));
+                const min = vals.length ? Math.min(...vals) : 0, max = vals.length ? Math.max(...vals) : 1;
+                drawSeries(ctx, fuelBufA, '#3b82f6'); drawSeries(ctx, fuelBufB, '#ef4444');
+                drawTargets(ctx, fuelBB, min, max);
+            }
+            if (loxCv) {
+                const ctx = loxCv.getContext('2d'); const w = loxCv.width = loxCv.clientWidth; const h = loxCv.height;
+                ctx.clearRect(0,0,w,h);
+                const vals = [...loxBufA, ...loxBufB].filter(v => Number.isFinite(v));
+                const min = vals.length ? Math.min(...vals) : 0, max = vals.length ? Math.max(...vals) : 1;
+                drawSeries(ctx, loxBufA, '#3b82f6'); drawSeries(ctx, loxBufB, '#ef4444');
+                drawTargets(ctx, loxBB, min, max);
+            }
+        }
+
+        // Event listeners
+        function setupEventListeners() {
+            document.getElementById('arm-btn-top').addEventListener('click', armSystem);
+            document.getElementById('disarm-btn-top').addEventListener('click', disarmSystem);
+            document.getElementById('emergency_stop').addEventListener('click', emergencyStop);
+            document.getElementById('abort_button').addEventListener('click', abort);
+
+        // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                emergencyStop();
+            }
+                if (e.ctrlKey && e.key === 'a') {
+                    e.preventDefault();
+                    armSystem();
+                }
+                if (e.ctrlKey && e.key === 'd') {
+                    e.preventDefault();
+                    disarmSystem();
+                }
+            });
+        }
+
+        // Auto-refresh telemetry display
+        setInterval(updateTimestamp, 1000);
+        setInterval(() => {
+            if (!isWsConnected && (!ws || ws.readyState === WebSocket.CLOSED)) {
+            initWebSocket();
+            }
+        }, 5000);
+    </script>
+</body>
+
+</html>

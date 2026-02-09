@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PANDA Telemetry - Real-time Monitoring</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8fafc;
+            color: #1a202c;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding: 10px;
+            gap: 10px;
+            overflow: hidden;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #ffffff;
+            border-radius: 15px;
+            padding: 15px 25px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a202c;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            padding: 8px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #4a5568;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .nav-btn:hover {
+            background: #f7fafc;
+            border-color: #cbd5e1;
+            transform: translateY(-2px);
+        }
+
+        .main-content {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            grid-template-rows: 1fr auto auto;
+            grid-template-areas: 
+                "controls chart"
+                "controls raw"
+                "controls dc";
+            gap: 10px;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .control-panel {
+            grid-area: controls;
+            background: #ffffff;
+            border-radius: 15px;
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+        }
+
+        .chart-container {
+            grid-area: chart;
+            background: #ffffff;
+            border-radius: 15px;
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .chart-wrapper {
+            flex: 1;
+            position: relative;
+            min-height: 0;
+        }
+
+        .control-section {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .control-section h3 {
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #2d3748;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 8px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 3px;
+            font-size: 12px;
+            color: #4a5568;
+            font-weight: 500;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            background: #ffffff;
+            color: #2d3748;
+            font-size: 12px;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #3182ce;
+            box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+        }
+
+        .form-group select option {
+            background: #ffffff;
+            color: #2d3748;
+        }
+
+        .form-group input::placeholder {
+            color: #a0aec0;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            border-radius: 8px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ef4444;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #10b981;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .raw-data {
+            grid-area: raw;
+            background: #ffffff;
+            border-radius: 15px;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            height: 100px;
+            overflow-y: auto;
+        }
+
+        .raw-data h3 {
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #2d3748;
+            font-weight: 600;
+        }
+
+        .raw-data-content {
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            color: #4a5568;
+            white-space: pre-wrap;
+            line-height: 1.2;
+            background: #f8fafc;
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+            height: calc(100% - 25px);
+            overflow-y: auto;
+        }
+
+        .chart-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .chart-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .chart-btn {
+            padding: 6px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #ffffff;
+            color: #4a5568;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+
+        .chart-btn:hover {
+            background: #f7fafc;
+            border-color: #a0aec0;
+        }
+
+        .chart-btn.active {
+            background: #10b981;
+            color: white;
+            border-color: #10b981;
+        }
+
+        /* Custom scrollbar */
+        .raw-data::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .raw-data::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
+        }
+
+        .raw-data::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        .raw-data::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .dc-status-section {
+            grid-area: dc;
+            background: #ffffff;
+            border-radius: 15px;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            height: 80px;
+            overflow-y: auto;
+        }
+
+        .dc-status-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+
+        .dc-status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 4px;
+        }
+
+        .dc-status-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 6px;
+            border-radius: 4px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            font-size: 9px;
+        }
+
+        .dc-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+        }
+
+        .dc-status-dot.on {
+            background: #10b981;
+        }
+
+        .dc-status-name {
+            font-weight: 500;
+            color: #4a5568;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>PANDA Telemetry Monitor</h1>
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="location.href='panda-daq-ui.html'">DAQ Control</button>
+                <button class="nav-btn" onclick="location.href='sequencer.html'">Sequencer</button>
+                <button class="nav-btn" onclick="location.href='index.html'">Home</button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="control-panel">
+                <!-- Channel Selection -->
+                <div class="control-section">
+                    <h3>Channel Selection</h3>
+                    <div class="form-group">
+                        <label for="channelSelect">Select Channel:</label>
+                        <select id="channelSelect">
+                            <option value="">-- Select Channel --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="solenoidSelect">Select Solenoid (for markers):</label>
+                        <select id="solenoidSelect">
+                            <option value="">-- Select DC --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Note: PT calibration is handled in backend for consistency across UIs -->
+
+                <!-- Bang-Bang Testing Limits -->
+                <div class="control-section">
+                    <h3>Bang-Bang Testing</h3>
+                    <div class="form-group">
+                        <label for="targetPressure">Target Pressure:</label>
+                        <input type="number" id="targetPressure" placeholder="e.g., 100" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="upperLimit">Upper Limit:</label>
+                        <input type="number" id="upperLimit" placeholder="e.g., 110" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="lowerLimit">Lower Limit:</label>
+                        <input type="number" id="lowerLimit" placeholder="e.g., 90" step="0.1">
+                    </div>
+                </div>
+
+                <!-- Time Window -->
+                <div class="control-section">
+                    <h3>Time Window</h3>
+                    <div class="form-group">
+                        <label for="timeWindow">Display Duration (seconds):</label>
+                        <input type="number" id="timeWindow" value="60" min="10" max="600" step="10">
+                    </div>
+                </div>
+
+                <!-- Connection Status -->
+                <div class="control-section">
+                    <h3>Connection</h3>
+                    <div class="connection-status">
+                        <div class="status-dot" id="connectionDot"></div>
+                        <span id="connectionText">Disconnected</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-controls">
+                    <div class="chart-title" id="chartTitle">Select a channel to begin monitoring</div>
+                    <div class="chart-buttons">
+                        <button class="chart-btn" id="pauseBtn" onclick="togglePause()">Pause</button>
+                        <button class="chart-btn" id="clearBtn" onclick="clearChart()">Clear</button>
+                        <button class="chart-btn" id="exportBtn" onclick="exportData()">Export</button>
+                    </div>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="telemetryChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="raw-data">
+            <h3>Raw Data Stream</h3>
+            <div class="raw-data-content" id="rawDataContent">
+                Waiting for data...
+            </div>
+        </div>
+
+        <div class="dc-status-section">
+            <div class="dc-status-title">DC Channel Status</div>
+            <div class="dc-status-grid" id="dcStatusGrid">
+                <!-- DC status items will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let ws = null;
+        let chart = null;
+        let chartData = [];
+        let isPaused = false;
+        let selectedChannel = null;
+        let channels = {};
+        let dcChannels = {};
+        let maxDataPoints = 1000;
+        let rawDataBuffer = [];
+        let maxRawLines = 20;
+        let lastRawDataUpdate = 0;
+        let rawDataThrottle = 50; // ~20/sec default (can be set to 0 for raw speed)
+        let dcChannelValues = {};
+        let dcLastStates = Array.from({length: 12}, () => false);
+        let dcEvents = []; // {t, ch, state}
+        let ptMeta = []; // loaded config for PTs
+
+        // Chart configuration
+        const chartConfig = {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Channel Data',
+                        data: [],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.1,
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'Target',
+                        data: [],
+                        borderColor: '#3b82f6',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        fill: false,
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'Upper Limit',
+                        data: [],
+                        borderColor: '#ef4444',
+                        borderWidth: 1,
+                        borderDash: [3, 3],
+                        fill: false,
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'Lower Limit',
+                        data: [],
+                        borderColor: '#ef4444',
+                        borderWidth: 1,
+                        borderDash: [3, 3],
+                        fill: false,
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'Solenoid Events',
+                        data: [],
+                        borderColor: '#111827',
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        parsing: false,
+                        showLine: false,
+                        // vertical lines will be drawn via plugin
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#4a5568',
+                            font: {
+                                size: 12
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'linear',
+                        position: 'bottom',
+                        title: {
+                            display: true,
+                            text: 'Time (seconds)',
+                            color: '#4a5568'
+                        },
+                        ticks: {
+                            color: '#4a5568'
+                        },
+                        grid: {
+                            color: 'rgba(203, 213, 225, 0.5)'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Value',
+                            color: '#4a5568'
+                        },
+                        ticks: {
+                            color: '#4a5568'
+                        },
+                        grid: {
+                            color: 'rgba(203, 213, 225, 0.5)'
+                        }
+                    }
+                },
+                animation: {
+                    duration: 0
+                }
+            }
+        };
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeChart();
+            loadChannelConfigs();
+            connectWebSocket();
+            setupEventListeners();
+        });
+
+        function initializeChart() {
+            const ctx = document.getElementById('telemetryChart').getContext('2d');
+            chart = new Chart(ctx, chartConfig);
+        }
+
+        async function loadChannelConfigs() {
+            // Create simple numbered channels instead of loading from JSON
+            channels = {};
+
+            // Try to load PT metadata for names/units/ranges
+            try {
+                const ts = Date.now();
+                const ptResp = await fetch(`configs/pt_channels.json?ts=${ts}`, { cache: 'no-store' });
+                const ptJson = await ptResp.json();
+                const raw = (ptJson.channels || []).map((entry) => entry.pt || {});
+                // Build map by id (1-based in config)
+                const byId = {};
+                raw.forEach((pt) => {
+                    const idx = (pt.id ? (parseInt(pt.id, 10) - 1) : undefined);
+                    if (idx !== undefined && !Number.isNaN(idx)) byId[idx] = pt;
+                });
+                // Build dense array 0..15
+                ptMeta = Array.from({ length: 16 }, (_, i) => byId[i] || raw[i] || {});
+            } catch (e) {
+                ptMeta = [];
+            }
+            
+            // PT channels (16 channels, 0-15)
+            for (let i = 0; i < 16; i++) {
+                const meta = ptMeta[i] || {};
+                channels[`pt${i}`] = {
+                    id: i,
+                    name: meta.name || `PT Channel ${i}`,
+                    short_name: meta.short_name || `PT${i}`,
+                    units: meta.units || 'psi',
+                    range: meta.range || [0, 1000],
+                    type: 'pressure'
+                };
+            }
+            
+            // LC channels (6 channels, 0-5)
+            for (let i = 0; i < 6; i++) {
+                channels[`lc${i}`] = {
+                    id: i,
+                    name: `LC Channel ${i}`,
+                    short_name: `LC${i}`,
+                    type: 'load'
+                };
+            }
+            
+            // TC channels (6 channels, 0-5)
+            for (let i = 0; i < 6; i++) {
+                channels[`tc${i}`] = {
+                    id: i,
+                    name: `TC Channel ${i}`,
+                    short_name: `TC${i}`,
+                    type: 'temperature'
+                };
+            }
+
+            // DC channels (12 channels, 0-11)
+            dcChannels = {};
+            for (let i = 0; i < 12; i++) {
+                dcChannels[`dc${i}`] = {
+                    id: i,
+                    name: `DC Channel ${i}`,
+                    short_name: `DC${i}`,
+                    type: 'solenoid'
+                };
+            }
+
+            populateChannelSelector();
+            populateDCStatusGrid();
+        }
+
+        function populateChannelSelector() {
+            const selector = document.getElementById('channelSelect');
+            selector.innerHTML = '<option value="">-- Select Channel --</option>';
+
+            console.log('Populating channels:', Object.keys(channels).length, 'channels found');
+
+            // PT Channels (0-15)
+            const ptGroup = document.createElement('optgroup');
+            ptGroup.label = 'PT Channels (Pressure)';
+            for (let i = 0; i < 16; i++) {
+                const option = document.createElement('option');
+                option.value = `pt${i}`;
+                const meta = channels[`pt${i}`] || {};
+                option.textContent = `${(meta.short_name || ('PT'+i))} - ${(meta.name || ('PT Channel '+i))} (${meta.units||'psi'})`;
+                ptGroup.appendChild(option);
+            }
+            selector.appendChild(ptGroup);
+
+            // LC Channels (0-5)
+            const lcGroup = document.createElement('optgroup');
+            lcGroup.label = 'LC Channels (Load Cells)';
+            for (let i = 0; i < 6; i++) {
+                const option = document.createElement('option');
+                option.value = `lc${i}`;
+                option.textContent = `LC${i} - Load Cell ${i}`;
+                lcGroup.appendChild(option);
+            }
+            selector.appendChild(lcGroup);
+
+            // TC Channels (0-5)
+            const tcGroup = document.createElement('optgroup');
+            tcGroup.label = 'TC Channels (Temperature)';
+            for (let i = 0; i < 6; i++) {
+                const option = document.createElement('option');
+                option.value = `tc${i}`;
+                option.textContent = `TC${i} - Temperature ${i}`;
+                tcGroup.appendChild(option);
+            }
+            selector.appendChild(tcGroup);
+
+            console.log('Channel selector populated with', selector.options.length, 'options');
+        }
+
+        function populateDCStatusGrid() {
+            const grid = document.getElementById('dcStatusGrid');
+            grid.innerHTML = '';
+
+            // Create DC status items for channels 0-11
+            for (let i = 0; i < 12; i++) {
+                const item = document.createElement('div');
+                item.className = 'dc-status-item';
+                item.innerHTML = `
+                    <div class="dc-status-dot" id="dc-dot-${i}"></div>
+                    <span class="dc-status-name">DC${i}</span>
+                `;
+                grid.appendChild(item);
+
+                // Initialize as OFF
+                dcChannelValues[i] = 0;
+            }
+
+            console.log('DC status grid populated with 12 channels (0-11)');
+
+            // Populate solenoid selector
+            const sel = document.getElementById('solenoidSelect');
+            if (sel) {
+                sel.innerHTML = '<option value="">-- Select DC --</option>';
+                for (let i = 0; i < 12; i++) {
+                    const opt = document.createElement('option');
+                    opt.value = `${i}`;
+                    opt.textContent = `DC${i}`;
+                    sel.appendChild(opt);
+                }
+            }
+        }
+
+        function connectWebSocket() {
+            try {
+                ws = new WebSocket('ws://localhost:3941');
+                
+                ws.onopen = function() {
+                    updateConnectionStatus(true);
+                    console.log('WebSocket connected');
+                };
+
+                ws.onmessage = function(event) {
+                    handleWebSocketMessage(event.data);
+                };
+
+                ws.onclose = function() {
+                    updateConnectionStatus(false);
+                    console.log('WebSocket disconnected');
+                    // Attempt to reconnect aggressively until success
+                    setTimeout(connectWebSocket, 1000);
+                };
+
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    updateConnectionStatus(false);
+                };
+            } catch (error) {
+                console.error('Failed to connect WebSocket:', error);
+                updateConnectionStatus(false);
+                setTimeout(connectWebSocket, 1000);
+            }
+        }
+
+        function handleWebSocketMessage(data) {
+            try {
+                const message = JSON.parse(data);
+                
+                if (message.type === 'data') {
+                    // Show true raw line if provided; fall back to processed content
+                    const rawLine = message.raw || message.content;
+                    addRawData(`${rawLine}`);
+                    processTelemetryData(message.content);
+                    // Handle DC meta for events/states
+                    if (message.dc) {
+                        handleDCMeta(message.dc);
+                    }
+                } else if (message.type === 'telemetry') {
+                    processTelemetryData(message.data);
+                } else if (message.type === 'raw') {
+                    addRawData(message.data);
+                }
+            } catch (error) {
+                // Handle raw telemetry data
+                addRawData(data);
+                processTelemetryData(data);
+            }
+        }
+
+        function handleDCMeta(meta) {
+            // meta: { timestamp, currents, states }
+            const sel = document.getElementById('solenoidSelect');
+            const selected = sel && sel.value !== '' ? parseInt(sel.value, 10) : null;
+            if (Array.isArray(meta.states)) {
+                for (let i = 0; i < Math.min(12, meta.states.length); i++) {
+                    const state = !!meta.states[i];
+                    const dot = document.getElementById(`dc-dot-${i}`);
+                    if (dot) {
+                        if (state) dot.classList.add('on'); else dot.classList.remove('on');
+                    }
+                    // Detect edge for selected channel -> add event marker
+                    if (selected !== null && i === selected) {
+                        const prev = dcLastStates[i];
+                        if (state !== prev) {
+                            dcLastStates[i] = state;
+                            const t = (Date.now() - (window.chartStartTime || Date.now())) / 1000;
+                            dcEvents.push({ t, ch: i, state });
+                        }
+                    } else {
+                        dcLastStates[i] = state;
+                    }
+                }
+            }
+        }
+
+        function processTelemetryData(data) {
+            if (!selectedChannel || isPaused) return;
+
+            if (typeof data !== 'string' || data.length === 0) return;
+
+            // Parse CSV data similar to main DAQ UI
+            const lines = data.split('\n').filter(line => line.trim());
+            
+            lines.forEach(line => {
+                if (line.includes(',')) {
+                    const tokens = line.split(',');
+                    const first = tokens[0] || '';
+                    const id = /^[a-zA-Z]/.test(first) ? first[0] : null;
+                    
+                    if (id === 'p' || id === 't' || id === 's') {
+                        // Strip leading letters from each token and parse floats
+                        const values = tokens.map(tok => {
+                            // Handle values like "p-0.000" or "p0.000" - extract everything after the letter
+                            const match = tok.match(/^[a-zA-Z]+([-+]?\d*\.?\d+)/);
+                            if (match) {
+                                const num = parseFloat(match[1]);
+                                return Number.isFinite(num) ? num : null;
+                            }
+                            return null;
+                        }).filter(v => v !== null);
+
+                        if (id === 'p') {
+                            // PT channels (pt0 to pt15) - 0-based indexing
+                            for (let i = 0; i < Math.min(values.length, 16); i++) {
+                                const channelKey = `pt${i}`;
+                                
+                                if (channelKey === selectedChannel) {
+                                    // All calibration now handled in backend; use value directly
+                                    addDataPoint(values[i]);
+                                }
+                            }
+                        } else if (id === 't') {
+                            // LC channels (lc0 to lc5) - mapped from 't' identifier, 0-based
+                            for (let i = 0; i < Math.min(values.length, 6); i++) {
+                                const channelKey = `lc${i}`;
+                                
+                                if (channelKey === selectedChannel) {
+                                    addDataPoint(values[i]);
+                                }
+                            }
+                            // TC channels (tc0 to tc5) - also from 't' identifier but offset, 0-based
+                            for (let i = 6; i < Math.min(values.length, 12); i++) {
+                                const channelIndex = i - 6; // tc0-tc5
+                                const channelKey = `tc${channelIndex}`;
+                                
+                                if (channelKey === selectedChannel) {
+                                    addDataPoint(values[i]);
+                                }
+                            }
+                        } else if (id === 's') {
+                            // Solenoid current readings - map to DC channels for status (0-based)
+                            for (let i = 0; i < Math.min(values.length, 12); i++) {
+                                const current = values[i];
+                                
+                                // Update DC channel value (0-based indexing)
+                                dcChannelValues[i] = current;
+                                
+                                // Update status indicator (consider current > 0.01 as ON)
+                                const dot = document.getElementById(`dc-dot-${i}`);
+                                if (dot) {
+                                    if (current > 0.01) {
+                                        dot.classList.add('on');
+                                    } else {
+                                        dot.classList.remove('on');
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function addDataPoint(value) {
+            const now = Date.now();
+            
+            // Initialize start time if this is the first data point
+            if (chartData.length === 0) {
+                window.chartStartTime = now;
+            }
+            
+            const timeSeconds = (now - window.chartStartTime) / 1000;
+
+            chartData.push({
+                timestamp: now,
+                time: timeSeconds,
+                value: value
+            });
+
+            // Limit data points
+            const timeWindow = parseInt(document.getElementById('timeWindow').value) || 60;
+            const cutoffTime = timeSeconds - timeWindow;
+            chartData = chartData.filter(point => point.time >= cutoffTime);
+
+            updateChart();
+        }
+
+        function updateChart() {
+            if (!chart || !selectedChannel) return;
+
+            const timeWindow = parseInt(document.getElementById('timeWindow').value) || 60;
+            const target = parseFloat(document.getElementById('targetPressure').value);
+            const upperLimit = parseFloat(document.getElementById('upperLimit').value);
+            const lowerLimit = parseFloat(document.getElementById('lowerLimit').value);
+
+            // Update main data (preserve precision on both axes)
+            chart.data.labels = chartData.map(point => Number(point.time.toFixed(3)));
+            chart.data.datasets[0].data = chartData.map(point => Number(point.value));
+
+            // Update limit lines
+            const timePoints = chartData.map(point => point.time);
+            
+            if (!isNaN(target)) {
+                chart.data.datasets[1].data = timePoints.map(() => target);
+            }
+            if (!isNaN(upperLimit)) {
+                chart.data.datasets[2].data = timePoints.map(() => upperLimit);
+            }
+            if (!isNaN(lowerLimit)) {
+                chart.data.datasets[3].data = timePoints.map(() => lowerLimit);
+            }
+
+            // Update x-axis range
+            if (timePoints.length > 0) {
+                const maxTime = Math.max(...timePoints);
+                chart.options.scales.x.min = Math.max(0, maxTime - timeWindow);
+                chart.options.scales.x.max = Math.max(timeWindow, maxTime);
+            }
+
+            // Dynamic y-axis scaling based on recent values (keep view responsive)
+            const values = chartData.map(p => p.value);
+            if (values.length > 1) {
+                let vMin = Math.min(...values);
+                let vMax = Math.max(...values);
+                if (isFinite(vMin) && isFinite(vMax)) {
+                    let pad = (vMax - vMin) * 0.2;
+                    if (pad < 0.01) pad = 0.01; // minimum padding to avoid a flat band
+                    chart.options.scales.y.min = vMin - pad;
+                    chart.options.scales.y.max = vMax + pad;
+                }
+            }
+
+            // Build annotation set: solenoid markers (+ max rating indicator when exceeded)
+            if (!chart.options.plugins) chart.options.plugins = {};
+            if (!chart.options.plugins.annotation) chart.options.plugins.annotation = {};
+            const anns = {};
+
+            // Vertical markers for selected solenoid
+            const sel = document.getElementById('solenoidSelect');
+            const sIdx = sel && sel.value !== '' ? parseInt(sel.value, 10) : null;
+            if (sIdx !== null && !Number.isNaN(sIdx)) {
+                dcEvents.slice(-200).forEach((ev, idx) => {
+                    if (ev.ch !== sIdx) return;
+                    anns[`dc_${idx}`] = {
+                        type: 'line',
+                        xMin: ev.t,
+                        xMax: ev.t,
+                        borderColor: ev.state ? '#10b981' : '#ef4444',
+                        borderWidth: 1
+                    };
+                });
+            }
+
+            // Max rating indicator (horizontal) when exceeded
+            if (selectedChannel.startsWith('pt')) {
+                const meta = channels[selectedChannel] || {};
+                if (Array.isArray(meta.range) && meta.range.length === 2) {
+                    const maxRating = Math.max(meta.range[0], meta.range[1]);
+                    const maxObserved = values.length ? Math.max(...values) : undefined;
+                    if (isFinite(maxObserved) && maxObserved > maxRating) {
+                        anns['pt_max_rating'] = {
+                            type: 'line',
+                            yMin: maxRating,
+                            yMax: maxRating,
+                            borderColor: '#ef4444',
+                            borderWidth: 1,
+                            borderDash: [6, 4]
+                        };
+                    }
+                }
+            }
+
+            chart.options.plugins.annotation.annotations = anns;
+
+            // Update Y axis label if PT selected
+            if (selectedChannel.startsWith('pt')) {
+                const meta = channels[selectedChannel] || {};
+                const u = (meta.units || 'psi');
+                // All PTs are gauge per system spec
+                const labelUnits = u.toLowerCase() === 'psi' ? 'psi (g)' : `${u} (g)`;
+                chart.options.scales.y.title.text = `Value (${labelUnits})`;
+            } else {
+                chart.options.scales.y.title.text = 'Value';
+            }
+
+            // Use requestAnimationFrame to avoid blocking and reduce reflow issues across tab switches
+            if (typeof window.requestAnimationFrame === 'function') {
+                window.requestAnimationFrame(() => chart.update('none'));
+            } else {
+                chart.update('none');
+            }
+        }
+
+        function addRawData(data) {
+            const now = Date.now();
+            
+            // Throttle raw data updates to once per second
+            if (now - lastRawDataUpdate < rawDataThrottle) {
+                return;
+            }
+            lastRawDataUpdate = now;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            rawDataBuffer.push(`[${timestamp}] ${data}`);
+            
+            // Limit buffer size
+            if (rawDataBuffer.length > maxRawLines) {
+                rawDataBuffer = rawDataBuffer.slice(-maxRawLines);
+            }
+            
+            const rawDataElement = document.getElementById('rawDataContent');
+            rawDataElement.textContent = rawDataBuffer.join('\n');
+            rawDataElement.scrollTop = rawDataElement.scrollHeight;
+        }
+
+        function updateConnectionStatus(connected) {
+            const dot = document.getElementById('connectionDot');
+            const text = document.getElementById('connectionText');
+            
+            if (connected) {
+                dot.classList.add('connected');
+                text.textContent = 'Connected to PANDA';
+            } else {
+                dot.classList.remove('connected');
+                text.textContent = 'Disconnected';
+            }
+        }
+
+        function setupEventListeners() {
+            // Channel selection
+            document.getElementById('channelSelect').addEventListener('change', function() {
+                selectedChannel = this.value;
+                console.log('Selected channel:', selectedChannel);
+                
+                if (selectedChannel && channels[selectedChannel]) {
+                    const channel = channels[selectedChannel];
+                    document.getElementById('chartTitle').textContent = 
+                        `${channel.short_name || selectedChannel} - ${channel.name || ''}`.trim();
+                    clearChart();
+                    console.log('Chart cleared for new channel:', selectedChannel);
+                } else {
+                    document.getElementById('chartTitle').textContent = 
+                        'Select a channel to begin monitoring';
+                    selectedChannel = null;
+                }
+            });
+
+            // Limit inputs
+            ['targetPressure', 'upperLimit', 'lowerLimit'].forEach(id => {
+                document.getElementById(id).addEventListener('input', updateChart);
+            });
+
+            // Time window
+            document.getElementById('timeWindow').addEventListener('input', function() {
+                // Trim data to new window size
+                const timeWindow = parseInt(this.value) || 60;
+                if (chartData.length > 0) {
+                    const latestTime = chartData[chartData.length - 1].time;
+                    const cutoffTime = latestTime - timeWindow;
+                    chartData = chartData.filter(point => point.time >= cutoffTime);
+                    updateChart();
+                }
+            });
+        }
+
+        function updatePauseButton() {
+            const btn = document.getElementById('pauseBtn');
+            if (!btn) return;
+            btn.textContent = isPaused ? 'Resume' : 'Pause';
+            btn.classList.toggle('active', isPaused);
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            updatePauseButton();
+        }
+
+        function clearChart() {
+            chartData = [];
+            window.chartStartTime = null;
+            if (chart) {
+                chart.data.labels = [];
+                chart.data.datasets.forEach(dataset => {
+                    dataset.data = [];
+                });
+                chart.update();
+            }
+        }
+
+        function exportData() {
+            if (chartData.length === 0) {
+                Swal.fire('No Data', 'No data available to export', 'warning');
+                return;
+            }
+
+            const csvContent = [
+                'Time (s),Value,Target,Upper Limit,Lower Limit',
+                ...chartData.map(point => {
+                    const target = document.getElementById('targetPressure').value || '';
+                    const upper = document.getElementById('upperLimit').value || '';
+                    const lower = document.getElementById('lowerLimit').value || '';
+                    return `${point.time.toFixed(3)},${point.value},${target},${upper},${lower}`;
+                })
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `telemetry_${selectedChannel}_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+
+            Swal.fire('Success', 'Data exported successfully', 'success');
+        }
+
+        // Do not pause on tab visibility changes; keep processing to avoid freezes
+    </script>
+</body>
+</html>
