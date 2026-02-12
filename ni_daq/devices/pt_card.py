@@ -71,6 +71,10 @@ class PTCard(BaseDevice):
                     except (ValueError, KeyError):
                         continue
                     
+                    # Read max PSI from cal_max_psi_a/b columns (new format)
+                    max_psi_a = row.get('cal_max_psi_a') or row.get('cal_max_psi') or '10000'
+                    max_psi_b = row.get('cal_max_psi_b') or row.get('cal_max_psi_alt') or max_psi_a
+                    
                     self.sensor_config[channel] = {
                         'channel': channel,
                         'id': row.get('id', f'PT{channel}'),
@@ -81,9 +85,8 @@ class PTCard(BaseDevice):
                         'units': row.get('units', 'psi'),
                         'calibration': {
                             'zero_ma': float(row.get('cal_zero_ma') or 4.0),
-                            'max_psi': float(row.get('cal_max_psi') or 10000.0),
-                            'max_psi_alt': float(row.get('cal_max_psi_alt') or float(row.get('cal_max_psi') or 10000.0)),
-                            'max_psi_alt_label': row.get('cal_alt_label', 'Cal B'),
+                            'max_psi': float(max_psi_a),
+                            'max_psi_alt': float(max_psi_b),
                         }
                     }
                     self.use_alt_cal[channel] = False

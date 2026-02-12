@@ -210,6 +210,10 @@ class LCCard(BaseDevice):
                     if channel >= self.channel_count:
                         continue
                     
+                    # Read slope from cal_slope_a/b columns (new format)
+                    slope_a = row.get('cal_slope_a') or row.get('cal_slope') or '1000000'
+                    slope_b = row.get('cal_slope_b') or row.get('cal_slope_alt') or slope_a
+                    
                     self.lc_config[channel] = {
                         'id': int(row.get('channel', channel)) + 1,
                         'name': row.get('name', f'LC{channel}'),
@@ -218,9 +222,8 @@ class LCCard(BaseDevice):
                         'range': [float(row.get('range_min') or 0), float(row.get('range_max') or 1000)],
                         'group': row.get('group', 'loadcell'),
                         'calibration': {
-                            'slope': float(row.get('cal_slope') or 1000000.0),
-                            'slope_alt': float(row.get('cal_slope_alt') or float(row.get('cal_slope') or 1000000.0)),
-                            'slope_alt_label': row.get('cal_alt_label', 'Cal B'),
+                            'slope': float(slope_a),
+                            'slope_alt': float(slope_b),
                             'offset': float(row.get('cal_offset') or 0.0),
                             'tare_offset': float(row.get('cal_tare') or 0.0),
                         }
