@@ -52,23 +52,56 @@ class TCCard(BaseDevice):
         self._load_tc_config()
     
     def _load_tc_config(self) -> None:
-        """Load TC channel configuration from tc_channels.json"""
+        """Load TC channel configuration from sensor_config.xlsx"""
         try:
-            config_path = Path(__file__).parent.parent / 'tc_channels.json'
-            with open(config_path, 'r') as f:
-                data = json.load(f)
-                for channel_data in data.get('channels', []):
-                    tc_info = channel_data.get('tc', {})
-                    tc_id = tc_info.get('id')
-                    if tc_id is not None:
-                        channel_idx = tc_id - 1
-                        if 0 <= channel_idx < self.channel_count:
-                            self.tc_config[channel_idx] = tc_info
-                logger.info(f"Loaded TC config for {len(self.tc_config)} channels")
-        except FileNotFoundError:
-            logger.warning("tc_channels.json not found, using defaults")
+            import openpyxl
+            
+            base = Path(__file__).parent.parent
+            xlsx_path = base / '..' / 'sensor_config.xlsx'
+            if not xlsx_path.exists():
+                xlsx_path = base / 'sensor_config.xlsx'
+            
+            wb = openpyxl.load_workbook(str(xlsx_path), read_only=True, data_only=True)
+            ws = wb['TC_Thermocouples']
+            
+            headers = [cell for cell in next(ws.iter_rows(min_row=1, max_row=1, values_only=True))]
+            col = {h: i for i, h in enumerate(headers) if h}
+            
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                system = row[col.get('system', 0)]
+                if not system or str(system).strip().lower() != 'ni_daq':
+                    continue
+                
+                try:
+                    channel = int(row[col['channel']])
+                except (ValueError, KeyError, TypeError):
+                    continue
+                
+                if channel >= self.channel_count:
+                    continue
+                
+                min_temp = row[col.get('cal_min_temp', -1)] if col.get('cal_min_temp') is not None else None
+                max_temp = row[col.get('cal_max_temp', -1)] if col.get('cal_max_temp') is not None else None
+                tc_offset = row[col.get('tc_cal_offset', -1)] if col.get('tc_cal_offset') is not None else None
+                tc_type = row[col.get('tc_type', -1)] if col.get('tc_type') is not None else None
+                
+                self.tc_config[channel] = {
+                    'id': channel + 1,
+                    'name': str(row[col.get('name', -1)] or f'TC{channel}'),
+                    'short_name': str(row[col.get('short_name', -1)] or f'TC{channel}'),
+                    'tc_type': str(tc_type or 'K').upper(),
+                    'units': str(row[col.get('units', -1)] or '°F'),
+                    'calibration': {
+                        'offset': float(tc_offset) if tc_offset is not None else 0.0,
+                        'min_temp': float(min_temp) if min_temp is not None else -320.0,
+                        'max_temp': float(max_temp) if max_temp is not None else 2282.0,
+                    }
+                }
+            
+            wb.close()
+            logger.info(f"Loaded TC config for {len(self.tc_config)} channels from sensor_config.xlsx")
         except Exception as e:
-            logger.warning(f"Could not load TC config: {e}")
+            logger.warning(f"Could not load TC config from xlsx: {e}")
     
     def _get_tc_type(self, channel: int) -> ThermocoupleType:
         """Get thermocouple type for a channel from config."""

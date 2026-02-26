@@ -45,55 +45,61 @@ class PTCard(BaseDevice):
         self.load_config()
     
     def load_config(self):
-        """Load PT configuration from master sensor_config.csv"""
-        import csv
+        """Load PT configuration from master sensor_config.xlsx"""
+        import openpyxl
         self.sensor_config = {}
         self.use_alt_cal: Dict[int, bool] = {}
         
         try:
-            # Look for sensor_config.csv in parent directories
             base = os.path.dirname(os.path.dirname(__file__))
-            csv_path = os.path.join(base, '..', 'sensor_config.csv')
-            if not os.path.exists(csv_path):
-                csv_path = os.path.join(base, 'sensor_config.csv')
+            xlsx_path = os.path.join(base, '..', 'sensor_config.xlsx')
+            if not os.path.exists(xlsx_path):
+                xlsx_path = os.path.join(base, 'sensor_config.xlsx')
             
-            with open(csv_path, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    # Skip comments and non-ni_daq PT sensors
-                    if row.get('system', '').startswith('#') or row.get('system') != 'ni_daq':
-                        continue
-                    if row.get('type') != 'PT':
-                        continue
-                    
-                    try:
-                        channel = int(row['channel'])
-                    except (ValueError, KeyError):
-                        continue
-                    
-                    # Read max PSI from cal_max_psi_a/b columns (new format)
-                    max_psi_a = row.get('cal_max_psi_a') or row.get('cal_max_psi') or '10000'
-                    max_psi_b = row.get('cal_max_psi_b') or row.get('cal_max_psi_alt') or max_psi_a
-                    
-                    self.sensor_config[channel] = {
-                        'channel': channel,
-                        'id': row.get('id', f'PT{channel}'),
-                        'name': row.get('name', f'PT{channel}'),
-                        'short_name': row.get('short_name', ''),
-                        'serial': row.get('serial', ''),
-                        'group': row.get('group', 'other'),
-                        'units': row.get('units', 'psi'),
-                        'calibration': {
-                            'zero_ma': float(row.get('cal_zero_ma') or 4.0),
-                            'max_psi': float(max_psi_a),
-                            'max_psi_alt': float(max_psi_b),
-                        }
+            wb = openpyxl.load_workbook(xlsx_path, read_only=True, data_only=True)
+            ws = wb['PT_Sensors']
+            
+            headers = [cell for cell in next(ws.iter_rows(min_row=1, max_row=1, values_only=True))]
+            col = {h: i for i, h in enumerate(headers) if h}
+            
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                system = row[col.get('system', 0)]
+                if not system or str(system).strip().lower() != 'ni_daq':
+                    continue
+                
+                try:
+                    channel = int(row[col['channel']])
+                except (ValueError, KeyError, TypeError):
+                    continue
+                
+                max_psi_a = row[col.get('cal_max_psi_a', -1)] if col.get('cal_max_psi_a') is not None else None
+                max_psi_b = row[col.get('cal_max_psi_b', -1)] if col.get('cal_max_psi_b') is not None else None
+                max_psi_a = float(max_psi_a) if max_psi_a is not None else 10000.0
+                max_psi_b = float(max_psi_b) if max_psi_b is not None else max_psi_a
+                
+                zero_ma = row[col.get('cal_zero_ma', -1)] if col.get('cal_zero_ma') is not None else None
+                zero_ma = float(zero_ma) if zero_ma is not None else 4.0
+                
+                self.sensor_config[channel] = {
+                    'channel': channel,
+                    'id': str(row[col.get('id', -1)] or f'PT{channel}'),
+                    'name': str(row[col.get('name', -1)] or f'PT{channel}'),
+                    'short_name': str(row[col.get('short_name', -1)] or ''),
+                    'serial': str(row[col.get('serial', -1)] or ''),
+                    'group': str(row[col.get('group', -1)] or 'other'),
+                    'units': str(row[col.get('units', -1)] or 'psi'),
+                    'calibration': {
+                        'zero_ma': zero_ma,
+                        'max_psi': max_psi_a,
+                        'max_psi_alt': max_psi_b,
                     }
-                    self.use_alt_cal[channel] = False
-                    
-            logger.info(f"Loaded {len(self.sensor_config)} PT sensor configs from sensor_config.csv")
+                }
+                self.use_alt_cal[channel] = False
+            
+            wb.close()
+            logger.info(f"Loaded {len(self.sensor_config)} PT sensor configs from sensor_config.xlsx")
         except Exception as e:
-            logger.warning(f"Could not load sensor config from CSV: {e}")
+            logger.warning(f"Could not load sensor config from xlsx: {e}")
             self.sensor_config = {}
 
     def tare(self, baseline_raw_data: List[List[float]], ambient_psi: float = 14.7) -> None:

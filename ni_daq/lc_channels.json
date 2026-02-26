@@ -4,14 +4,15 @@
             "lc": {
                 "id": 1,
                 "name": "TLCA",
-                "short_name": "TLCA",
+                "short_name": "tlca",
                 "units": "lbf",
-                "range": [-100, 100],
-                "warning_high": 80,
-                "critical_high": 95,
+                "range": [
+                    -100,
+                    100
+                ],
                 "calibration": {
                     "slope": 296590.0,
-                    "slope_alt": 59447.0,
+                    "slope_alt": 296590.0,
                     "slope_alt_label": "Cal B",
                     "offset": 0.0,
                     "tare_offset": 0.0
@@ -22,14 +23,15 @@
             "lc": {
                 "id": 2,
                 "name": "TLCB",
-                "short_name": "TLCB",
+                "short_name": "tlcb",
                 "units": "lbf",
-                "range": [-100, 100],
-                "warning_high": 80,
-                "critical_high": 95,
+                "range": [
+                    -100,
+                    100
+                ],
                 "calibration": {
                     "slope": 59447.0,
-                    "slope_alt": 100000.0,
+                    "slope_alt": 59447.0,
                     "slope_alt_label": "Cal B",
                     "offset": -2.91,
                     "tare_offset": 0.0
@@ -39,49 +41,54 @@
         {
             "lc": {
                 "id": 3,
-                "name": "FUEL TANK WEIGHT",
+                "name": "Fuel Tank Weight",
                 "short_name": "wt_fuel",
                 "units": "lbf",
-                "range": [0, 300],
-                "warning_low": 30,
-                "critical_low": 10,
+                "range": [
+                    -100,
+                    100
+                ],
                 "calibration": {
                     "slope": 59447.9,
-                    "slope_alt": 100000.0,
+                    "slope_alt": 59447.9,
                     "slope_alt_label": "Cal B",
                     "offset": -2.91,
-                    "tare_offset": 130
+                    "tare_offset": 130.0
                 }
             }
         },
         {
             "lc": {
                 "id": 4,
-                "name": "LOX TANK WEIGHT",
+                "name": "LOX Tank Weight",
                 "short_name": "wt_lox",
                 "units": "lbf",
-                "range": [-100, 100],
-                "warning_high": 80,
-                "critical_high": 95,
+                "range": [
+                    -100,
+                    100
+                ],
                 "calibration": {
                     "slope": 59447.0,
-                    "slope_alt": 100000.0,
+                    "slope_alt": 59447.0,
                     "slope_alt_label": "Cal B",
                     "offset": -2.91,
-                    "tare_offset": 129
+                    "tare_offset": 129.0
                 }
             }
         },
         {
             "lc": {
                 "id": 5,
-                "name": "LC SPARE 5",
+                "name": "LC Spare 5",
                 "short_name": "lc5",
                 "units": "lbf",
-                "range": [0, 1000],
+                "range": [
+                    -100,
+                    100
+                ],
                 "calibration": {
                     "slope": 1000000.0,
-                    "slope_alt": 500000.0,
+                    "slope_alt": 1000000.0,
                     "slope_alt_label": "Cal B",
                     "offset": 0.0,
                     "tare_offset": 0.0
@@ -91,13 +98,16 @@
         {
             "lc": {
                 "id": 6,
-                "name": "LC SPARE 6",
+                "name": "LC Spare 6",
                 "short_name": "lc6",
                 "units": "lbf",
-                "range": [0, 1000],
+                "range": [
+                    -100,
+                    100
+                ],
                 "calibration": {
                     "slope": 1000000.0,
-                    "slope_alt": 500000.0,
+                    "slope_alt": 1000000.0,
                     "slope_alt_label": "Cal B",
                     "offset": 0.0,
                     "tare_offset": 0.0

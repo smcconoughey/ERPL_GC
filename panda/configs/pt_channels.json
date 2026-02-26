@@ -7,9 +7,10 @@
                 "name": "BANGBANG TEST",
                 "short_name": "bb",
                 "units": "psi",
-                "range": [0, 500],
-                "warning_high": 400,
-                "critical_high": 450
+                "range": [
+                    0,
+                    500
+                ]
             }
         },
         {
@@ -19,9 +20,10 @@
                 "name": "LOX INJECTOR PRESSURE",
                 "short_name": "pi_lox",
                 "units": "psi",
-                "range": [0, 500],
-                "warning_high": 650,
-                "critical_high": 750
+                "range": [
+                    0,
+                    500
+                ]
             }
         },
         {
@@ -31,9 +33,10 @@
                 "name": "FUEL INJECTOR PRESSURE",
                 "short_name": "pi_fuel",
                 "units": "psi",
-                "range": [0, 800],
-                "warning_high": 650,
-                "critical_high": 750
+                "range": [
+                    0,
+                    500
+                ]
             }
         },
         {
@@ -43,9 +46,10 @@
                 "name": "LOX TANK PRESSURE",
                 "short_name": "pt_lox",
                 "units": "psi",
-                "range": [0, 600],
-                "warning_high": 500,
-                "critical_high": 580
+                "range": [
+                    0,
+                    500
+                ]
             }
         },
         {
@@ -55,9 +59,10 @@
                 "name": "FUEL TANK PRESSURE",
                 "short_name": "pt_fuel",
                 "units": "psi",
-                "range": [0, 600],
-                "warning_high": 500,
-                "critical_high": 580
+                "range": [
+                    0,
+                    500
+                ]
             }
         },
         {
@@ -67,9 +72,10 @@
                 "name": "PNEUMATIC SUPPLY",
                 "short_name": "pt_pneu",
                 "units": "psi",
-                "range": [0, 300],
-                "warning_low": 150,
-                "critical_low": 100
+                "range": [
+                    0,
+                    500
+                ]
             }
         },
         {
@@ -79,9 +85,10 @@
                 "name": "LOX FEED PRESSURE",
                 "short_name": "pf_lox",
                 "units": "psi",
-                "range": [0, 400],
-                "warning_high": 350,
-                "critical_high": 380
+                "range": [
+                    0,
+                    500
+                ]
             }
         },
         {
@@ -91,9 +98,10 @@
                 "name": "FUEL FEED PRESSURE",
                 "short_name": "pf_fuel",
                 "units": "psi",
-                "range": [0, 400],
-                "warning_high": 350,
-                "critical_high": 380
+                "range": [
+                    0,
+                    500
+                ]
             }
         },
         {
@@ -103,9 +111,10 @@
                 "name": "LOX VENT PRESSURE",
                 "short_name": "pv_lox",
                 "units": "psi",
-                "range": [0, 100],
-                "warning_high": 80,
-                "critical_high": 95
+                "range": [
+                    0,
+                    500
+                ]
             }
         },
         {
@@ -115,9 +124,10 @@
                 "name": "FUEL VENT PRESSURE",
                 "short_name": "pv_fuel",
                 "units": "psi",
-                "range": [0, 100],
-                "warning_high": 80,
-                "critical_high": 95
+                "range": [
+                    0,
+                    500
+                ]
             }
         },
         {
@@ -127,9 +137,10 @@
                 "name": "PURGE PRESSURE",
                 "short_name": "p_purge",
                 "units": "psi",
-                "range": [0, 200],
-                "warning_high": 150,
-                "critical_high": 180
+                "range": [
+                    0,
+                    500
+                ]
             }
         },
         {
@@ -139,9 +150,10 @@
                 "name": "AMBIENT PRESSURE",
                 "short_name": "p_amb",
                 "units": "psi",
-                "range": [0, 20],
-                "warning_high": 18,
-                "critical_high": 19
+                "range": [
+                    0,
+                    500
+                ]
             }
         },
         {
@@ -151,7 +163,10 @@
                 "name": "PT SPARE 13",
                 "short_name": "pt13",
                 "units": "psi",
-                "range": [0, 1000]
+                "range": [
+                    0,
+                    500
+                ]
             }
         },
         {
@@ -161,7 +176,10 @@
                 "name": "PT SPARE 14",
                 "short_name": "pt14",
                 "units": "psi",
-                "range": [0, 1000]
+                "range": [
+                    0,
+                    500
+                ]
             }
         },
         {
@@ -171,7 +189,10 @@
                 "name": "PT SPARE 15",
                 "short_name": "pt15",
                 "units": "psi",
-                "range": [0, 1000]
+                "range": [
+                    0,
+                    500
+                ]
             }
         },
         {
@@ -181,7 +202,10 @@
                 "name": "PT SPARE 16",
                 "short_name": "pt16",
                 "units": "psi",
-                "range": [0, 1000]
+                "range": [
+                    0,
+                    500
+                ]
             }
         }
     ]

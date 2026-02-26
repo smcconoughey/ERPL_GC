@@ -1,0 +1,130 @@
+{
+  "0": {
+    "name": "PT1 LOX Reg Upstream",
+    "use_alt": false,
+    "max_psi": 10000.0,
+    "max_psi_alt": 10000.0,
+    "max_psi_alt_label": "Alt",
+    "active_max_psi": 10000.0
+  },
+  "1": {
+    "name": "PT2 LOX Reg Downstream",
+    "use_alt": false,
+    "max_psi": 1500.0,
+    "max_psi_alt": 1500.0,
+    "max_psi_alt_label": "Alt",
+    "active_max_psi": 1500.0
+  },
+  "2": {
+    "name": "PT3 LOX Tank Upstream",
+    "use_alt": false,
+    "max_psi": 1500.0,
+    "max_psi_alt": 1500.0,
+    "max_psi_alt_label": "Alt",
+    "active_max_psi": 1500.0
+  },
+  "3": {
+    "name": "PT4 LOX Tank Downstream",
+    "use_alt": false,
+    "max_psi": 1500.0,
+    "max_psi_alt": 1500.0,
+    "max_psi_alt_label": "Alt",
+    "active_max_psi": 1500.0
+  },
+  "4": {
+    "name": "PT5 LOX Manifold",
+    "use_alt": false,
+    "max_psi": 1500.0,
+    "max_psi_alt": 1500.0,
+    "max_psi_alt_label": "Alt",
+    "active_max_psi": 1500.0
+  },
+  "5": {
+    "name": "PT11 Fuel Reg Upstream",
+    "use_alt": false,
+    "max_psi": 10000.0,
+    "max_psi_alt": 10000.0,
+    "max_psi_alt_label": "Alt",
+    "active_max_psi": 10000.0
+  },
+  "6": {
+    "name": "PT12 Fuel Reg Downstream",
+    "use_alt": false,
+    "max_psi": 1500.0,
+    "max_psi_alt": 1500.0,
+    "max_psi_alt_label": "Alt",
+    "active_max_psi": 1500.0
+  },
+  "7": {
+    "name": "PT13 Fuel Tank Upstream",
+    "use_alt": false,
+    "max_psi": 2000.0,
+    "max_psi_alt": 2000.0,
+    "max_psi_alt_label": "Alt",
+    "active_max_psi": 2000.0
+  },
+  "8": {
+    "name": "PT14 Fuel Tank Downstream",
+    "use_alt": false,
+    "max_psi": 1500.0,
+    "max_psi_alt": 1500.0,
+    "max_psi_alt_label": "Alt",
+    "active_max_psi": 1500.0
+  },
+  "9": {
+    "name": "PT15 Fuel Engine Manifold",
+    "use_alt": false,
+    "max_psi": 1500.0,
+    "max_psi_alt": 1500.0,
+    "max_psi_alt_label": "Alt",
+    "active_max_psi": 1500.0
+  },
+  "10": {
+    "name": "PT31 Muscle Bus",
+    "use_alt": false,
+    "max_psi": 500.0,
+    "max_psi_alt": 500.0,
+    "max_psi_alt_label": "Alt",
+    "active_max_psi": 500.0
+  },
+  "11": {
+    "name": "PT32 Purge Bus",
+    "use_alt": false,
+    "max_psi": 2000.0,
+    "max_psi_alt": 2000.0,
+    "max_psi_alt_label": "Alt",
+    "active_max_psi": 2000.0
+  },
+  "12": {
+    "name": "PT21 LOX Venturi Inlet",
+    "use_alt": false,
+    "max_psi": 1500.0,
+    "max_psi_alt": 1500.0,
+    "max_psi_alt_label": "Alt",
+    "active_max_psi": 1500.0
+  },
+  "13": {
+    "name": "PT22 LOX Venturi Throat",
+    "use_alt": false,
+    "max_psi": 1500.0,
+    "max_psi_alt": 1500.0,
+    "max_psi_alt_label": "Alt",
+    "active_max_psi": 1500.0
+  },
+  "14": {
+    "name": "PT23 Fuel Venturi Throat",
+    "use_alt": false,
+    "max_psi": 1500.0,
+    "max_psi_alt": 1500.0,
+    "max_psi_alt_label": "Alt",
+    "active_max_psi": 1500.0
+  },
+  "15": {
+    "name": "PT24 Fuel Venturi Inlet",
+    "use_alt": false,
+    "max_psi": 1500.0,
+    "max_psi_alt": 1500.0,
+    "max_psi_alt_label": "Alt",
+    "active_max_psi": 1500.0
+  }
+}

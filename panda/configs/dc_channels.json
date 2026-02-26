@@ -34,8 +34,8 @@
                 "raw_index": 4,
                 "name": "PB9 GOX Purge",
                 "short_name": "pb9",
-                "bb": true,
-                "type": "lox"
+                "type": "lox",
+                "bb": true
             }
         },
         {
@@ -63,15 +63,15 @@
                 "raw_index": 7,
                 "name": "PB7 Fuel Vent",
                 "short_name": "pb7",
-                "bb": true,
-                "type": "fuel"
+                "type": "fuel",
+                "bb": true
             }
         },
         {
             "dc": {
                 "id": 8,
                 "raw_index": 8,
-                "name": "PB1-5 Main press valves",
+                "name": "PB1-5 Main Press Valves",
                 "short_name": "pb1-5",
                 "type": "lox-fuel"
             }

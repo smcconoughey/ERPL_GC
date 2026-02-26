@@ -10,6 +10,10 @@ echo.
 echo Starting NI DAQ and PANDA systems...
 echo.
 
+echo Regenerating configs from sensor_config.xlsx...
+python generate_configs.py
+echo.
+
 call start_nidaq.bat
 timeout /t 2 /nobreak >nul
 call start_panda.bat

@@ -235,37 +235,57 @@ class SerialProcessor:
         self._load_presets()
 
     def _load_pt_metadata(self) -> List[Dict]:
-        """Load PT metadata (names/units/range) from configs/pt_channels.json if present.
-        Returns a 16-element list mapped by index: id 1 -> index 0, id 16 -> index 15.
+        """Load PT metadata (names/units/range) from sensor_config.xlsx for panda system.
+        Returns a 16-element list mapped by channel index.
         """
         try:
+            import openpyxl
+            
             base_dir = os.path.dirname(os.path.abspath(__file__))
-            cfg_path = os.path.join(base_dir, 'configs', 'pt_channels.json')
-            with open(cfg_path, 'r') as f:
-                data = json.load(f)
-                channels = data.get('channels', [])
-                mapped: List[Dict] = [{} for _ in range(16)]
-                for entry in channels:
-                    pt = entry.get('pt', {})
-                    try:
-                        idx = int(pt.get('id', 0)) - 1
-                    except Exception:
-                        idx = -1
-                    if 0 <= idx < 16:
-                        mapped[idx] = pt
-                # Default sane ranges if missing
-                for i in range(16):
-                    if not mapped[i]:
-                        mapped[i] = {"id": i + 1, "range": [0, 500], "units": "psi"}
-                # Debug print for first channel mapping
+            xlsx_path = os.path.join(base_dir, '..', 'sensor_config.xlsx')
+            if not os.path.exists(xlsx_path):
+                xlsx_path = os.path.join(base_dir, 'sensor_config.xlsx')
+            
+            wb = openpyxl.load_workbook(xlsx_path, read_only=True, data_only=True)
+            ws = wb['PT_Sensors']
+            
+            headers = [cell for cell in next(ws.iter_rows(min_row=1, max_row=1, values_only=True))]
+            col = {h: i for i, h in enumerate(headers) if h}
+            
+            mapped: List[Dict] = [{} for _ in range(16)]
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                system = row[col.get('system', 0)]
+                if not system or str(system).strip().lower() != 'panda':
+                    continue
+                
                 try:
-                    r0 = mapped[0].get('range', [0, 500])
-                    print(f"PT0 range loaded: {r0}")
-                except Exception:
-                    pass
-                return mapped
+                    channel = int(row[col['channel']])
+                except (ValueError, KeyError, TypeError):
+                    continue
+                
+                if 0 <= channel < 16:
+                    mapped[channel] = {
+                        "id": channel + 1,
+                        "name": str(row[col.get('name', -1)] or f'PT{channel + 1}'),
+                        "short_name": str(row[col.get('short_name', -1)] or f'pt{channel + 1}'),
+                        "units": str(row[col.get('units', -1)] or 'psi'),
+                        "range": [0, 500],
+                    }
+            
+            wb.close()
+            
+            for i in range(16):
+                if not mapped[i]:
+                    mapped[i] = {"id": i + 1, "range": [0, 500], "units": "psi"}
+            
+            try:
+                r0 = mapped[0].get('range', [0, 500])
+                print(f"PT0 range loaded: {r0}")
+            except Exception:
+                pass
+            return mapped
         except Exception as e:
-            print(f"Failed to load PT metadata: {e}")
+            print(f"Failed to load PT metadata from xlsx: {e}")
             return [{"id": i + 1, "range": [0, 500], "units": "psi"} for i in range(16)]
 
     def _calibrate_pt_values(self, values: List[float]) -> List[float]:
@@ -596,6 +616,7 @@ class SerialProcessor:
             # Normal serial command
             try:
                 self.ser.write((command + '\n').encode('utf-8'))
+                self.ser.flush()
                 return {"success": True, "message": f"Sent: {command}"}
             except Exception as e:
                 return {"success": False, "message": str(e)}

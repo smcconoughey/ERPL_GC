@@ -182,58 +182,65 @@ class LCCard(BaseDevice):
         }
 
     def _load_lc_config(self) -> None:
-        """Load LC channel configuration from master sensor_config.csv"""
-        import csv
-        import os
+        """Load LC channel configuration from master sensor_config.xlsx"""
+        import openpyxl
         
         try:
-            # Look for sensor_config.csv in parent directories
             base = Path(__file__).parent.parent
-            csv_path = base / '..' / 'sensor_config.csv'
-            if not csv_path.exists():
-                csv_path = base / 'sensor_config.csv'
+            xlsx_path = base / '..' / 'sensor_config.xlsx'
+            if not xlsx_path.exists():
+                xlsx_path = base / 'sensor_config.xlsx'
             
-            with open(csv_path, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    # Skip comments and non-ni_daq LC sensors
-                    if row.get('system', '').startswith('#') or row.get('system') != 'ni_daq':
-                        continue
-                    if row.get('type') != 'LC':
-                        continue
-                    
-                    try:
-                        channel = int(row['channel'])
-                    except (ValueError, KeyError):
-                        continue
-                    
-                    if channel >= self.channel_count:
-                        continue
-                    
-                    # Read slope from cal_slope_a/b columns (new format)
-                    slope_a = row.get('cal_slope_a') or row.get('cal_slope') or '1000000'
-                    slope_b = row.get('cal_slope_b') or row.get('cal_slope_alt') or slope_a
-                    
-                    self.lc_config[channel] = {
-                        'id': int(row.get('channel', channel)) + 1,
-                        'name': row.get('name', f'LC{channel}'),
-                        'short_name': row.get('short_name', f'LC{channel}'),
-                        'units': row.get('units', 'lbf'),
-                        'range': [float(row.get('range_min') or 0), float(row.get('range_max') or 1000)],
-                        'group': row.get('group', 'loadcell'),
-                        'calibration': {
-                            'slope': float(slope_a),
-                            'slope_alt': float(slope_b),
-                            'offset': float(row.get('cal_offset') or 0.0),
-                            'tare_offset': float(row.get('cal_tare') or 0.0),
-                        }
+            wb = openpyxl.load_workbook(str(xlsx_path), read_only=True, data_only=True)
+            ws = wb['LC_LoadCells']
+            
+            headers = [cell for cell in next(ws.iter_rows(min_row=1, max_row=1, values_only=True))]
+            col = {h: i for i, h in enumerate(headers) if h}
+            
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                system = row[col.get('system', 0)]
+                if not system or str(system).strip().lower() != 'ni_daq':
+                    continue
+                
+                try:
+                    channel = int(row[col['channel']])
+                except (ValueError, KeyError, TypeError):
+                    continue
+                
+                if channel >= self.channel_count:
+                    continue
+                
+                slope_a = row[col.get('cal_slope_a', -1)] if col.get('cal_slope_a') is not None else None
+                slope_b = row[col.get('cal_slope_b', -1)] if col.get('cal_slope_b') is not None else None
+                slope_a = float(slope_a) if slope_a is not None else 1000000.0
+                slope_b = float(slope_b) if slope_b is not None else slope_a
+                
+                cal_offset = row[col.get('cal_offset', -1)] if col.get('cal_offset') is not None else None
+                cal_offset = float(cal_offset) if cal_offset is not None else 0.0
+                
+                cal_tare = row[col.get('cal_tare', -1)] if col.get('cal_tare') is not None else None
+                cal_tare = float(cal_tare) if cal_tare is not None else 0.0
+                
+                self.lc_config[channel] = {
+                    'id': channel + 1,
+                    'name': str(row[col.get('name', -1)] or f'LC{channel}'),
+                    'short_name': str(row[col.get('short_name', -1)] or f'LC{channel}'),
+                    'units': str(row[col.get('units', -1)] or 'lbf'),
+                    'range': [-1000, 1000],
+                    'group': str(row[col.get('group', -1)] or 'loadcell'),
+                    'calibration': {
+                        'slope': slope_a,
+                        'slope_alt': slope_b,
+                        'offset': cal_offset,
+                        'tare_offset': cal_tare,
                     }
-                    # Initialize tare offset from config
-                    self.tare_offsets[channel] = float(row.get('cal_tare') or 0.0)
-                    
-            logger.info(f"Loaded LC config for {len(self.lc_config)} channels from sensor_config.csv")
+                }
+                self.tare_offsets[channel] = cal_tare
+            
+            wb.close()
+            logger.info(f"Loaded LC config for {len(self.lc_config)} channels from sensor_config.xlsx")
         except Exception as e:
-            logger.warning(f"Could not load LC config from CSV: {e}")
+            logger.warning(f"Could not load LC config from xlsx: {e}")
 
     def _get_sensor_info(self, channel: int) -> Dict[str, str]:
         """Get sensor info for a channel"""

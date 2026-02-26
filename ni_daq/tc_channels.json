@@ -3,13 +3,14 @@
         {
             "tc": {
                 "id": 1,
-                "name": "LOX TANK BOTTOM",
-                "short_name": "T_lox",
+                "name": "LOX Tank Bottom",
+                "short_name": "t_lox",
                 "tc_type": "K",
                 "units": "°F",
-                "range": [-320, 100],
-                "warning_high": -200,
-                "critical_high": -100,
+                "range": [
+                    -320.0,
+                    200.0
+                ],
                 "calibration": {
                     "offset": 0.0,
                     "min_temp": -320.0,
@@ -20,13 +21,14 @@
         {
             "tc": {
                 "id": 2,
-                "name": "LOX TANK TOP",
-                "short_name": "T_loxln",
+                "name": "LOX Tank Top",
+                "short_name": "t_loxln",
                 "tc_type": "K",
                 "units": "°F",
-                "range": [-320, 100],
-                "warning_high": -200,
-                "critical_high": -100,
+                "range": [
+                    -320.0,
+                    200.0
+                ],
                 "calibration": {
                     "offset": 0.0,
                     "min_temp": -320.0,
@@ -37,13 +39,14 @@
         {
             "tc": {
                 "id": 3,
-                "name": "DRAGON",
-                "short_name": "T_loxinj",
+                "name": "Dragon",
+                "short_name": "t_loxinj",
                 "tc_type": "K",
                 "units": "°F",
-                "range": [-320, 100],
-                "warning_high": -200,
-                "critical_high": -100,
+                "range": [
+                    -320.0,
+                    200.0
+                ],
                 "calibration": {
                     "offset": 0.0,
                     "min_temp": -320.0,
@@ -54,13 +57,14 @@
         {
             "tc": {
                 "id": 4,
-                "name": "CHAMBER",
-                "short_name": "T_chmb",
+                "name": "Chamber",
+                "short_name": "t_chmb",
                 "tc_type": "K",
                 "units": "°F",
-                "range": [0, 2000],
-                "warning_high": 1500,
-                "critical_high": 1800,
+                "range": [
+                    -100.0,
+                    2282.0
+                ],
                 "calibration": {
                     "offset": 0.0,
                     "min_temp": -100.0,
