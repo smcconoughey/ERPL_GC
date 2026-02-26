@@ -699,6 +699,8 @@
         let availableSerialPorts = [];
         let connectedSerialPort = null;
         let currentFirmwareSequence = '';
+        // Guard to prevent overlapping fire attempts
+        let _firing = false;
 
         // Function to parse JSON sequence string into valve and delay steps
         function parseJsonSequence(jsonSequenceStr) {
@@ -1377,6 +1379,36 @@
             if (callback) callback();
         }
 
+        // Waits for server ACK ("Sent: ...") before resolving
+        function serialSendAsync(command) {
+            return new Promise((resolve, reject) => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) {
+                    reject(new Error('WS not connected'));
+                    return;
+                }
+                const sentPrefix = 'Sent: ' + command;
+                const onMsg = (event) => {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        if (msg.success !== undefined && typeof msg.message === 'string') {
+                            if (msg.message === sentPrefix || msg.message.startsWith(sentPrefix)) {
+                                ws.removeEventListener('message', onMsg);
+                                clearTimeout(timeout);
+                                resolve(msg);
+                            }
+                        }
+                    } catch (_) {}
+                };
+                const timeout = setTimeout(() => {
+                    ws.removeEventListener('message', onMsg);
+                    console.warn('serialSendAsync: ACK timeout, resolving for', command.substring(0, 30));
+                    resolve(null);
+                }, 2000);
+                ws.addEventListener('message', onMsg);
+                ws.send(JSON.stringify({ action: 'send', command }));
+            });
+        }
+
         // Override old HTTP sender to use WS
         function sendHTTPRequest(_method, _path, body, callback) {
             serialSend(body, callback);
@@ -1592,9 +1624,11 @@
                 });
             }
 
-            function runSequence() {
-                // Check if a sequence has been uploaded
-                if (!savedSequence && !savedSequenceJson) {
+            async function runSequence() {
+                if (_firing) return;
+
+                const sequenceToFire = savedSequence || currentFirmwareSequence;
+                if (!sequenceToFire) {
                     Swal.fire({
                         title: 'No Sequence Uploaded',
                         text: 'Please upload a sequence first.',
@@ -1604,33 +1638,42 @@
                     return;
                 }
 
-                // Re-send last uploaded firmware CSV
-                serialSend(savedSequence || currentFirmwareSequence, function () {
-                    // Send fire command to execute the sequence
-                    setTimeout(() => {
-                        serialSend('f');
-                    }, 100);
-                    
-                    // Play click sound
-                    const audio = new Audio('./assets/click.mp3');
-                    if (audio) {
-                        audio.play();
-                    }
+                _firing = true;
 
-                    // Show confirmation
-                    Swal.fire({
-                        title: 'Sequence Running',
-                        text: 'The saved sequence is now executing.',
-                        icon: 'success',
-                        confirmButtonColor: '#38a169',
-                        timer: 2000,
-                        timerProgressBar: true,
-                        showConfirmButton: false
-                    });
-                    
-                    // Start the sequence visualization
-                    simulateSequenceExecution();
+                try {
+                    // Re-upload sequence to ensure Teensy has it
+                    await serialSendAsync(sequenceToFire);
+
+                    // Let the Teensy finish parsing the upload
+                    await new Promise(r => setTimeout(r, 200));
+
+                    // Now fire
+                    await serialSendAsync('f');
+                } catch (e) {
+                    console.error('[SEQ] Fire failed:', e);
+                } finally {
+                    _firing = false;
+                }
+
+                // Play click sound
+                const audio = new Audio('./assets/click.mp3');
+                if (audio) {
+                    audio.play();
+                }
+
+                // Show confirmation
+                Swal.fire({
+                    title: 'Sequence Running',
+                    text: 'The saved sequence is now executing.',
+                    icon: 'success',
+                    confirmButtonColor: '#38a169',
+                    timer: 2000,
+                    timerProgressBar: true,
+                    showConfirmButton: false
                 });
+                
+                // Start the sequence visualization
+                simulateSequenceExecution();
             }
 
             function clearSequence() {

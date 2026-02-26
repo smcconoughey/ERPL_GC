@@ -1425,7 +1425,11 @@
         // Abort state: 'normal' (yellow) -> 'aborted' (red) -> 'safe' (green) -> 'normal'
         let abortState = 'normal';
         let runValveIds = [];
+        let fuelRunValveIds = [];
+        let loxRunValveIds = [];
         let gn2PurgeIds = [];
+        // Guard to prevent overlapping fire attempts
+        let _firing = false;
 
         // Terminal buffer
         const terminalBuffer = [];
@@ -1475,11 +1479,18 @@
                 ]);
 
                 runValveIds = [];
+                fuelRunValveIds = [];
+                loxRunValveIds = [];
                 gn2PurgeIds = [];
                 dcChannels = (await dcResp.json()).channels.reduce((acc, ch) => {
                     acc[ch.dc.id] = ch.dc;
                     valveConfig[ch.dc.id] = { name: ch.dc.name, defaultState: false };
-                    if (ch.dc.abort_role === 'run_valve') runValveIds.push(ch.dc.id);
+                    if (ch.dc.abort_role === 'run_valve') {
+                        runValveIds.push(ch.dc.id);
+                        const dcType = (ch.dc.type || '').toLowerCase();
+                        if (dcType.includes('fuel')) fuelRunValveIds.push(ch.dc.id);
+                        else loxRunValveIds.push(ch.dc.id);
+                    }
                     if (ch.dc.abort_role === 'gn2_purge') gn2PurgeIds.push(ch.dc.id);
                     return acc;
                 }, {});
@@ -2028,6 +2039,36 @@
             }
         }
 
+        // Waits for server ACK ("Sent: ...") before resolving
+        function serialSendAsync(command) {
+            return new Promise((resolve, reject) => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) {
+                    reject(new Error('WS not connected'));
+                    return;
+                }
+                const sentPrefix = 'Sent: ' + command;
+                const onMsg = (event) => {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        if (msg.success !== undefined && typeof msg.message === 'string') {
+                            if (msg.message === sentPrefix || msg.message.startsWith(sentPrefix)) {
+                                ws.removeEventListener('message', onMsg);
+                                clearTimeout(timeout);
+                                resolve(msg);
+                            }
+                        }
+                    } catch (_) {}
+                };
+                const timeout = setTimeout(() => {
+                    ws.removeEventListener('message', onMsg);
+                    console.warn('serialSendAsync: ACK timeout, resolving for', command.substring(0, 30));
+                    resolve(null);
+                }, 2000);
+                ws.addEventListener('message', onMsg);
+                ws.send(JSON.stringify({ action: 'send', command }));
+            });
+        }
+
         function controlDCToggle(channelId) {
             const next = dcState[channelId] === 1 ? 0 : 1;
             controlDC(channelId, next);
@@ -2140,9 +2181,14 @@
             const btn = document.getElementById('abort_button');
             
             if (abortState === 'normal') {
-                // ABORT: close run valves, open GN2 purges (keep system armed)
-                runValveIds.forEach(id => controlDC(id, 0));
+                // ABORT: close LOX run valves immediately, open GN2 purges
+                loxRunValveIds.forEach(id => controlDC(id, 0));
                 gn2PurgeIds.forEach(id => controlDC(id, 1));
+                
+                // 250ms fuel lag - close fuel run valves after LOX is shut
+                setTimeout(() => {
+                    fuelRunValveIds.forEach(id => controlDC(id, 0));
+                }, 250);
                 
                 abortState = 'aborted';
                 btn.classList.remove('safe');
@@ -2153,7 +2199,7 @@
                     const audio = new Audio('./assets/abort-sound.mp3');
                     audio.play().catch(() => {});
                 }
-                showToast('ABORT', 'Run valves closed, GN2 purges opened', 'warning');
+                showToast('ABORT', 'LOX closed, fuel closing in 250ms, GN2 purges opened', 'warning');
                 
             } else if (abortState === 'aborted') {
                 // SAFE: close GN2 purges
@@ -2429,7 +2475,8 @@
             showToast('Uploaded', 'Sequence saved', 'success');
         }
 
-        function runSequence() {
+        async function runSequence() {
+            if (_firing) return;
             const builderSequence = (currentFirmwareSequence && currentFirmwareSequence.trim() !== '') ? currentFirmwareSequence : null;
             const sequenceToFire = builderSequence || savedSequence;
 
@@ -2438,13 +2485,25 @@
                 return;
             }
 
+            _firing = true;
             resetCallbackIndicator();
-            serialSend(sequenceToFire);
-            savedSequence = sequenceToFire;
-            setTimeout(() => {
-                serialSend('f');
-            }, 100);
-            
+
+            try {
+                // Upload sequence and wait for ACK
+                await serialSendAsync(sequenceToFire);
+                savedSequence = sequenceToFire;
+
+                // Let the Teensy finish parsing the upload
+                await new Promise(r => setTimeout(r, 200));
+
+                // Fire
+                await serialSendAsync('f');
+            } catch (e) {
+                console.error('[SEQ] Fire failed:', e);
+            } finally {
+                _firing = false;
+            }
+
             const audio = new Audio('./assets/click.mp3');
             if (audio) {
                 audio.play().catch(() => {});
@@ -2721,13 +2780,37 @@
             armPreset(presetName);
         }
         
-        function firePreset(presetName) {
-            if (!armPreset(presetName)) return;
-            setTimeout(() => {
-                serialSend('f');
-            }, 100);
-            appendTerminalLine(`Preset ${getPresetLabel(presetName)} fire command sent`, 'seq');
-            showToast('Firing', `${getPresetLabel(presetName)} executing`, 'success');
+        async function firePreset(presetName) {
+            if (_firing) return;
+            const label = getPresetLabel(presetName);
+            const sequence = getPresetSequence(presetName);
+            if (!sequence) {
+                showToast('Preset Empty', `No sequence stored for ${label}`, 'error');
+                requestPresetsFromServer();
+                return;
+            }
+
+            _firing = true;
+            resetCallbackIndicator();
+
+            try {
+                // Upload preset sequence and wait for ACK
+                await serialSendAsync(sequence);
+                savedSequence = sequence;
+
+                // Let the Teensy finish parsing
+                await new Promise(r => setTimeout(r, 200));
+
+                // Fire
+                await serialSendAsync('f');
+            } catch (e) {
+                console.error('[SEQ] Preset fire failed:', e);
+            } finally {
+                _firing = false;
+            }
+
+            appendTerminalLine(`Preset ${label} fire command sent`, 'seq');
+            showToast('Firing', `${label} executing`, 'success');
         }
         
         // ===== SEQUENCE CALLBACK HANDLING =====
