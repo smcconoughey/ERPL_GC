@@ -1,0 +1,148 @@
+{
+    "channels": [
+        {
+            "dc": {
+                "id": 1,
+                "raw_index": 1,
+                "name": "LOX FILL VALVE",
+                "short_name": "lox_fill",
+                "type": "fill"
+            }
+        },
+        {
+            "dc": {
+                "id": 2,
+                "raw_index": 2,
+                "name": "FUEL FILL VALVE",
+                "short_name": "fuel_fill",
+                "type": "fill"
+            }
+        },
+        {
+            "dc": {
+                "id": 3,
+                "raw_index": 3,
+                "name": "LOX DRAIN VALVE",
+                "short_name": "lox_drain",
+                "type": "drain"
+            }
+        },
+        {
+            "dc": {
+                "id": 4,
+                "raw_index": 4,
+                "name": "FUEL DRAIN VALVE",
+                "short_name": "fuel_drain",
+                "type": "drain"
+            }
+        },
+        {
+            "dc": {
+                "id": 5,
+                "raw_index": 5,
+                "name": "LOX VENT GROUND",
+                "short_name": "lox_vent_gse",
+                "type": "vent"
+            }
+        },
+        {
+            "dc": {
+                "id": 6,
+                "raw_index": 6,
+                "name": "FUEL VENT GROUND",
+                "short_name": "fuel_vent_gse",
+                "type": "vent"
+            }
+        },
+        {
+            "dc": {
+                "id": 7,
+                "raw_index": 7,
+                "name": "PRESSURANT SUPPLY SOLENOID",
+                "short_name": "pressurant",
+                "type": "pressurize"
+            }
+        },
+        {
+            "dc": {
+                "id": 8,
+                "raw_index": 8,
+                "name": "WATER PUMP",
+                "short_name": "water_pump",
+                "type": "cooling"
+            }
+        },
+        {
+            "dc": {
+                "id": 9,
+                "raw_index": 9,
+                "name": "LOX BOILOFF HEATER",
+                "short_name": "lox_heater",
+                "type": "heating"
+            }
+        },
+        {
+            "dc": {
+                "id": 10,
+                "raw_index": 10,
+                "name": "TEST VALVE 1",
+                "short_name": "test1",
+                "type": "test"
+            }
+        },
+        {
+            "dc": {
+                "id": 11,
+                "raw_index": 11,
+                "name": "TEST VALVE 2",
+                "short_name": "test2",
+                "type": "test"
+            }
+        },
+        {
+            "dc": {
+                "id": 12,
+                "raw_index": 12,
+                "name": "QUICK DISCONNECT",
+                "short_name": "qd",
+                "type": "disconnect"
+            }
+        },
+        {
+            "dc": {
+                "id": 13,
+                "raw_index": 13,
+                "name": "GSE SPARE 13",
+                "short_name": "spare13",
+                "type": "spare"
+            }
+        },
+        {
+            "dc": {
+                "id": 14,
+                "raw_index": 14,
+                "name": "GSE SPARE 14",
+                "short_name": "spare14",
+                "type": "spare"
+            }
+        },
+        {
+            "dc": {
+                "id": 15,
+                "raw_index": 15,
+                "name": "GSE SPARE 15",
+                "short_name": "spare15",
+                "type": "spare"
+            }
+        },
+        {
+            "dc": {
+                "id": 16,
+                "raw_index": 16,
+                "name": "GSE SPARE 16",
+                "short_name": "spare16",
+                "type": "spare"
+            }
+        }
+    ]
+}

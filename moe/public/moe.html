@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOE P&ID Control</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            background-color: #f8fafc;
+            overflow: hidden;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(to right, #f5f5f5, #ffffff);
+            padding: 12px 20px;
+            border-bottom: 2px solid #ddd;
+            position: relative;
+            z-index: 1000;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .header.armed {
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.5), inset 0 0 40px rgba(239, 68, 68, 0.1);
+            background: linear-gradient(to right, #fee, #fff);
+        }
+
+        .title-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .title {
+            font-size: 22px;
+            font-weight: 900;
+            color: #e53e3e;
+            letter-spacing: 1px;
+            margin: 0;
+        }
+
+        .device-badges {
+            display: flex;
+            gap: 8px;
+        }
+
+        .device-badge {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #4a5568;
+            border: 1px solid #e2e8f0;
+        }
+
+        .device-badge.connected {
+            background: #f0fff4;
+            border-color: #38a169;
+            color: #22543d;
+        }
+
+        .device-badge .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #e53e3e;
+            display: inline-block;
+        }
+
+        .device-badge.connected .dot {
+            background: #38a169;
+            box-shadow: 0 0 4px #38a169;
+        }
+
+        .center-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .arm-section {
+            display: flex;
+            gap: 6px;
+            border-right: 1px solid #ddd;
+            padding-right: 12px;
+        }
+
+        .btn-small {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            text-transform: uppercase;
+            transition: all 0.2s ease;
+        }
+
+        .btn-arm {
+            background-color: #ed8936;
+            color: white;
+        }
+
+        .btn-arm:hover {
+            background-color: #dd6b20;
+            box-shadow: 0 2px 8px rgba(237, 137, 54, 0.3);
+        }
+
+        .btn-disarm {
+            background-color: #38a169;
+            color: white;
+        }
+
+        .btn-disarm:hover {
+            background-color: #22543d;
+            box-shadow: 0 2px 8px rgba(56, 161, 105, 0.3);
+        }
+
+        .logging-section {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-right: 1px solid #ddd;
+            padding-right: 12px;
+        }
+
+        .logging-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #cbd5e0;
+            animation: pulse 1s infinite;
+        }
+
+        .logging-indicator.active {
+            background-color: #e53e3e;
+            animation: pulse 0.6s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .logging-filename {
+            font-size: 11px;
+            color: #4a5568;
+            font-family: monospace;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .safety-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-abort {
+            padding: 10px 16px;
+            background-color: #ffd700;
+            color: black;
+            font-weight: 700;
+            border: 2px solid #ffc700;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            text-transform: uppercase;
+            transition: all 0.2s ease;
+        }
+
+        .btn-abort:hover {
+            background-color: #ffed4e;
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+        }
+
+        .btn-estop {
+            padding: 10px 16px;
+            background-color: #8b0000;
+            color: white;
+            font-weight: 700;
+            border: 2px solid #660000;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            text-transform: uppercase;
+            transition: all 0.2s ease;
+        }
+
+        .btn-estop:hover {
+            background-color: #b30000;
+            box-shadow: 0 4px 12px rgba(139, 0, 0, 0.4);
+        }
+
+        .btn-log {
+            padding: 6px 12px;
+            background-color: #48bb78;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-log:hover {
+            background-color: #38a169;
+            box-shadow: 0 2px 6px rgba(56, 161, 105, 0.3);
+        }
+
+        .toast {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 10000;
+            animation: slideIn 0.2s ease-out;
+            border-left: 4px solid #3b82f6;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .toast.warning { border-left-color: #ed8936; }
+        .toast.success { border-left-color: #38a169; }
+        .toast.error { border-left-color: #e53e3e; }
+
+        .toast-icon {
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+        }
+
+        .toast.warning .toast-icon { color: #ed8936; }
+        .toast.success .toast-icon { color: #38a169; }
+        .toast.error .toast-icon { color: #e53e3e; }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 2px;
+            color: #2d3748;
+        }
+
+        .toast-message {
+            font-size: 12px;
+            color: #718096;
+        }
+
+        .info-bar {
+            background-color: #fff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 8px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: #4a5568;
+            flex-shrink: 0;
+        }
+
+        .info-left, .info-right {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .pid-panel {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+            padding: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .pid-panel.rocket {
+            border-right: 3px dashed #3182ce;
+        }
+
+        .pid-panel.gse {
+            border-left: 3px dashed #38a169;
+        }
+
+        .pid-label {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            color: white;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 6px 12px;
+            border-radius: 4px;
+            z-index: 100;
+        }
+
+        .pid-label.rocket {
+            color: #3182ce;
+            background: rgba(49, 130, 206, 0.1);
+            border: 2px solid #3182ce;
+        }
+
+        .pid-label.gse {
+            color: #38a169;
+            background: rgba(56, 161, 105, 0.1);
+            border: 2px solid #38a169;
+        }
+
+        .pid-svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.05));
+        }
+
+        .sidebar {
+            width: 180px;
+            background: white;
+            border-left: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            flex-shrink: 0;
+            font-size: 10px;
+            box-shadow: -2px 0 8px rgba(0,0,0,0.05);
+        }
+
+        .sidebar-section {
+            padding: 8px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .sidebar-title {
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #718096;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        .data-readout {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .readout-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 5px;
+            background: #f7fafc;
+            border-radius: 3px;
+            border: 1px solid #e2e8f0;
+            font-size: 9px;
+        }
+
+        .readout-label {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .readout-value {
+            font-family: monospace;
+            font-weight: 600;
+            color: #3182ce;
+        }
+
+        /* SVG styling */
+        .pipe {
+            stroke-width: 3;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .pipe-lox { stroke: #3182ce; }
+        .pipe-fuel { stroke: #ed8936; }
+        .pipe-gn2 { stroke: #38a169; }
+        .pipe-purge { stroke: #9f7aea; }
+        .pipe-vent { stroke: #a0aec0; stroke-dasharray: 6 3; }
+
+        .tank {
+            fill: #ffffff;
+            stroke-width: 2;
+        }
+
+        .tank-lox { stroke: #3182ce; }
+        .tank-fuel { stroke: #ed8936; }
+        .tank-gn2 { stroke: #38a169; }
+
+        .tank-label {
+            fill: #2d3748;
+            font-size: 14px;
+            font-weight: 700;
+            font-family: Arial, sans-serif;
+            text-anchor: middle;
+        }
+
+        .tank-sublabel {
+            fill: #718096;
+            font-size: 10px;
+            font-family: Arial, sans-serif;
+            text-anchor: middle;
+        }
+
+        .pt-sensor circle {
+            fill: #ebf8ff;
+            stroke: #3182ce;
+            stroke-width: 2;
+        }
+
+        .pt-sensor .pt-label {
+            fill: #2d3748;
+            font-size: 9px;
+            font-weight: 700;
+            font-family: Arial, sans-serif;
+            text-anchor: middle;
+        }
+
+        .pt-sensor .pt-value {
+            fill: #3182ce;
+            font-size: 10px;
+            font-weight: 700;
+            font-family: monospace;
+            text-anchor: middle;
+        }
+
+        .valve-symbol {
+            cursor: pointer;
+            transition: filter 0.1s;
+        }
+
+        .valve-symbol:hover {
+            filter: brightness(0.9);
+        }
+
+        .valve-body {
+            fill: #a0aec0;
+            stroke: #718096;
+            stroke-width: 2;
+        }
+
+        .valve-symbol.active .valve-body {
+            fill: #48bb78;
+            stroke: #38a169;
+        }
+
+        .valve-label {
+            fill: white;
+            font-size: 9px;
+            font-weight: 700;
+            font-family: Arial, sans-serif;
+            text-anchor: middle;
+            dominant-baseline: middle;
+            pointer-events: none;
+        }
+
+        .quick-disconnect {
+            fill: none;
+            stroke: #666;
+            stroke-width: 2;
+            stroke-dasharray: 3 2;
+        }
+
+        .umbilical-label {
+            fill: #666;
+            font-size: 9px;
+            font-weight: 600;
+            font-family: Arial, sans-serif;
+            text-anchor: middle;
+        }
+
+        @media (max-width: 1200px) {
+            .pid-panel { padding: 4px; }
+            .sidebar { width: 140px; }
+            .sidebar-title { font-size: 8px; }
+            .readout-item { font-size: 8px; }
+        }
+
+        @media (max-width: 900px) {
+            .device-badges { display: none; }
+            .main-container { flex-direction: column; }
+            .pid-panel { flex: 0 1 50%; }
+            .pid-panel.rocket { border-right: none; border-bottom: 3px dashed #3182ce; }
+            .pid-panel.gse { border-left: none; border-top: 3px dashed #38a169; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title-section">
+            <div class="title">MOE P&ID</div>
+            <div class="device-badges">
+                <div class="device-badge" id="rocket-badge">
+                    <span class="dot"></span>
+                    <span>ROCKET</span>
+                </div>
+                <div class="device-badge" id="gse-badge">
+                    <span class="dot"></span>
+                    <span>GSE</span>
+                </div>
+                <div class="device-badge" id="daq-badge">
+                    <span class="dot"></span>
+                    <span>DAQ</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="center-controls">
+            <div class="logging-section">
+                <div class="logging-indicator" id="logging-indicator"></div>
+                <span class="logging-filename" id="logging-filename">No log</span>
+                <button class="btn-log" onclick="startNewLog()" title="Start new log file">
+                    <i class="fas fa-file-alt"></i> LOG
+                </button>
+            </div>
+
+            <div class="arm-section">
+                <button class="btn-small btn-disarm" id="disarm-btn" onclick="disarmAll()">
+                    <i class="fas fa-shield-alt"></i> DISARM
+                </button>
+                <button class="btn-small btn-arm" id="arm-btn" onclick="armAll()">
+                    <i class="fas fa-exclamation-triangle"></i> ARM
+                </button>
+            </div>
+
+            <div class="safety-controls">
+                <button class="btn-abort" id="abort-btn" onclick="abortAll()">
+                    <i class="fas fa-exclamation"></i> ABORT
+                </button>
+                <button class="btn-estop" id="estop-btn" onclick="emergencyStop()" title="Press ESC for emergency stop">
+                    <i class="fas fa-stop-circle"></i> E-STOP
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-bar">
+        <div class="info-left">
+            <div class="info-item">
+                <i class="fas fa-clock"></i>
+                <span id="info-timestamp">--:--:--</span>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-heartbeat"></i>
+                <span id="info-update-rate">-- Hz</span>
+            </div>
+        </div>
+        <div class="info-right">
+            <button class="btn-log" onclick="allValvesOff()" style="background:#e53e3e;">
+                <i class="fas fa-power-off"></i> ALL OFF
+            </button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- ROCKET P&ID (LEFT) -->
+        <div class="pid-panel rocket">
+            <div class="pid-label rocket">ROCKET VEHICLE</div>
+            <svg class="pid-svg" id="pid-rocket" viewBox="0 0 500 600" preserveAspectRatio="xMidYMid meet">
+                <defs>
+                    <pattern id="grid-rocket" width="20" height="20" patternUnits="userSpaceOnUse">
+                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e2e8f0" stroke-width="0.5"/>
+                    </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#grid-rocket)"/>
+
+                <!-- ROCKET SIDE P&ID -->
+                <g id="layer-pipes-rocket">
+                    <!-- GN2 press lines from umbilical to tank tops -->
+                    <path class="pipe pipe-gn2" d="M 50 80 L 150 80 L 150 120"/>
+                    <path class="pipe pipe-gn2" d="M 350 80 L 450 80 L 450 120"/>
+
+                    <!-- LOX fill from umbilical -->
+                    <path class="pipe pipe-lox" d="M 50 150 L 120 150 L 120 200"/>
+
+                    <!-- Fuel fill from umbilical -->
+                    <path class="pipe pipe-fuel" d="M 450 150 L 380 150 L 380 200"/>
+
+                    <!-- Main run: LOX tank to valve to injector to engine -->
+                    <path class="pipe pipe-lox" d="M 150 320 L 150 380 L 120 380"/>
+                    <path class="pipe pipe-lox" d="M 80 380 L 50 380 L 50 450"/>
+
+                    <!-- Main run: Fuel tank to valve to injector to engine -->
+                    <path class="pipe pipe-fuel" d="M 350 320 L 350 380 L 380 380"/>
+                    <path class="pipe pipe-fuel" d="M 420 380 L 450 380 L 450 450"/>
+
+                    <!-- LOX Vent -->
+                    <path class="pipe pipe-vent" d="M 120 120 L 80 120 L 80 60"/>
+
+                    <!-- Fuel Vent -->
+                    <path class="pipe pipe-vent" d="M 380 120 L 420 120 L 420 60"/>
+
+                    <!-- Purge line from umbilical -->
+                    <path class="pipe pipe-purge" d="M 250 60 L 250 450"/>
+                </g>
+
+                <g id="layer-tanks-rocket">
+                    <!-- LOX Tank -->
+                    <g class="draggable" data-id="lox-tank" data-device="rocket_panda">
+                        <rect x="100" y="180" width="100" height="140" rx="4" class="tank tank-lox"/>
+                        <text x="150" y="230" class="tank-label">LOX</text>
+                        <text x="150" y="250" class="tank-sublabel">Tank</text>
+                    </g>
+
+                    <!-- Fuel Tank -->
+                    <g class="draggable" data-id="fuel-tank" data-device="rocket_panda">
+                        <rect x="300" y="180" width="100" height="140" rx="4" class="tank tank-fuel"/>
+                        <text x="350" y="230" class="tank-label">FUEL</text>
+                        <text x="350" y="250" class="tank-sublabel">Tank</text>
+                    </g>
+
+                    <!-- Engine -->
+                    <polygon points="250,480 220,540 280,540" style="fill:#d97706; stroke:#92400e; stroke-width:2;"/>
+                    <text x="250" y="510" class="tank-label" style="font-size:12px;">ENGINE</text>
+                </g>
+
+                <g id="layer-valves-rocket">
+                    <!-- PB4: LOX Main Run Valve -->
+                    <g class="valve-symbol" id="valve-pb4" data-channel="10" data-device="gse_panda" onclick="toggleValve(this)">
+                        <rect x="110" y="370" width="40" height="20" rx="3" class="valve-body"/>
+                        <text x="130" y="380" class="valve-label">PB4</text>
+                    </g>
+
+                    <!-- PB8: Fuel Main Run Valve -->
+                    <g class="valve-symbol" id="valve-pb8" data-channel="9" data-device="gse_panda" onclick="toggleValve(this)">
+                        <rect x="350" y="370" width="40" height="20" rx="3" class="valve-body"/>
+                        <text x="370" y="380" class="valve-label">PB8</text>
+                    </g>
+                </g>
+
+                <g id="layer-sensors-rocket">
+                    <!-- LOX Tank PT -->
+                    <g class="pt-sensor draggable" data-id="pt-lox-tank">
+                        <circle cx="220" cy="200" r="12"/>
+                        <text x="220" y="197" class="pt-label">PT</text>
+                        <text x="220" y="208" class="pt-value" data-ch="4">--</text>
+                    </g>
+
+                    <!-- Fuel Tank PT -->
+                    <g class="pt-sensor draggable" data-id="pt-fuel-tank">
+                        <circle cx="280" cy="200" r="12"/>
+                        <text x="280" y="197" class="pt-label">PT</text>
+                        <text x="280" y="208" class="pt-value" data-ch="5">--</text>
+                    </g>
+
+                    <!-- LOX Injector PT -->
+                    <g class="pt-sensor draggable" data-id="pt-lox-inj">
+                        <circle cx="60" cy="380" r="12"/>
+                        <text x="60" y="377" class="pt-label">PI</text>
+                        <text x="60" y="388" class="pt-value" data-ch="2">--</text>
+                    </g>
+
+                    <!-- Fuel Injector PT -->
+                    <g class="pt-sensor draggable" data-id="pt-fuel-inj">
+                        <circle cx="440" cy="380" r="12"/>
+                        <text x="440" y="377" class="pt-label">PI</text>
+                        <text x="440" y="388" class="pt-value" data-ch="3">--</text>
+                    </g>
+                </g>
+
+                <g id="layer-labels-rocket">
+                    <text x="250" y="25" style="font-size:14px;font-weight:700;fill:#2d3748;text-anchor:middle;">Rocket Propulsion</text>
+                    <text x="80" y="100" style="font-size:9px;fill:#38a169;font-weight:600;">GN2 Press ↓</text>
+                    <text x="420" y="100" style="font-size:9px;fill:#38a169;font-weight:600;">GN2 Press ↓</text>
+                    <text x="250" y="45" style="font-size:8px;fill:#718096;">Green valve = Open</text>
+                </g>
+            </svg>
+        </div>
+
+        <!-- GSE P&ID (RIGHT) -->
+        <div class="pid-panel gse">
+            <div class="pid-label gse">GROUND SUPPORT EQUIPMENT</div>
+            <svg class="pid-svg" id="pid-gse" viewBox="0 0 500 600" preserveAspectRatio="xMidYMid meet">
+                <defs>
+                    <pattern id="grid-gse" width="20" height="20" patternUnits="userSpaceOnUse">
+                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e2e8f0" stroke-width="0.5"/>
+                    </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#grid-gse)"/>
+
+                <!-- GSE SIDE P&ID -->
+                <g id="layer-pipes-gse">
+                    <!-- GN2 bottles LOX side -->
+                    <path class="pipe pipe-gn2" d="M 100 100 L 100 140"/>
+
+                    <!-- GN2 bottles Fuel side -->
+                    <path class="pipe pipe-gn2" d="M 400 100 L 400 140"/>
+
+                    <!-- LOX Regulator output down -->
+                    <path class="pipe pipe-gn2" d="M 100 180 L 100 240"/>
+
+                    <!-- Fuel Regulator output down -->
+                    <path class="pipe pipe-gn2" d="M 400 180 L 400 240"/>
+
+                    <!-- LOX main header right to umbilical -->
+                    <path class="pipe pipe-gn2" d="M 100 280 L 450 280"/>
+
+                    <!-- Fuel main header right to umbilical -->
+                    <path class="pipe pipe-gn2" d="M 400 280 L 450 280 L 450 300"/>
+
+                    <!-- LOX fill pump pressure -->
+                    <path class="pipe pipe-lox" d="M 150 320 L 450 320"/>
+
+                    <!-- Fuel fill pump pressure -->
+                    <path class="pipe pipe-fuel" d="M 350 320 L 450 320 L 450 340"/>
+
+                    <!-- LOX vent from tank via regulator -->
+                    <path class="pipe pipe-vent" d="M 100 150 L 50 150 L 50 100"/>
+
+                    <!-- Fuel vent from tank via regulator -->
+                    <path class="pipe pipe-vent" d="M 400 150 L 450 150 L 450 100"/>
+
+                    <!-- LOX dump -->
+                    <path class="pipe pipe-lox" d="M 200 380 L 50 380"/>
+
+                    <!-- Fuel dump -->
+                    <path class="pipe pipe-fuel" d="M 300 380 L 450 380"/>
+
+                    <!-- Purge accumulator to supply -->
+                    <path class="pipe pipe-purge" d="M 250 420 L 250 100"/>
+                </g>
+
+                <g id="layer-tanks-gse">
+                    <!-- GN2 Bottles LOX side -->
+                    <g class="draggable" data-id="gn2-lox-bot">
+                        <rect x="80" y="60" width="20" height="40" rx="2" class="tank tank-gn2"/>
+                        <rect x="100" y="60" width="20" height="40" rx="2" class="tank tank-gn2"/>
+                        <text x="100" y="50" class="tank-sublabel" style="fill:#38a169;font-weight:600;">GN2</text>
+                    </g>
+
+                    <!-- GN2 Bottles Fuel side -->
+                    <g class="draggable" data-id="gn2-fuel-bot">
+                        <rect x="380" y="60" width="20" height="40" rx="2" class="tank tank-gn2"/>
+                        <rect x="400" y="60" width="20" height="40" rx="2" class="tank tank-gn2"/>
+                        <text x="400" y="50" class="tank-sublabel" style="fill:#38a169;font-weight:600;">GN2</text>
+                    </g>
+
+                    <!-- Muscle Accumulator -->
+                    <g class="draggable" data-id="muscle-accum">
+                        <circle cx="250" cy="420" r="20" class="tank tank-gn2"/>
+                        <text x="250" y="425" class="tank-sublabel" style="font-size:8px;">ACCUM</text>
+                    </g>
+                </g>
+
+                <g id="layer-valves-gse">
+                    <!-- R1: LOX Regulator (triangle symbol) -->
+                    <g class="draggable" data-id="reg-lox">
+                        <polygon points="100,140 90,160 110,160" style="fill:#ffffff;stroke:#38a169;stroke-width:2;"/>
+                        <text x="100" y="155" style="fill:#38a169;font-size:9px;font-weight:700;text-anchor:middle;">R1</text>
+                    </g>
+
+                    <!-- R2: Fuel Regulator (triangle symbol) -->
+                    <g class="draggable" data-id="reg-fuel">
+                        <polygon points="400,140 390,160 410,160" style="fill:#ffffff;stroke:#ed8936;stroke-width:2;"/>
+                        <text x="400" y="155" style="fill:#ed8936;font-size:9px;font-weight:700;text-anchor:middle;">R2</text>
+                    </g>
+
+                    <!-- PB3: LOX Vent Valve -->
+                    <g class="valve-symbol" id="valve-pb3" data-channel="1" data-device="gse_panda" onclick="toggleValve(this)">
+                        <rect x="70" y="140" width="30" height="16" rx="2" class="valve-body"/>
+                        <text x="85" y="150" class="valve-label" style="font-size:8px;">PB3</text>
+                    </g>
+
+                    <!-- PB7: Fuel Vent Valve -->
+                    <g class="valve-symbol" id="valve-pb7" data-channel="7" data-device="gse_panda" onclick="toggleValve(this)">
+                        <rect x="400" y="140" width="30" height="16" rx="2" class="valve-body"/>
+                        <text x="415" y="150" class="valve-label" style="font-size:8px;">PB7</text>
+                    </g>
+
+                    <!-- S5: LOX Slow Press -->
+                    <g class="valve-symbol" id="valve-s5" data-channel="12" data-device="gse_panda" onclick="toggleValve(this)">
+                        <rect x="60" y="270" width="30" height="16" rx="2" class="valve-body"/>
+                        <text x="75" y="280" class="valve-label" style="font-size:8px;">S5</text>
+                    </g>
+
+                    <!-- S6: Fuel Slow Press -->
+                    <g class="valve-symbol" id="valve-s6" data-channel="11" data-device="gse_panda" onclick="toggleValve(this)">
+                        <rect x="410" y="270" width="30" height="16" rx="2" class="valve-body"/>
+                        <text x="425" y="280" class="valve-label" style="font-size:8px;">S6</text>
+                    </g>
+
+                    <!-- PB1-5: Main Press Valves -->
+                    <g class="valve-symbol" id="valve-pb1-5" data-channel="8" data-device="gse_panda" onclick="toggleValve(this)">
+                        <rect x="230" y="260" width="40" height="18" rx="2" class="valve-body"/>
+                        <text x="250" y="271" class="valve-label" style="font-size:8px;">PB1-5</text>
+                    </g>
+
+                    <!-- PB10: LOX Dump -->
+                    <g class="valve-symbol" id="valve-pb10" data-channel="2" data-device="gse_panda" onclick="toggleValve(this)">
+                        <rect x="170" y="370" width="30" height="16" rx="2" class="valve-body"/>
+                        <text x="185" y="380" class="valve-label" style="font-size:8px;">PB10</text>
+                    </g>
+
+                    <!-- S1: LOX Purge -->
+                    <g class="valve-symbol" id="valve-s1" data-channel="5" data-device="gse_panda" onclick="toggleValve(this)">
+                        <rect x="230" y="100" width="30" height="16" rx="2" class="valve-body"/>
+                        <text x="245" y="110" class="valve-label" style="font-size:8px;">S1</text>
+                    </g>
+
+                    <!-- S2: Fuel Purge -->
+                    <g class="valve-symbol" id="valve-s2" data-channel="3" data-device="gse_panda" onclick="toggleValve(this)">
+                        <rect x="270" y="100" width="30" height="16" rx="2" class="valve-body"/>
+                        <text x="285" y="110" class="valve-label" style="font-size:8px;">S2</text>
+                    </g>
+
+                    <!-- S3: Muscle Purge -->
+                    <g class="valve-symbol" id="valve-s3" data-channel="6" data-device="gse_panda" onclick="toggleValve(this)">
+                        <rect x="230" y="480" width="40" height="18" rx="2" class="valve-body"/>
+                        <text x="250" y="491" class="valve-label" style="font-size:8px;">S3</text>
+                    </g>
+
+                    <!-- PB9: GOX Purge -->
+                    <g class="valve-symbol" id="valve-pb9" data-channel="4" data-device="gse_panda" onclick="toggleValve(this)">
+                        <rect x="420" y="480" width="30" height="16" rx="2" class="valve-body"/>
+                        <text x="435" y="490" class="valve-label" style="font-size:8px;">PB9</text>
+                    </g>
+                </g>
+
+                <g id="layer-sensors-gse">
+                    <!-- LOX Press Line PT -->
+                    <g class="pt-sensor draggable" data-id="pt-lox-press">
+                        <circle cx="100" cy="250" r="11"/>
+                        <text x="100" y="247" class="pt-label" style="font-size:8px;">PT</text>
+                        <text x="100" y="257" class="pt-value" data-ch="7" style="font-size:9px;">--</text>
+                    </g>
+
+                    <!-- Fuel Press Line PT -->
+                    <g class="pt-sensor draggable" data-id="pt-fuel-press">
+                        <circle cx="400" cy="250" r="11"/>
+                        <text x="400" y="247" class="pt-label" style="font-size:8px;">PT</text>
+                        <text x="400" y="257" class="pt-value" data-ch="8" style="font-size:9px;">--</text>
+                    </g>
+
+                    <!-- LOX Fill Pump PT -->
+                    <g class="pt-sensor draggable" data-id="pt-lox-fill">
+                        <circle cx="150" cy="300" r="10"/>
+                        <text x="150" y="297" class="pt-label" style="font-size:8px;">F</text>
+                        <text x="150" y="306" class="pt-value" data-ch="7" style="font-size:8px;">--</text>
+                    </g>
+
+                    <!-- Fuel Fill Pump PT -->
+                    <g class="pt-sensor draggable" data-id="pt-fuel-fill">
+                        <circle cx="350" cy="300" r="10"/>
+                        <text x="350" y="297" class="pt-label" style="font-size:8px;">F</text>
+                        <text x="350" y="306" class="pt-value" data-ch="8" style="font-size:8px;">--</text>
+                    </g>
+                </g>
+
+                <g id="layer-labels-gse">
+                    <text x="250" y="25" style="font-size:14px;font-weight:700;fill:#2d3748;text-anchor:middle;">GSE Pressurization & Fill</text>
+                    <text x="100" y="50" style="font-size:8px;fill:#718096;">LOX Side</text>
+                    <text x="400" y="50" style="font-size:8px;fill:#718096;">Fuel Side</text>
+                    <text x="450" y="200" style="font-size:9px;fill:#666;font-weight:600;text-anchor:start;">→ To Rocket</text>
+                </g>
+            </svg>
+        </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-title">Key Pressures</div>
+            <div class="data-readout">
+                <div class="readout-item">
+                    <span class="readout-label">LOX Tank</span>
+                    <span class="readout-value" id="readout-lox-tank">--</span>
+                </div>
+                <div class="readout-item">
+                    <span class="readout-label">Fuel Tank</span>
+                    <span class="readout-value" id="readout-fuel-tank">--</span>
+                </div>
+                <div class="readout-item">
+                    <span class="readout-label">LOX Injector</span>
+                    <span class="readout-value" id="readout-lox-inj">--</span>
+                </div>
+                <div class="readout-item">
+                    <span class="readout-label">Fuel Injector</span>
+                    <span class="readout-value" id="readout-fuel-inj">--</span>
+                </div>
+                <div class="readout-item">
+                    <span class="readout-label">LOX Press</span>
+                    <span class="readout-value" id="readout-lox-press">--</span>
+                </div>
+                <div class="readout-item">
+                    <span class="readout-label">Fuel Press</span>
+                    <span class="readout-value" id="readout-fuel-press">--</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-title">Valve Status</div>
+            <div class="data-readout" id="valve-status-list">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+
+        <div class="sidebar-section" style="flex: 1; overflow-y: auto;">
+            <div class="sidebar-title">System Status</div>
+            <div class="data-readout" style="font-size: 8px;">
+                <div id="status-rocket-armed" class="readout-item">
+                    <span class="readout-label">Rocket Armed</span>
+                    <span class="readout-value" style="color: #e53e3e;">NO</span>
+                </div>
+                <div id="status-gse-armed" class="readout-item">
+                    <span class="readout-label">GSE Armed</span>
+                    <span class="readout-value" style="color: #e53e3e;">NO</span>
+                </div>
+                <div class="readout-item" style="margin-top: 6px; border-top: 1px solid #e2e8f0; padding-top: 4px;">
+                    <span class="readout-label">Update Rate</span>
+                    <span class="readout-value" id="status-update-rate">-- Hz</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const UNIFIED_SERVER_PORT = 3942;
+        let unifiedWs = null;
+        let dcState = {};
+        let ptState = {};
+        let deviceState = {
+            rocket_panda: { connected: false, armed: false },
+            gse_panda: { connected: false, armed: false },
+            ni_daq: { connected: false }
+        };
+        let lastUpdateTime = Date.now();
+        let updateCount = 0;
+
+        const ptMappings = {
+            2: 'readout-lox-inj',
+            3: 'readout-fuel-inj',
+            4: 'readout-lox-tank',
+            5: 'readout-fuel-tank',
+            7: 'readout-lox-press',
+            8: 'readout-fuel-press'
+        };
+
+        const valveInfo = [
+            { id: 'valve-pb3', name: 'PB3 (LOX Vent)', ch: 1 },
+            { id: 'valve-pb10', name: 'PB10 (LOX Dump)', ch: 2 },
+            { id: 'valve-s2', name: 'S2 (Fuel Purge)', ch: 3 },
+            { id: 'valve-pb9', name: 'PB9 (GOX Purge)', ch: 4 },
+            { id: 'valve-s1', name: 'S1 (LOX Purge)', ch: 5 },
+            { id: 'valve-s3', name: 'S3 (Muscle)', ch: 6 },
+            { id: 'valve-pb7', name: 'PB7 (Fuel Vent)', ch: 7 },
+            { id: 'valve-pb1-5', name: 'PB1-5 (Press)', ch: 8 },
+            { id: 'valve-pb8', name: 'PB8 (Fuel Run)', ch: 9 },
+            { id: 'valve-pb4', name: 'PB4 (LOX Run)', ch: 10 },
+            { id: 'valve-s6', name: 'S6 (Fuel Slow)', ch: 11 },
+            { id: 'valve-s5', name: 'S5 (LOX Slow)', ch: 12 }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initValveStatusList();
+            connectToServer();
+            setupEventListeners();
+            setInterval(updateTimestamp, 1000);
+        });
+
+        function initValveStatusList() {
+            const list = document.getElementById('valve-status-list');
+            list.innerHTML = valveInfo.map(v => `
+                <div class="readout-item" id="status-${v.id}">
+                    <span class="readout-label">${v.name}</span>
+                    <span class="readout-value" style="color: #a0aec0;">OFF</span>
+                </div>
+            `).join('');
+        }
+
+        function connectToServer() {
+            try {
+                const host = window.location.hostname || 'localhost';
+                unifiedWs = new WebSocket(`ws://${host}:${UNIFIED_SERVER_PORT}`);
+
+                unifiedWs.onopen = () => {
+                    console.log('Connected to MOE unified server');
+                    updateServerStatus(true);
+                };
+
+                unifiedWs.onmessage = (event) => {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        if (msg.type === 'data' && msg.devices) {
+                            handleDataMessage(msg.devices);
+                        }
+                    } catch (err) {
+                        console.error('Message parse error:', err);
+                    }
+                };
+
+                unifiedWs.onerror = () => {
+                    updateServerStatus(false);
+                };
+
+                unifiedWs.onclose = () => {
+                    updateServerStatus(false);
+                    setTimeout(connectToServer, 5000);
+                };
+
+            } catch (e) {
+                updateServerStatus(false);
+                setTimeout(connectToServer, 5000);
+            }
+        }
+
+        function handleDataMessage(devices) {
+            updateCount++;
+
+            Object.entries(devices).forEach(([device, data]) => {
+                if (data.connected !== undefined) {
+                    updateDeviceStatus(device, data.connected);
+                }
+                if (data.armed !== undefined) {
+                    updateArmStatus(device, data.armed);
+                }
+                if (data.dc && Array.isArray(data.dc)) {
+                    data.dc.forEach((state, i) => {
+                        const ch = i + 1;
+                        dcState[ch] = state;
+                        updateValveVisual(ch, state);
+                    });
+                }
+                if (data.pt && typeof data.pt === 'object') {
+                    Object.entries(data.pt).forEach(([chStr, reading]) => {
+                        const ch = parseInt(chStr);
+                        if (reading && reading.value !== undefined) {
+                            updatePTReadout(ch, reading.value);
+                        }
+                    });
+                }
+            });
+
+            updateTimestamp();
+        }
+
+        function updateDeviceStatus(device, connected) {
+            const badge = document.getElementById(
+                device === 'rocket_panda' ? 'rocket-badge' :
+                device === 'gse_panda' ? 'gse-badge' :
+                'daq-badge'
+            );
+            if (badge) {
+                badge.classList.toggle('connected', connected);
+            }
+            if (deviceState[device]) {
+                deviceState[device].connected = connected;
+            }
+        }
+
+        function updateArmStatus(device, armed) {
+            const statusEl = document.getElementById(
+                device === 'rocket_panda' ? 'status-rocket-armed' :
+                'status-gse-armed'
+            );
+            if (statusEl) {
+                const valueEl = statusEl.querySelector('.readout-value');
+                valueEl.textContent = armed ? 'YES' : 'NO';
+                valueEl.style.color = armed ? '#ed8936' : '#e53e3e';
+            }
+            if (deviceState[device]) {
+                deviceState[device].armed = armed;
+            }
+        }
+
+        function updatePTReadout(ch, value) {
+            ptState[ch] = value;
+            Object.entries(ptMappings).forEach(([chStr, elemId]) => {
+                if (parseInt(chStr) === ch) {
+                    const el = document.getElementById(elemId);
+                    if (el) el.textContent = value.toFixed(1);
+                }
+            });
+            // Update all PT sensors with this channel
+            document.querySelectorAll(`.pt-value[data-ch="${ch}"]`).forEach(el => {
+                el.textContent = value.toFixed(0);
+            });
+        }
+
+        function updateValveVisual(ch, state) {
+            const valve = valveInfo.find(v => v.ch === ch);
+            if (valve) {
+                const elem = document.getElementById(valve.id);
+                if (elem) {
+                    elem.classList.toggle('active', state === 1);
+                }
+                const statusElem = document.getElementById(`status-${valve.id}`);
+                if (statusElem) {
+                    const valueEl = statusElem.querySelector('.readout-value');
+                    valueEl.textContent = state === 1 ? 'ON' : 'OFF';
+                    valueEl.style.color = state === 1 ? '#48bb78' : '#a0aec0';
+                }
+            }
+        }
+
+        function updateServerStatus(ok) {
+            // Can add status indicator if needed
+        }
+
+        function updateTimestamp() {
+            const now = new Date();
+            document.getElementById('info-timestamp').textContent = now.toLocaleTimeString();
+
+            const elapsed = (Date.now() - lastUpdateTime) / 1000;
+            if (elapsed >= 1) {
+                const rate = (updateCount / elapsed).toFixed(1);
+                document.getElementById('info-update-rate').textContent = rate + ' Hz';
+                document.getElementById('status-update-rate').textContent = rate + ' Hz';
+                updateCount = 0;
+                lastUpdateTime = Date.now();
+            }
+        }
+
+        function toggleValve(elem) {
+            if (!isArmed(elem.dataset.device)) {
+                showToast('System Not Armed', 'Arm the system before actuating valves', 'warning');
+                return;
+            }
+
+            const ch = parseInt(elem.dataset.channel);
+            const device = elem.dataset.device;
+            const currentState = dcState[ch] || 0;
+            const newState = currentState ? 0 : 1;
+
+            const cmdState = newState ? '1' : '0';
+            sendCommand({
+                action: 'send',
+                device: device,
+                command: `s${ch}${cmdState}.00000`
+            });
+
+            showToast('Valve Actuated', `Channel ${ch}: ${newState ? 'OPEN' : 'CLOSED'}`, 'info');
+        }
+
+        function isArmed(device) {
+            return deviceState[device] && deviceState[device].armed;
+        }
+
+        function armAll() {
+            Swal.fire({
+                title: 'Arm System?',
+                html: 'This will enable all control valves. Proceed?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ed8936',
+                confirmButtonText: 'ARM',
+                cancelButtonText: 'Cancel'
+            }).then(result => {
+                if (result.isConfirmed) {
+                    sendCommand({ action: 'arm', device: 'rocket_panda' });
+                    sendCommand({ action: 'arm', device: 'gse_panda' });
+                    document.querySelector('.header').classList.add('armed');
+                    showToast('Armed', 'System is now armed', 'warning');
+                }
+            });
+        }
+
+        function disarmAll() {
+            sendCommand({ action: 'disarm', device: 'rocket_panda' });
+            sendCommand({ action: 'disarm', device: 'gse_panda' });
+            document.querySelector('.header').classList.remove('armed');
+            showToast('Disarmed', 'System is disarmed', 'success');
+        }
+
+        function abortAll() {
+            Swal.fire({
+                title: 'ABORT SEQUENCE?',
+                html: '<strong style="color: red;">This will close all run valves immediately.</strong>',
+                icon: 'error',
+                showCancelButton: true,
+                confirmButtonColor: '#e53e3e',
+                confirmButtonText: 'CONFIRM ABORT',
+                cancelButtonText: 'Cancel'
+            }).then(result => {
+                if (result.isConfirmed) {
+                    sendCommand({ action: 'abort' });
+                    showToast('ABORT', 'Abort sequence initiated', 'error');
+                }
+            });
+        }
+
+        function emergencyStop() {
+            sendCommand({ action: 'estop' });
+            document.querySelector('.header').classList.remove('armed');
+            showToast('EMERGENCY STOP', 'E-STOP activated - all systems halted', 'error');
+        }
+
+        function allValvesOff() {
+            sendCommand({ action: 'all_off' });
+            showToast('All OFF', 'Commanding all valves closed', 'info');
+        }
+
+        function startNewLog() {
+            sendCommand({ action: 'start_log' });
+            document.getElementById('logging-indicator').classList.add('active');
+            showToast('Logging', 'New log file started', 'success');
+        }
+
+        function sendCommand(cmd) {
+            if (unifiedWs && unifiedWs.readyState === WebSocket.OPEN) {
+                unifiedWs.send(JSON.stringify(cmd));
+            } else {
+                showToast('Connection Error', 'Not connected to server', 'error');
+            }
+        }
+
+        function setupEventListeners() {
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    emergencyStop();
+                }
+                if (e.ctrlKey && e.key === 'a') {
+                    e.preventDefault();
+                    armAll();
+                }
+                if (e.ctrlKey && e.key === 'd') {
+                    e.preventDefault();
+                    disarmAll();
+                }
+            });
+        }
+
+        function showToast(title, message, type) {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <div class="toast-icon">
+                    ${type === 'warning' ? '<i class="fas fa-exclamation-triangle"></i>' :
+                      type === 'success' ? '<i class="fas fa-check-circle"></i>' :
+                      type === 'error' ? '<i class="fas fa-times-circle"></i>' :
+                      '<i class="fas fa-info-circle"></i>'}
+                </div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease-in reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

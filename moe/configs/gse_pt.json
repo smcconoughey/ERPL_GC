@@ -1,0 +1,164 @@
+{
+    "channels": [
+        {
+            "pt": {
+                "id": 1,
+                "raw_index": 1,
+                "name": "LOX SUPPLY PRESSURE",
+                "short_name": "pt_lox_supply",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 2,
+                "raw_index": 2,
+                "name": "FUEL SUPPLY PRESSURE",
+                "short_name": "pt_fuel_supply",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 3,
+                "raw_index": 3,
+                "name": "LOX FLOWMETER",
+                "short_name": "pt_lox_flow",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 4,
+                "raw_index": 4,
+                "name": "FUEL FLOWMETER",
+                "short_name": "pt_fuel_flow",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 5,
+                "raw_index": 5,
+                "name": "PRESSURANT SUPPLY GSE",
+                "short_name": "pt_pressurant_gse",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 6,
+                "raw_index": 6,
+                "name": "AMBIENT PRESSURE",
+                "short_name": "pt_ambient",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 7,
+                "raw_index": 7,
+                "name": "WATER COOLING SUPPLY",
+                "short_name": "pt_water_supply",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 8,
+                "raw_index": 8,
+                "name": "WATER COOLING RETURN",
+                "short_name": "pt_water_return",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 9,
+                "raw_index": 9,
+                "name": "GSE SPARE 9",
+                "short_name": "pt9",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 10,
+                "raw_index": 10,
+                "name": "GSE SPARE 10",
+                "short_name": "pt10",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 11,
+                "raw_index": 11,
+                "name": "GSE SPARE 11",
+                "short_name": "pt11",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 12,
+                "raw_index": 12,
+                "name": "GSE SPARE 12",
+                "short_name": "pt12",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 13,
+                "raw_index": 13,
+                "name": "GSE SPARE 13",
+                "short_name": "pt13",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 14,
+                "raw_index": 14,
+                "name": "GSE SPARE 14",
+                "short_name": "pt14",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 15,
+                "raw_index": 15,
+                "name": "GSE SPARE 15",
+                "short_name": "pt15",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 16,
+                "raw_index": 16,
+                "name": "GSE SPARE 16",
+                "short_name": "pt16",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        }
+    ]
+}

@@ -1,0 +1,164 @@
+{
+    "channels": [
+        {
+            "pt": {
+                "id": 1,
+                "raw_index": 1,
+                "name": "LOX TANK PRESSURE",
+                "short_name": "pt_lox",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 2,
+                "raw_index": 2,
+                "name": "FUEL TANK PRESSURE",
+                "short_name": "pt_fuel",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 3,
+                "raw_index": 3,
+                "name": "LOX INJECTOR PRESSURE",
+                "short_name": "pi_lox",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 4,
+                "raw_index": 4,
+                "name": "FUEL INJECTOR PRESSURE",
+                "short_name": "pi_fuel",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 5,
+                "raw_index": 5,
+                "name": "CHAMBER PRESSURE",
+                "short_name": "pt_chamber",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 6,
+                "raw_index": 6,
+                "name": "ENGINE INLET LOX",
+                "short_name": "pt_inlet_lox",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 7,
+                "raw_index": 7,
+                "name": "ENGINE INLET FUEL",
+                "short_name": "pt_inlet_fuel",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 8,
+                "raw_index": 8,
+                "name": "LOX VENT PRESSURE",
+                "short_name": "pv_lox",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 9,
+                "raw_index": 9,
+                "name": "FUEL VENT PRESSURE",
+                "short_name": "pv_fuel",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 10,
+                "raw_index": 10,
+                "name": "PRESSURANT SUPPLY",
+                "short_name": "pt_pressurant",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 11,
+                "raw_index": 11,
+                "name": "ULLAGE PRESSURE LOX",
+                "short_name": "pt_ullage_lox",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 12,
+                "raw_index": 12,
+                "name": "ULLAGE PRESSURE FUEL",
+                "short_name": "pt_ullage_fuel",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 13,
+                "raw_index": 13,
+                "name": "ROCKET SPARE 13",
+                "short_name": "pt13",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 14,
+                "raw_index": 14,
+                "name": "ROCKET SPARE 14",
+                "short_name": "pt14",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 15,
+                "raw_index": 15,
+                "name": "ROCKET SPARE 15",
+                "short_name": "pt15",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        },
+        {
+            "pt": {
+                "id": 16,
+                "raw_index": 16,
+                "name": "ROCKET SPARE 16",
+                "short_name": "pt16",
+                "units": "psi",
+                "range": [0, 500]
+            }
+        }
+    ]
+}
