@@ -41,8 +41,8 @@
         {
             "lc": {
                 "id": 3,
-                "name": "Fuel Tank Weight",
-                "short_name": "wt_fuel",
+                "name": "TLCC",
+                "short_name": "tlcc",
                 "units": "lbf",
                 "range": [
                     -100,

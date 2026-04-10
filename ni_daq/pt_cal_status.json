@@ -90,10 +90,10 @@
   "11": {
     "name": "PT32 Purge Bus",
     "use_alt": false,
-    "max_psi": 2000.0,
+    "max_psi": 500.0,
     "max_psi_alt": 2000.0,
     "max_psi_alt_label": "Alt",
-    "active_max_psi": 2000.0
+    "active_max_psi": 500.0
   },
   "12": {
     "name": "PT21 LOX Venturi Inlet",

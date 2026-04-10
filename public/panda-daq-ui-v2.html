@@ -4,6 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>PANDA DAQ Control v2</title>
     <link rel="icon" type="image/x-icon" href="assets/smurfcat.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -2177,17 +2180,29 @@
             showToast('EMERGENCY STOP', 'Emergency stop activated', 'error');
         }
 
+        let _fuelLagTimer = null;
+
         function abort() {
             const btn = document.getElementById('abort_button');
             
             if (abortState === 'normal') {
                 // ABORT: close LOX run valves immediately, open GN2 purges
+                console.log('[ABORT] t=' + Date.now() + ' LOX close now:', loxRunValveIds, '| Fuel close in 250ms:', fuelRunValveIds, '| GN2 open:', gn2PurgeIds);
                 loxRunValveIds.forEach(id => controlDC(id, 0));
                 gn2PurgeIds.forEach(id => controlDC(id, 1));
                 
-                // 250ms fuel lag - close fuel run valves after LOX is shut
-                setTimeout(() => {
+                // Mark fuel pills as pending-close so user can see the lag
+                fuelRunValveIds.forEach(id => {
+                    const pill = document.getElementById(`dc-toggle-${id}`);
+                    if (pill) { pill.textContent = 'CLOSING'; pill.style.background = '#d69e2e'; }
+                });
+
+                // 250ms fuel lag — close fuel run valves after LOX is shut
+                if (_fuelLagTimer) clearTimeout(_fuelLagTimer);
+                _fuelLagTimer = setTimeout(() => {
+                    console.log('[ABORT] t=' + Date.now() + ' fuel lag elapsed, closing:', fuelRunValveIds);
                     fuelRunValveIds.forEach(id => controlDC(id, 0));
+                    _fuelLagTimer = null;
                 }, 250);
                 
                 abortState = 'aborted';
@@ -2319,7 +2334,7 @@
             document.getElementById('emergency_stop').addEventListener('click', emergencyStop);
             document.getElementById('abort_button').addEventListener('click', abort);
 
-            // Capture Enter/Escape in capture phase to intercept before button activation
+            // Capture Escape in capture phase
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' || e.key === 'Enter') {
                     e.preventDefault();

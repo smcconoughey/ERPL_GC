@@ -149,7 +149,7 @@
             "id": "PT32E",
             "group": "other",
             "calibration": {
-                "max_psi": 2000.0,
+                "max_psi": 500.0,
                 "zero_ma": 4.0,
                 "units": "psi"
             },
