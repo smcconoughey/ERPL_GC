@@ -1,0 +1,5 @@
+{
+    "gox_purge": "s1.00000,s2.00000,s3.00000",
+    "hotfire_prep": "a,s5.00000,s6.00000",
+    "gox_pressurize": "s7.00000"
+}

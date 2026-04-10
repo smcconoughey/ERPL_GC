@@ -1,0 +1,154 @@
+{
+    "channels": [
+        {
+            "dc": {
+                "id": 1,
+                "raw_index": 1,
+                "name": "LOX MAIN VALVE",
+                "short_name": "lox_main",
+                "type": "run_valve",
+                "abort_role": "run_valve"
+            }
+        },
+        {
+            "dc": {
+                "id": 2,
+                "raw_index": 2,
+                "name": "FUEL MAIN VALVE",
+                "short_name": "fuel_main",
+                "type": "run_valve",
+                "abort_role": "run_valve"
+            }
+        },
+        {
+            "dc": {
+                "id": 3,
+                "raw_index": 3,
+                "name": "IGNITER SOLENOID",
+                "short_name": "igniter",
+                "type": "ignition"
+            }
+        },
+        {
+            "dc": {
+                "id": 4,
+                "raw_index": 4,
+                "name": "LOX VENT VALVE",
+                "short_name": "lox_vent",
+                "type": "vent",
+                "abort_role": "vent_valve"
+            }
+        },
+        {
+            "dc": {
+                "id": 5,
+                "raw_index": 5,
+                "name": "FUEL VENT VALVE",
+                "short_name": "fuel_vent",
+                "type": "vent",
+                "abort_role": "vent_valve"
+            }
+        },
+        {
+            "dc": {
+                "id": 6,
+                "raw_index": 6,
+                "name": "LOX PRESSURIZATION",
+                "short_name": "lox_pressurize",
+                "type": "pressurize"
+            }
+        },
+        {
+            "dc": {
+                "id": 7,
+                "raw_index": 7,
+                "name": "FUEL PRESSURIZATION",
+                "short_name": "fuel_pressurize",
+                "type": "pressurize"
+            }
+        },
+        {
+            "dc": {
+                "id": 8,
+                "raw_index": 8,
+                "name": "LOX PURGE",
+                "short_name": "lox_purge",
+                "type": "purge",
+                "abort_role": "purge_valve"
+            }
+        },
+        {
+            "dc": {
+                "id": 9,
+                "raw_index": 9,
+                "name": "FUEL PURGE",
+                "short_name": "fuel_purge",
+                "type": "purge",
+                "abort_role": "purge_valve"
+            }
+        },
+        {
+            "dc": {
+                "id": 10,
+                "raw_index": 10,
+                "name": "ENGINE COOLDOWN",
+                "short_name": "cooldown",
+                "type": "cooling"
+            }
+        },
+        {
+            "dc": {
+                "id": 11,
+                "raw_index": 11,
+                "name": "RCS THRUSTER 1",
+                "short_name": "rcs1",
+                "type": "rcs"
+            }
+        },
+        {
+            "dc": {
+                "id": 12,
+                "raw_index": 12,
+                "name": "RCS THRUSTER 2",
+                "short_name": "rcs2",
+                "type": "rcs"
+            }
+        },
+        {
+            "dc": {
+                "id": 13,
+                "raw_index": 13,
+                "name": "ROCKET SPARE 13",
+                "short_name": "spare13",
+                "type": "spare"
+            }
+        },
+        {
+            "dc": {
+                "id": 14,
+                "raw_index": 14,
+                "name": "ROCKET SPARE 14",
+                "short_name": "spare14",
+                "type": "spare"
+            }
+        },
+        {
+            "dc": {
+                "id": 15,
+                "raw_index": 15,
+                "name": "ROCKET SPARE 15",
+                "short_name": "spare15",
+                "type": "spare"
+            }
+        },
+        {
+            "dc": {
+                "id": 16,
+                "raw_index": 16,
+                "name": "ROCKET SPARE 16",
+                "short_name": "spare16",
+                "type": "spare"
+            }
+        }
+    ]
+}
