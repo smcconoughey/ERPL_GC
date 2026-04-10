@@ -45,6 +45,7 @@ class DeviceState:
     lc: Dict[str, Dict] = field(default_factory=dict)
     tc: Dict[str, Dict] = field(default_factory=dict)
     dc: Dict[str, Dict] = field(default_factory=dict)
+    bb: Dict[str, Dict] = field(default_factory=dict)  # bang-bang status per bus ('l'/'f')
     last_update: str = ""
 
 
@@ -125,6 +126,9 @@ class PandaConnection(DeviceConnection):
 
         for i in range(1, self.dc_count + 1):
             self.state.dc[str(i)] = {"value": 0.0, "state": False, "name": f"DC{i}"}
+
+        for bus in ('l', 'f'):
+            self.state.bb[bus] = {"enabled": False, "valve_open": False, "pressure": 0.0}
 
     def _load_pt_metadata(self) -> List[Dict]:
         """Load PT channel metadata from config"""
@@ -221,6 +225,21 @@ class PandaConnection(DeviceConnection):
 
     def _parse_serial_packet(self, line: str) -> Optional[Dict]:
         """Parse a serial packet and extract channel data"""
+
+        # Bang-bang status: "BB:L:<enabled>:<valve_open>:<pressure>"
+        if line.startswith('BB:') and line.count(':') >= 4:
+            parts = line.split(':')
+            bus = parts[1].lower()  # 'l' or 'f'
+            if bus in self.state.bb:
+                try:
+                    self.state.bb[bus]['enabled']    = parts[2] == '1'
+                    self.state.bb[bus]['valve_open'] = parts[3] == '1'
+                    self.state.bb[bus]['pressure']   = float(parts[4])
+                except (IndexError, ValueError):
+                    pass
+            self.update_state()
+            return {}
+
         if not line or ',' not in line:
             return None
 
@@ -615,6 +634,28 @@ class MOEBackend:
                 if device in self.devices and isinstance(self.devices[device], PandaConnection):
                     ch = msg.get('channel')
                     self.devices[device].tare_pt(ch)
+
+            elif action == 'bb_config':
+                # Push bang-bang config to firmware: setpoint, deadband, wait_ms
+                bus      = msg.get('bus', '')       # 'lox' or 'fuel'
+                setpoint = float(msg.get('setpoint', 200))
+                deadband = float(msg.get('deadband', 10))
+                wait_ms  = int(msg.get('wait_ms', 500))
+                bus_char = 'L' if bus == 'lox' else 'F'
+                cmd = f'B{bus_char}{int(setpoint)},{int(deadband)},{wait_ms}'
+                if device in self.devices:
+                    await self.devices[device].send_command(cmd)
+                    logger.info(f"BB config pushed to {device}: {cmd}")
+
+            elif action == 'bb_enable':
+                # Enable or disable bang-bang on firmware
+                bus     = msg.get('bus', '')        # 'lox' or 'fuel'
+                enable  = bool(msg.get('enable', False))
+                bus_char = 'L' if bus == 'lox' else 'F'
+                cmd = f'b{bus_char}{"1" if enable else "0"}'
+                if device in self.devices:
+                    await self.devices[device].send_command(cmd)
+                    logger.info(f"BB {'enable' if enable else 'disable'} sent to {device}: {cmd}")
 
             elif action == 'preset_save':
                 name = msg.get('name', '')

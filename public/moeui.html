@@ -380,6 +380,19 @@
         .bb-valve-state.open   { background: #38a169; color: white; }
         .bb-valve-state.closed { background: #e53e3e; color: white; }
         .bb-valve-state.idle   { background: #a0aec0; color: white; }
+        .bb-push-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .bb-push-btn {
+            flex-shrink: 0; padding: 4px 10px; border: 1px solid #4a5568; border-radius: 5px;
+            background: #2d3748; color: #e2e8f0; font-size: 11px; cursor: pointer; transition: all 0.15s;
+        }
+        .bb-push-btn:hover { background: #4a5568; }
+        .bb-push-status { font-size: 10px; color: #718096; font-family: monospace; }
+        .bb-push-status.sent { color: #38a169; }
+        .bb-fw-status {
+            font-size: 10px; font-family: monospace; color: #718096;
+            padding: 2px 6px; border-radius: 4px; background: #f7fafc; margin-bottom: 6px;
+        }
+        .bb-fw-status.active { color: #2b6cb0; background: #ebf8ff; font-weight: bold; }
         .bb-status-bar { font-size: 10px; color: #718096; font-family: monospace; min-height: 16px; margin-bottom: 8px; }
         .bb-status-bar.active { color: #2d3748; }
         .bb-enable-btn {
@@ -480,6 +493,12 @@
                                         <input type="number" id="bb-lox-wait" value="500" step="100" min="0" oninput="bbApplyParams('lox')">
                                     </div>
                                 </div>
+                                <div class="bb-push-row">
+                                    <button class="bb-push-btn" onclick="bbPushConfig('lox')">
+                                        <i class="fas fa-upload"></i> Push Config to Board
+                                    </button>
+                                    <span class="bb-push-status" id="bb-lox-push-status"></span>
+                                </div>
                                 <div class="bb-sensors" id="bb-lox-sensors">
                                     <div class="bb-sensor">
                                         <div class="bb-sensor-label">LOX Tank PT</div>
@@ -494,6 +513,7 @@
                                     <span class="bb-valve-label">Vent Valve:</span>
                                     <span class="bb-valve-state idle" id="bb-lox-valve-state">IDLE</span>
                                 </div>
+                                <div class="bb-fw-status" id="bb-lox-fw-status">FW: —</div>
                                 <div class="bb-status-bar" id="bb-lox-status">Disabled</div>
                                 <button class="bb-enable-btn off" id="bb-lox-enable" onclick="bbToggle('lox')">
                                     <i class="fas fa-play"></i> Enable BB
@@ -516,6 +536,12 @@
                                         <input type="number" id="bb-fuel-wait" value="500" step="100" min="0" oninput="bbApplyParams('fuel')">
                                     </div>
                                 </div>
+                                <div class="bb-push-row">
+                                    <button class="bb-push-btn" onclick="bbPushConfig('fuel')">
+                                        <i class="fas fa-upload"></i> Push Config to Board
+                                    </button>
+                                    <span class="bb-push-status" id="bb-fuel-push-status"></span>
+                                </div>
                                 <div class="bb-sensors" id="bb-fuel-sensors">
                                     <div class="bb-sensor">
                                         <div class="bb-sensor-label">Fuel Tank PT</div>
@@ -530,6 +556,7 @@
                                     <span class="bb-valve-label">Vent Valve:</span>
                                     <span class="bb-valve-state idle" id="bb-fuel-valve-state">IDLE</span>
                                 </div>
+                                <div class="bb-fw-status" id="bb-fuel-fw-status">FW: —</div>
                                 <div class="bb-status-bar" id="bb-fuel-status">Disabled</div>
                                 <button class="bb-enable-btn off" id="bb-fuel-enable" onclick="bbToggle('fuel')">
                                     <i class="fas fa-play"></i> Enable BB
@@ -825,6 +852,16 @@
                             } catch(_) {}
                         }
                         parseTelemetryData(msg.content, rawCtx);
+                        // BB firmware telemetry — update status from board state
+                        if(msg.devices){
+                            Object.values(msg.devices).forEach(devData=>{
+                                if(!devData.bb)return;
+                                [['l','lox'],['f','fuel']].forEach(([char,bus])=>{
+                                    const d=devData.bb[char];
+                                    if(d)updateBBFirmwareStatus(bus,d);
+                                });
+                            });
+                        }
                         const ackText = extractSequenceAckText(msg);
                         if (ackText) handleSequenceCallback(msg, ackText);
                     } else if (msg.success !== undefined && msg.message && (msg.message.includes('Logging') || msg.message.includes('Log file'))) {
@@ -1153,6 +1190,8 @@
         }
 
         function bbToggle(bus) {
+            const cfg=bbConfig&&bbConfig.buses&&bbConfig.buses[bus];
+            const device=(cfg&&cfg.device)||'panda_rocket';
             bbState[bus].enabled=!bbState[bus].enabled;
             const btn=document.getElementById(`bb-${bus}-enable`);
             const card=document.getElementById(`bb-${bus}-card`);
@@ -1161,17 +1200,22 @@
                 btn.className='bb-enable-btn on'; btn.innerHTML='<i class="fas fa-stop"></i> Disable BB';
                 card.classList.add(`active-${bus}`);
                 statusEl.className='bb-status-bar active';
+                // Send enable to firmware — board runs the control loop
+                if(ws&&ws.readyState===WebSocket.OPEN)
+                    ws.send(JSON.stringify({action:'bb_enable',device,bus,enable:true}));
                 showToast(`${bus.toUpperCase()} BB Enabled`,`Setpoint: ${bbState[bus].setpoint} PSI ±${bbState[bus].deadband/2} PSI`,'warning');
             } else {
                 btn.className='bb-enable-btn off'; btn.innerHTML='<i class="fas fa-play"></i> Enable BB';
                 card.classList.remove(`active-${bus}`);
                 statusEl.className='bb-status-bar'; statusEl.textContent='Disabled';
-                if(bbConfig&&bbConfig.buses[bus]&&bbConfig.buses[bus].valve){controlDC(bbConfig.buses[bus].valve.dc_id,0);}
                 bbState[bus].valveOpen=false;
                 updateBBValveUI(bus,false,'idle');
-                showToast(`${bus.toUpperCase()} BB Disabled`,'Valve forced closed','info');
+                // Send disable to firmware — board closes valve
+                if(ws&&ws.readyState===WebSocket.OPEN)
+                    ws.send(JSON.stringify({action:'bb_enable',device,bus,enable:false}));
+                showToast(`${bus.toUpperCase()} BB Disabled`,'Board closing valve','info');
             }
-            // Start interval if any bus is enabled; stop if none
+            // Keep client-side tick running only for PT display updates (not control)
             const anyEnabled=bbState.lox.enabled||bbState.fuel.enabled;
             if(anyEnabled&&!bbIntervalId) bbIntervalId=setInterval(bbTick,50);
             if(!anyEnabled&&bbIntervalId){clearInterval(bbIntervalId);bbIntervalId=null;}
@@ -1215,6 +1259,53 @@
             el.textContent=open?'OPEN':'CLOSED'; el.className=`bb-valve-state ${open?'open':'closed'}`;
         }
         function updateBBStatus(bus, text){const el=document.getElementById(`bb-${bus}-status`);if(!el)return;el.textContent=text;el.className='bb-status-bar active';}
+
+        // Push current UI params to firmware EEPROM (separate from enable/disable)
+        function bbPushConfig(bus) {
+            const cfg=bbConfig&&bbConfig.buses&&bbConfig.buses[bus];
+            if(!cfg){showToast('BB Error','No config loaded','error');return;}
+            const device=cfg.device||'panda_rocket';
+            if(!ws||ws.readyState!==WebSocket.OPEN){showToast('BB Error','Not connected to server','error');return;}
+            const sp=bbState[bus].setpoint;
+            const db=bbState[bus].deadband;
+            const wt=bbState[bus].waitMs;
+            ws.send(JSON.stringify({action:'bb_config',device,bus,setpoint:sp,deadband:db,wait_ms:wt}));
+            const statusEl=document.getElementById(`bb-${bus}-push-status`);
+            if(statusEl){statusEl.textContent=`Sent ${sp}±${db/2} PSI`;statusEl.className='bb-push-status sent';}
+            showToast(`${bus.toUpperCase()} Config Pushed`,`${sp} PSI ±${db/2} PSI, wait ${wt}ms`,'info');
+        }
+
+        // Update FW status row from telemetry broadcast
+        function updateBBFirmwareStatus(bus, bbData) {
+            const fwEl=document.getElementById(`bb-${bus}-fw-status`); if(!fwEl)return;
+            if(bbData.enabled){
+                const state=bbData.valve_open?'OPEN':'CLOSED';
+                fwEl.textContent=`FW: ${state} | ${bbData.pressure.toFixed(1)} PSI`;
+                fwEl.className='bb-fw-status active';
+                // Sync UI button state if firmware reports enabled but local state disagrees
+                if(!bbState[bus].enabled){
+                    bbState[bus].enabled=true;
+                    const btn=document.getElementById(`bb-${bus}-enable`);
+                    if(btn){btn.className='bb-enable-btn on';btn.innerHTML='<i class="fas fa-stop"></i> Disable BB';}
+                    document.getElementById(`bb-${bus}-card`)?.classList.add(`active-${bus}`);
+                    if(!bbIntervalId)bbIntervalId=setInterval(bbTick,50);
+                }
+            } else {
+                fwEl.textContent=`FW: OFF`;
+                fwEl.className='bb-fw-status';
+                // Sync UI if firmware reports disabled but local state thinks it's on
+                if(bbState[bus].enabled){
+                    bbState[bus].enabled=false;
+                    const btn=document.getElementById(`bb-${bus}-enable`);
+                    if(btn){btn.className='bb-enable-btn off';btn.innerHTML='<i class="fas fa-play"></i> Enable BB';}
+                    document.getElementById(`bb-${bus}-card`)?.classList.remove(`active-${bus}`);
+                    const statusEl=document.getElementById(`bb-${bus}-status`);
+                    if(statusEl){statusEl.className='bb-status-bar';statusEl.textContent='Disabled';}
+                    updateBBValveUI(bus,false,'idle');
+                    if(!bbState.lox.enabled&&!bbState.fuel.enabled&&bbIntervalId){clearInterval(bbIntervalId);bbIntervalId=null;}
+                }
+            }
+        }
 
         // ── Sequencer (identical to panda-daq-ui-v2) ──
         function setupSequencerEventListeners() {

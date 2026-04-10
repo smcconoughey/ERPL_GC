@@ -2,6 +2,7 @@
     "buses": {
         "lox": {
             "label": "LOX Bus",
+            "device": "panda_rocket",
             "setpoint_psi": 200.0,
             "deadband_psi": 10.0,
             "wait_ms": 500,
@@ -16,6 +17,7 @@
         },
         "fuel": {
             "label": "Fuel Bus",
+            "device": "panda_rocket",
             "setpoint_psi": 200.0,
             "deadband_psi": 10.0,
             "wait_ms": 500,
