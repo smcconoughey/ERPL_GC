@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,8 +11,6 @@
     <link rel="icon" type="image/x-icon" href="assets/smurfcat.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -35,11 +34,7 @@
         .header.armed {
             box-shadow: 0 4px 20px rgba(239,68,68,0.4), 0 0 40px rgba(239,68,68,0.3), inset 0 -3px 15px rgba(239,68,68,0.2);
         }
-        .title {
-            font-size: 20px;
-            font-weight: bold;
-            color: #e53e3e;
-        }
+        .title { font-size: 20px; font-weight: bold; color: #e53e3e; }
         .toast {
             position: fixed; top: 80px; right: 20px;
             background: white; padding: 12px 16px;
@@ -63,22 +58,22 @@
         .toast-content { flex: 1; }
         .toast-title   { font-weight: bold; font-size: 14px; margin-bottom: 2px; }
         .toast-message { font-size: 12px; color: #718096; }
-
-        .safety-controls { position: absolute; top: 0; right: 0; width: 220px; height: 100%; }
+        .connection-status { font-size: 14px; color: #4a5568; }
+        .safety-controls { position: absolute; top: 0; right: 0; width: 250px; height: 100%; }
         .emergency-stop {
             position: absolute; top: 0; right: 0; width: 100%; height: 100%;
             background-color: #8b0000; color: white; font-weight: bold;
-            border: none; cursor: pointer; font-size: 18px;
+            border: none; cursor: pointer; font-size: 20px;
             text-transform: uppercase; letter-spacing: 2px;
             transition: background-color 0.3s; padding: 0;
             display: flex; align-items: center; justify-content: center;
         }
         .emergency-stop:hover { background-color: #990000; }
-        .abort-controls { position: absolute; top: 0; left: 0; width: 220px; height: 100%; }
+        .abort-controls { position: absolute; top: 0; left: 0; width: 250px; height: 100%; }
         .abort {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background-color: #ffd700; color: black; font-weight: bold;
-            border: none; cursor: pointer; font-size: 18px;
+            border: none; cursor: pointer; font-size: 20px;
             text-transform: uppercase; letter-spacing: 2px;
             transition: background-color 0.3s; padding: 0;
             display: flex; align-items: center; justify-content: center;
@@ -88,19 +83,14 @@
         .abort.aborted:hover { background-color: #990000; }
         .abort.safe { background-color: #38a169; color: white; }
         .abort.safe:hover { background-color: #2f855a; }
-
-        .main-container {
-            flex: 1; display: flex;
-            height: calc(100vh - 60px);
-            overflow: hidden;
-        }
+        .main-container { flex: 1; display: flex; height: calc(100vh - 60px); overflow: hidden; }
         .log-top-center {
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             display: flex; align-items: center; gap: 8px;
         }
         .arm-controls-top {
-            position: absolute; top: 50%; left: 230px;
+            position: absolute; top: 50%; left: 260px;
             transform: translateY(-50%);
             display: flex; gap: 8px;
         }
@@ -111,35 +101,29 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.15);
         }
         .arm-btn-compact:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
-        .arm-btn-compact.arm { background-color: #ed8936; color: white; }
-        .arm-btn-compact.disarm { background-color: #38a169; color: white; }
-        .logging-indicator.top {
-            width: 8px; height: 8px; border-radius: 50%;
-            background-color: #cbd5e0;
-        }
+        .arm-btn-compact.arm   { background-color: #ed8936; color: white; }
+        .arm-btn-compact.disarm{ background-color: #38a169; color: white; }
+        .logging-indicator.top { width: 8px; height: 8px; border-radius: 50%; background-color: #cbd5e0; }
         .logging-indicator.top.active { background-color: #48bb78; }
         .logging-filename-top { font-size: 12px; color: #4a5568; font-family: monospace; }
         .log-btn.small { padding: 6px 10px; font-size: 12px; }
 
-        /* Connection badges */
-        .conn-badges { display: flex; gap: 6px; align-items: center; margin-left: 12px; }
-        .conn-badge {
+        /* NI DAQ connection badge */
+        .nidaq-badge {
             display: flex; align-items: center; gap: 4px;
             padding: 3px 8px; border-radius: 4px;
             font-size: 10px; font-weight: 700;
-            background: #f0f0f0; border: 1px solid #e2e8f0;
-            color: #4a5568;
+            background: #fff5f5; border: 1px solid #e53e3e; color: #742a2a;
+            margin-left: 10px;
         }
-        .conn-badge.ok  { background: #f0fff4; border-color: #38a169; color: #22543d; }
-        .conn-badge.err { background: #fff5f5; border-color: #e53e3e; color: #742a2a; }
-        .conn-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: #e53e3e; }
-        .conn-badge.ok .dot { background: #38a169; box-shadow: 0 0 4px #38a169; }
+        .nidaq-badge.ok { background: #f0fff4; border-color: #38a169; color: #22543d; }
+        .nidaq-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: #e53e3e; }
+        .nidaq-badge.ok .dot { background: #38a169; box-shadow: 0 0 4px #38a169; }
 
-        /* Controls panel */
         .controls-panel {
             flex: 2; padding: 20px;
             display: flex; flex-direction: column;
-            gap: 0; overflow-y: auto;
+            gap: 20px; overflow-y: auto;
             background-color: white;
             border-right: 3px solid #e2e8f0;
         }
@@ -147,21 +131,18 @@
         .tab-buttons {
             display: flex; gap: 4px;
             border-bottom: 2px solid #e2e8f0;
-            padding-bottom: 0; margin-bottom: 16px;
-            flex-shrink: 0;
+            padding-bottom: 0; margin-bottom: 20px;
         }
         .tab-button {
-            padding: 10px 20px; background-color: #f7fafc; border: none;
+            padding: 12px 24px; background-color: #f7fafc; border: none;
             border-bottom: 3px solid transparent; cursor: pointer;
-            font-weight: bold; font-size: 13px; color: #718096;
+            font-weight: bold; font-size: 14px; color: #718096;
             transition: all 0.3s ease; border-radius: 4px 4px 0 0;
         }
         .tab-button:hover { background-color: #edf2f7; color: #4a5568; }
         .tab-button.active { background-color: white; color: #3182ce; border-bottom: 3px solid #3182ce; }
         .tab-content { display: none; flex: 1; overflow-y: auto; }
-        .tab-content.active { display: flex; flex-direction: column; gap: 12px; }
-
-        /* Info bar */
+        .tab-content.active { display: block; }
         .info-bar {
             background-color: #fff; border-bottom: 1px solid #e2e8f0;
             padding: 8px 20px;
@@ -175,17 +156,22 @@
             padding: 3px 8px; border-radius: 12px;
             font-size: 11px; font-weight: 600;
         }
-        .stale-indicator.fresh { background-color: #d4edda; color: #38a169; }
-        .stale-indicator.stale { background-color: #fff3cd; color: #ed8936; }
-        .stale-indicator.offline { background-color: #f8d7da; color: #e53e3e; }
-        .connection-indicator { width: 12px; height: 12px; border-radius: 50%; margin-left: 8px; }
-        .connection-indicator.connected { background-color: #38a169; box-shadow: 0 0 8px rgba(56,161,105,0.6); }
-        .connection-indicator.disconnected { background-color: #e53e3e; box-shadow: 0 0 8px rgba(229,62,62,0.6); }
-
-        /* DC controls */
+        .stale-indicator.fresh  { background-color: #d4edda; color: #38a169; }
+        .stale-indicator.stale  { background-color: #fff3cd; color: #ed8936; }
+        .stale-indicator.offline{ background-color: #f8d7da; color: #e53e3e; }
+        .telemetry-panel {
+            flex: 1.5; padding: 2px;
+            background-color: #ffffff; color: #1a202c;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            grid-template-areas: "pt lc" "pt tc";
+            gap: 8px;
+            height: calc(100vh - 60px);
+        }
         .dc-controls {
             display: grid;
-            grid-template-columns: repeat(3, minmax(175px, 1fr));
+            grid-template-columns: repeat(3, minmax(185px, 1fr));
             gap: 8px;
         }
         .dc-channel {
@@ -194,1683 +180,1091 @@
             transition: all 0.3s ease; cursor: pointer;
             user-select: none; -webkit-user-select: none;
         }
-        .dc-type-fuel      { background-color: #fff4e6; border-color: #f6ad55; }
-        .dc-type-lox       { background-color: #e6f4ff; border-color: #63b3ed; }
-        .dc-type-misc      { background-color: #e8fff0; border-color: #68d391; }
-        .dc-type-fill      { background-color: #f0e6ff; border-color: #9f7aea; }
-        .dc-type-drain     { background-color: #fff0e6; border-color: #ed8936; }
-        .dc-type-vent      { background-color: #e6f4ff; border-color: #63b3ed; }
-        .dc-type-pressurize{ background-color: #fffbe6; border-color: #d69e2e; }
-        .dc-type-cooling   { background-color: #e6fffa; border-color: #38b2ac; }
-        .dc-type-heating   { background-color: #ffe6e6; border-color: #fc8181; }
-        .dc-type-test      { background-color: #f0f4f8; border-color: #a0aec0; }
-        .dc-type-spare     { background-color: #f7fafc; border-color: #cbd5e0; }
-        .dc-type-lox-fuel  { background-color: #f9f5ff; border-color: #b794f4; }
-        .dc-type-disconnect{ background-color: #f9f5ff; border-color: #b794f4; }
-        .dc-channel:hover  { border-color: #3182ce; box-shadow: 0 4px 12px rgba(49,130,206,0.15); }
-        .dc-channel.active  { border-color: #38a169; background-color: #f0fff4; }
-        .dc-channel.inactive{ border-color: #e53e3e; background-color: #fff5f5; }
+        .dc-type-fuel { background-color: #fff4e6; border-color: #f6ad55; }
+        .dc-type-lox  { background-color: #e6f4ff; border-color: #63b3ed; }
+        .dc-type-misc { background-color: #e8fff0; border-color: #68d391; }
+        .dc-channel:hover { border-color: #3182ce; box-shadow: 0 4px 12px rgba(49,130,206,0.15); }
+        .dc-channel.active   { border-color: #38a169; background-color: #f0fff4; }
+        .dc-channel.inactive { border-color: #e53e3e; background-color: #fff5f5; }
         .dc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-        .dc-name  { font-weight: bold; font-size: 12px; color: #2d3748; line-height: 1.2; }
+        .dc-name  { font-weight: bold; font-size: 13px; color: #2d3748; line-height: 1.2; }
         .dc-short { font-size: 9px; color: #718096; text-transform: uppercase; line-height: 1.2; }
         .dc-controls-row { display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
+        .dc-status { flex: 1; text-align: center; padding: 8px; border-radius: 4px; font-weight: bold; text-transform: uppercase; }
+        .dc-status.on  { background-color: #38a169; color: white; }
+        .dc-status.off { background-color: #e53e3e; color: white; }
         .dc-pill { padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 12px; }
         .dc-pill.on  { background: #38a169; color: #fff; }
         .dc-pill.off { background: #e53e3e; color: #fff; }
-        .dc-pill.bb  { background: #805ad5; color: #fff; font-size: 10px; }
-
-        /* ── Bang-Bang Panel ── */
-        .bb-section {
-            border: 2px solid #805ad5;
-            border-radius: 8px;
-            background: #faf5ff;
-            padding: 12px;
-            margin-top: 8px;
-            flex-shrink: 0;
-        }
-        .bb-header {
-            font-size: 13px; font-weight: 800;
-            color: #553c9a; text-transform: uppercase;
-            letter-spacing: 0.05em; margin-bottom: 10px;
-            display: flex; align-items: center; gap: 8px;
-        }
-        .bb-data-source {
-            font-size: 9px; font-weight: 500;
-            color: #805ad5; background: #e9d8fd;
-            padding: 2px 6px; border-radius: 4px;
-        }
-        .bb-buses { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .bb-bus {
-            background: white; border: 2px solid #e9d8fd;
-            border-radius: 6px; padding: 10px;
-            display: flex; flex-direction: column; gap: 6px;
-        }
-        .bb-bus.lox-bus { border-color: #63b3ed; background: #ebf8ff; }
-        .bb-bus.fuel-bus{ border-color: #f6ad55; background: #fffaf0; }
-        .bb-bus-label {
-            font-size: 12px; font-weight: 800;
-            text-transform: uppercase; letter-spacing: 0.05em;
-        }
-        .bb-bus.lox-bus  .bb-bus-label { color: #2b6cb0; }
-        .bb-bus.fuel-bus .bb-bus-label { color: #c05621; }
-        .bb-params {
-            display: grid; grid-template-columns: 1fr 1fr 1fr;
-            gap: 4px;
-        }
-        .bb-param label {
-            font-size: 8px; color: #718096; text-transform: uppercase;
-            display: block; margin-bottom: 1px;
-        }
-        .bb-param input {
-            width: 100%; padding: 3px 5px; font-size: 11px;
-            border: 1px solid #cbd5e0; border-radius: 3px;
-            font-family: monospace; text-align: right;
-        }
-        .bb-param input:focus { outline: none; border-color: #805ad5; }
-        .bb-sensors { display: flex; flex-direction: column; gap: 3px; }
-        .bb-sensor {
-            display: flex; align-items: center; justify-content: space-between;
-            font-size: 10px; color: #4a5568;
-            background: rgba(255,255,255,0.6); border-radius: 3px;
-            padding: 2px 5px;
-        }
-        .bb-sensor-label { color: #718096; font-size: 9px; }
-        .bb-sensor-value { font-family: monospace; font-weight: 700; font-size: 12px; }
-        .bb-sensor-value.hi { color: #e53e3e; }
-        .bb-sensor-value.lo { color: #3182ce; }
-        .bb-valve-row {
-            display: flex; align-items: center; justify-content: space-between;
-            margin-top: 2px;
-        }
-        .bb-valve-label { font-size: 9px; color: #718096; }
-        .bb-valve-state {
-            font-size: 11px; font-weight: 800;
-            padding: 2px 8px; border-radius: 8px;
-            text-transform: uppercase;
-        }
-        .bb-valve-state.open   { background: #38a169; color: white; }
-        .bb-valve-state.closed { background: #e53e3e; color: white; }
-        .bb-enable-btn {
-            width: 100%; padding: 5px;
-            border: none; border-radius: 4px;
-            font-size: 11px; font-weight: bold; cursor: pointer;
-            text-transform: uppercase; transition: all 0.2s;
-        }
-        .bb-enable-btn.off { background: #805ad5; color: white; }
-        .bb-enable-btn.off:hover { background: #6b46c1; }
-        .bb-enable-btn.on  { background: #e53e3e; color: white; animation: bbPulse 1s infinite; }
-        .bb-enable-btn.on:hover { background: #c53030; }
-        @keyframes bbPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
-        .bb-status-bar {
-            font-size: 9px; text-align: center;
-            color: #718096; font-family: monospace;
-            height: 12px;
-        }
-        .bb-status-bar.active { color: #805ad5; font-weight: 600; }
-
-        /* ── NI DAQ Telemetry Panel (right) ── */
-        .telemetry-panel {
-            flex: 1.5;
-            padding: 8px;
-            background-color: #ffffff;
-            color: #1a202c;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            height: calc(100vh - 60px);
-            overflow-y: auto;
-        }
-        .telemetry-section {
-            background: white; border: 1px solid #e2e8f0;
-            border-radius: 8px; padding: 10px;
-        }
-        .telemetry-header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 8px;
-        }
-        .telemetry-title {
-            font-size: 12px; font-weight: 800; color: #2d3748;
-            text-transform: uppercase; letter-spacing: 0.05em;
-            display: flex; align-items: center; gap: 6px;
-        }
-        .telemetry-count { font-size: 9px; color: #718096; font-weight: normal; }
-
-        /* NI DAQ telemetry item (card with sparkline) */
-        .telemetry-item {
-            background: #f7fafc; border: 1px solid #e2e8f0;
-            border-radius: 6px; padding: 8px;
-            transition: border-color 0.2s;
-        }
-        .telemetry-item.disconnected { border-color: #e53e3e; opacity: 0.6; }
-        .telemetry-header-row {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 4px;
-        }
-        .telemetry-label { font-size: 10px; font-weight: 700; color: #4a5568; text-transform: uppercase; }
-        .telemetry-value { font-size: 24px; font-weight: 800; color: #1a202c; line-height: 1; margin-bottom: 2px; }
-        .telemetry-units { font-size: 10px; color: #718096; }
-        .telemetry-raw-row { display: flex; align-items: center; margin-top: 4px; gap: 8px; }
-        .telemetry-raw { font-size: 14px; font-weight: 600; color: #4a5568; font-family: 'Courier New', monospace; }
-        .telemetry-details { font-size: 10px; color: #718096; text-align: right; white-space: nowrap; }
-        .telemetry-delta { font-size: 10px; color: #718096; text-align: right; margin-top: 2px; font-weight: 500; }
-        .telemetry-delta.positive { color: #38a169; }
-        .telemetry-delta.negative { color: #e53e3e; }
-
-        .sparkline { width: 100%; height: 36px; margin-top: 6px; max-width: 100%; display: block; }
-        canvas.sparkline { image-rendering: pixelated; max-width: 100% !important; height: 36px !important; }
-
-        /* PT row organization */
-        .pt-row {
-            display: flex; flex-wrap: nowrap; gap: 10px;
-            padding: 8px; border-radius: 6px; border: 2px solid;
-            margin-bottom: 6px; overflow-x: auto;
-        }
-        .pt-row.fuel { border-color: rgba(255,102,0,0.2); background: rgba(255,244,230,0.3); }
-        .pt-row.lox  { border-color: rgba(49,130,206,0.2); background: rgba(230,244,255,0.3); }
-        .pt-row.misc { border-color: rgba(0,204,102,0.2); background: rgba(232,255,240,0.3); }
-        .pt-row .telemetry-item { flex: 1 1 0; min-width: 130px; max-width: 200px; }
-
-        /* Compact LC/TC grid */
-        .section-lc-tc { display: flex; gap: 8px; flex: 0 0 auto; }
-        .section-lc-tc .telemetry-section { flex: 1; }
-        .compact-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; align-content: start; }
-        .compact-grid .telemetry-item { padding: 8px; }
-        .compact-grid .telemetry-value { font-size: 20px; margin-bottom: 2px; }
-        .compact-grid .sparkline { height: 24px; margin-top: 3px; }
-        .compact-grid canvas.sparkline { height: 24px !important; }
-
-        /* BB PT highlight */
-        .bb-pt-highlight { border-color: #805ad5 !important; }
-
-        /* Data timestamp */
-        .data-timestamp { font-size: 8px; color: #718096; text-align: center; }
-
-        /* Sequencer styles */
         .sequence-builder { display: flex; flex-direction: column; gap: 15px; }
-        .sequence-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 10px; background-color: #f7fafc; border-radius: 6px; }
+        .sequence-toolbar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px; background-color: #f7fafc; border-radius: 6px;
+        }
         .sequence-buttons { display: flex; gap: 8px; }
-        .seq-btn { padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; border: none; transition: all 0.2s; }
+        .seq-btn {
+            padding: 8px 16px; border-radius: 4px; cursor: pointer;
+            display: flex; align-items: center; gap: 5px;
+            border: none; font-weight: bold; font-size: 13px; transition: all 0.2s;
+        }
         .seq-btn-blue  { background-color: #3182ce; color: white; }
-        .seq-btn-red   { background-color: #e53e3e; color: white; }
-        .seq-btn-gray  { background-color: #718096; color: white; }
+        .seq-btn-blue:hover  { background-color: #2c5282; }
         .seq-btn-green { background-color: #38a169; color: white; }
-        .seq-btn:hover { filter: brightness(1.1); }
-        .seq-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .sequence-container { display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow-y: auto; padding: 4px; }
-        .sequence-block { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
-        .block-header { padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: bold; color: white; }
+        .seq-btn-green:hover { background-color: #2f855a; }
+        .seq-btn-red   { background-color: #e53e3e; color: white; }
+        .seq-btn-red:hover   { background-color: #c53030; }
+        .seq-btn-gray  { background-color: #718096; color: white; }
+        .seq-btn-gray:hover  { background-color: #4a5568; }
+        .sequence-container {
+            display: flex; flex-wrap: wrap; gap: 10px; padding: 15px;
+            background-color: #f9fafb; border: 2px dashed #e2e8f0;
+            border-radius: 6px; min-height: 150px; overflow-x: auto;
+        }
+        .sequence-block {
+            width: 160px; border-radius: 6px; background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: relative; transition: all 0.3s;
+        }
+        .sequence-block:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+        .block-header {
+            padding: 8px 10px; border-top-left-radius: 6px; border-top-right-radius: 6px;
+            color: white; font-weight: bold;
+            display: flex; justify-content: space-between; align-items: center; font-size: 13px;
+        }
         .block-action-on  { background-color: #38a169; }
         .block-action-off { background-color: #e53e3e; }
-        .block-content { padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-        .form-label { font-size: 11px; color: #4a5568; font-weight: bold; }
-        .form-select { padding: 4px 8px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 11px; }
-        .form-input  { padding: 4px 8px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 11px; width: 80px; }
-        .remove-block { background: transparent; border: none; color: white; cursor: pointer; font-size: 16px; padding: 0 4px; }
-        .command-preview { font-family: monospace; font-size: 11px; color: #4a5568; background: #f7fafc; padding: 8px; border-radius: 4px; border: 1px solid #e2e8f0; word-break: break-all; }
-
-        /* Presets */
-        .preset-sequences { margin-top: 16px; padding: 12px; background-color: #f7fafc; border-radius: 8px; border: 2px solid #e2e8f0; }
-        .preset-title { font-size: 14px; font-weight: bold; color: #2d3748; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-        .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .preset-card { background: white; border: 2px solid #cbd5e0; border-radius: 8px; padding: 10px; transition: all 0.3s; }
-        .preset-card.gox     { border-color: #63b3ed; background: linear-gradient(to bottom, #e6f4ff, #ffffff); }
-        .preset-card.hotfire { border-color: #f6ad55; background: linear-gradient(to bottom, #fff4e6, #ffffff); }
-        .preset-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .preset-name { font-weight: bold; font-size: 13px; color: #2d3748; }
-        .preset-status { font-size: 10px; padding: 2px 6px; border-radius: 8px; font-weight: 600; }
-        .preset-status.set   { background-color: #d4edda; color: #38a169; }
-        .preset-status.empty { background-color: #f8d7da; color: #e53e3e; }
-        .preset-preview { font-family: monospace; font-size: 9px; color: #718096; background: #f9fafb; padding: 5px; border-radius: 3px; margin-bottom: 8px; min-height: 24px; max-height: 40px; overflow-y: auto; word-break: break-all; }
-        .preset-buttons { display: flex; gap: 5px; }
-        .preset-btn { flex: 1; padding: 5px 8px; border: none; border-radius: 4px; font-size: 10px; font-weight: bold; cursor: pointer; transition: all 0.2s; }
-        .preset-btn-set    { background-color: #3182ce; color: white; }
-        .preset-btn-arm    { background-color: #22d3ee; color: #083344; }
-        .preset-btn-fire   { background-color: #ed8936; color: white; }
-        .preset-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        /* Terminal */
-        .terminal-panel { margin-top: 16px; padding: 10px; background: #0d1117; border-radius: 8px; border: 1px solid #1f2933; color: #c9d1d9; font-family: "Fira Code", monospace; display: flex; flex-direction: column; height: 180px; }
-        .terminal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #58a6ff; }
-        .terminal-body { flex: 1; overflow-y: auto; background: #0b0f16; border-radius: 4px; padding: 6px; font-size: 11px; line-height: 1.4; white-space: pre-wrap; }
-        .terminal-line.seq { color: #8bcdff; }
-        .terminal-line.err { color: #f88; }
-        .terminal-controls { display: flex; gap: 6px; }
-
-        /* Callback */
-        .sequence-callback { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background-color: #f7fafc; border-radius: 6px; border: 2px solid #e2e8f0; margin-top: 8px; }
-        .callback-indicator { width: 10px; height: 10px; border-radius: 50%; background-color: #cbd5e0; transition: all 0.3s; }
-        .callback-indicator.received { background-color: #38a169; box-shadow: 0 0 10px rgba(56,161,105,0.6); }
-        .callback-text { font-size: 12px; color: #4a5568; flex: 1; }
-        .callback-text.received { color: #38a169; font-weight: bold; }
-        .callback-timestamp { font-size: 9px; color: #a0aec0; font-family: monospace; }
-
-        /* Logging */
+        .block-content { padding: 10px; }
+        .remove-block { cursor: pointer; background: none; border: none; color: white; font-size: 16px; font-weight: bold; }
+        .form-select, .form-input {
+            width: 100%; padding: 6px; margin-bottom: 6px;
+            border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px;
+        }
+        .form-label { display: block; font-size: 11px; color: #4a5568; margin-bottom: 3px; font-weight: 600; }
+        .command-preview {
+            padding: 10px; background-color: #f1f5f9; border: 1px solid #cbd5e0;
+            border-radius: 4px; font-family: monospace; overflow-x: auto;
+            white-space: nowrap; font-size: 12px;
+        }
+        .telemetry-section {
+            background-color: #ffffff; border-radius: 4px; padding: 2px;
+            border: 1px solid #e2e8f0; display: grid; grid-template-rows: auto 1fr; min-height: 0;
+        }
+        .section-pt { grid-area: pt; }
+        .section-lc { grid-area: lc; }
+        .section-tc { grid-area: tc; }
+        .telemetry-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 4px; padding-bottom: 2px; border-bottom: 1px solid #e2e8f0;
+        }
+        .telemetry-title { font-weight: bold; font-size: 12px; color: #2d3748; text-transform: uppercase; }
+        .telemetry-count { font-size: 10px; color: #a0aec0; }
+        .telemetry-grid { display: grid; grid-template-columns: 1fr; grid-auto-rows: 1fr; gap: 1px; overflow: hidden; }
+        .sensor-reading {
+            display: grid; grid-template-columns: auto auto;
+            align-items: center; justify-content: space-between;
+            padding: 2px 4px; background-color: #f9fafb; border-radius: 2px;
+            border-left: 2px solid #cbd5e1; transition: all 0.2s ease; min-height: 0;
+        }
+        .sensor-reading.normal   { border-left-color: #16a34a; }
+        .sensor-reading.warning  { border-left-color: #f59e0b; background-color: #fff7ed; }
+        .sensor-reading.critical { border-left-color: #ef4444; background-color: #fef2f2; }
+        .sensor-reading.offline  { border-left-color: #94a3b8; background-color: #f1f5f9; }
+        .sensor-info { flex: 1; }
+        .sensor-name  { font-size: 10px; color: #4a5568; text-transform: uppercase; margin-bottom: 1px; }
+        .sensor-short { font-size: 9px; color: #718096; }
+        .sensor-value { text-align: right; font-weight: bold; }
+        .sensor-main-row { display: flex; align-items: baseline; justify-content: flex-end; gap: 4px; flex-wrap: wrap; }
+        .sensor-main  { font-size: 14px; color: #1a202c; }
+        .sensor-raw-group { display: flex; gap: 4px; font-size: 7px; color: #94a3b8; font-weight: normal; flex-wrap: nowrap; white-space: nowrap; }
+        .sensor-raw, .sensor-raw-ma, .sensor-config { font-size: 7px; color: #94a3b8; font-weight: normal; white-space: nowrap; }
+        .sensor-reading.warning  .sensor-main { color: #fbd38d; }
+        .sensor-reading.critical .sensor-main { color: #feb2b2; }
+        .connection-indicator { width: 12px; height: 12px; border-radius: 50%; margin-left: 8px; }
+        .connection-indicator.connected    { background-color: #38a169; box-shadow: 0 0 8px rgba(56,161,105,0.6); }
+        .connection-indicator.disconnected { background-color: #e53e3e; box-shadow: 0 0 8px rgba(229,62,62,0.6); }
+        .refresh-btn { background: none; border: none; color: #3182ce; cursor: pointer; font-size: 12px; padding: 4px; border-radius: 4px; transition: background-color 0.2s; }
+        .refresh-btn:hover { background-color: rgba(49,130,206,0.1); }
+        .data-timestamp { font-size: 8px; color: #718096; text-align: center; margin-top: 4px; }
+        .logging-controls { background-color: #fff; border-radius: 8px; padding: 12px; margin: 10px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .logging-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .logging-title { font-size: 14px; font-weight: bold; color: #2d3748; }
+        .logging-indicator { width: 10px; height: 10px; border-radius: 50%; background-color: #cbd5e0; }
+        .logging-indicator.active { background-color: #48bb78; animation: pulse 2s infinite; }
+        .logging-filename { font-size: 10px; color: #718096; margin-bottom: 8px; text-align: center; font-family: monospace; word-break: break-all; }
+        .logging-buttons { display: flex; gap: 8px; }
         .log-btn { flex: 1; padding: 8px; border: none; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s; }
         .log-btn.start { background-color: #48bb78; color: white; }
         .log-btn.start:hover { background-color: #38a169; }
-
+        .log-btn.stop  { background-color: #f56565; color: white; }
+        .log-btn.stop:hover  { background-color: #e53e3e; }
+        .log-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        @keyframes pulse { 0% { opacity:1; } 50% { opacity:0.7; } 100% { opacity:1; } }
+        .sensor-reading.updating { animation: pulse 0.35s ease-in-out; }
+        .trend { margin-left: 6px; font-size: 11px; }
+        .trend.up   { color: #38a169; }
+        .trend.down { color: #e53e3e; }
+        .trend.flat { color: #a0aec0; }
         .help-tooltip { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
         .help-tooltip div { cursor: pointer; background-color: #3182ce; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .preset-sequences { margin-top: 20px; padding: 15px; background-color: #f7fafc; border-radius: 8px; border: 2px solid #e2e8f0; }
+        .preset-title { font-size: 16px; font-weight: bold; color: #2d3748; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .preset-card { background: white; border: 2px solid #cbd5e0; border-radius: 8px; padding: 12px; transition: all 0.3s; }
+        .preset-card:hover { border-color: #3182ce; box-shadow: 0 4px 12px rgba(49,130,206,0.15); }
+        .preset-card.gox     { border-color: #63b3ed; background: linear-gradient(to bottom, #e6f4ff, #ffffff); }
+        .preset-card.hotfire { border-color: #f6ad55; background: linear-gradient(to bottom, #fff4e6, #ffffff); }
+        .preset-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .preset-name   { font-weight: bold; font-size: 14px; color: #2d3748; }
+        .preset-status { font-size: 11px; padding: 3px 8px; border-radius: 10px; font-weight: 600; }
+        .preset-status.set   { background-color: #d4edda; color: #38a169; }
+        .preset-status.empty { background-color: #f8d7da; color: #e53e3e; }
+        .preset-preview { font-family: monospace; font-size: 10px; color: #718096; background: #f9fafb; padding: 6px; border-radius: 4px; margin-bottom: 10px; min-height: 30px; max-height: 50px; overflow-y: auto; word-break: break-all; }
+        .preset-buttons { display: flex; gap: 6px; }
+        .preset-btn { flex: 1; padding: 6px 10px; border: none; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+        .preset-btn-set    { background-color: #3182ce; color: white; }
+        .preset-btn-set:hover    { background-color: #2c5282; }
+        .preset-btn-upload { background-color: #38a169; color: white; }
+        .preset-btn-upload:hover { background-color: #2f855a; }
+        .preset-btn-arm  { background-color: #22d3ee; color: #083344; }
+        .preset-btn-arm:hover  { background-color: #0ea5e9; color: #e0f2fe; }
+        .preset-btn-fire { background-color: #ed8936; color: white; }
+        .preset-btn-fire:hover { background-color: #dd6b20; }
+        .preset-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .terminal-panel { margin-top: 18px; padding: 12px; background: #0d1117; border-radius: 8px; border: 1px solid #1f2933; color: #c9d1d9; font-family: "Fira Code","Consolas",monospace; display: flex; flex-direction: column; height: 220px; }
+        .terminal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #58a6ff; }
+        .terminal-body { flex: 1; overflow-y: auto; background: #0b0f16; border-radius: 6px; padding: 8px; font-size: 12px; line-height: 1.4; white-space: pre-wrap; }
+        .terminal-line { margin: 0; }
+        .terminal-line.seq { color: #8bcdff; }
+        .terminal-line.err { color: #f88; }
+        .terminal-controls { display: flex; gap: 8px; align-items: center; }
+        .sequence-callback { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background-color: #f7fafc; border-radius: 6px; border: 2px solid #e2e8f0; margin-top: 10px; }
+        .callback-indicator { width: 12px; height: 12px; border-radius: 50%; background-color: #cbd5e0; transition: all 0.3s; }
+        .callback-indicator.received { background-color: #38a169; box-shadow: 0 0 10px rgba(56,161,105,0.6); animation: pulse-callback 2s ease-in-out; }
+        @keyframes pulse-callback { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(1.2); opacity:0.8; } }
+        .callback-text { font-size: 13px; color: #4a5568; flex: 1; }
+        .callback-text.received { color: #38a169; font-weight: bold; }
+        .callback-timestamp { font-size: 10px; color: #a0aec0; font-family: monospace; }
 
-        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+        /* ─── Bang-Bang Section ─── */
+        .bb-section {
+            margin-top: 20px; padding: 14px;
+            background: #f7fafc; border: 2px solid #e2e8f0; border-radius: 8px;
+        }
+        .bb-title {
+            font-size: 14px; font-weight: bold; color: #2d3748;
+            margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+        }
+        .bb-buses { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .bb-card {
+            background: white; border: 2px solid #cbd5e0; border-radius: 8px; padding: 12px;
+        }
+        .bb-card.lox  { border-color: #63b3ed; background: linear-gradient(to bottom, #e6f4ff, #fff); }
+        .bb-card.fuel { border-color: #f6ad55; background: linear-gradient(to bottom, #fff4e6, #fff); }
+        .bb-card.active-lox  { border-color: #3182ce; box-shadow: 0 0 8px rgba(49,130,206,0.3); }
+        .bb-card.active-fuel { border-color: #dd6b20; box-shadow: 0 0 8px rgba(221,107,32,0.3); }
+        .bb-card-title { font-weight: bold; font-size: 13px; color: #2d3748; margin-bottom: 10px; }
+        .bb-params { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+        .bb-param label { display: block; font-size: 10px; color: #718096; font-weight: 600; margin-bottom: 2px; }
+        .bb-param input {
+            width: 100%; padding: 4px 6px; border: 1px solid #e2e8f0; border-radius: 4px;
+            font-size: 12px; font-weight: bold;
+        }
+        .bb-sensors { display: flex; gap: 8px; margin-bottom: 8px; }
+        .bb-sensor { flex: 1; background: #f9fafb; border-radius: 4px; padding: 6px 8px; border: 1px solid #e2e8f0; }
+        .bb-sensor-label { font-size: 9px; color: #718096; text-transform: uppercase; }
+        .bb-sensor-value { font-size: 14px; font-weight: bold; color: #2d3748; }
+        .bb-sensor-value.hi { color: #e53e3e; }
+        .bb-sensor-value.lo { color: #3182ce; }
+        .bb-valve-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .bb-valve-label { font-size: 11px; color: #718096; }
+        .bb-valve-state { font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 4px; }
+        .bb-valve-state.open   { background: #38a169; color: white; }
+        .bb-valve-state.closed { background: #e53e3e; color: white; }
+        .bb-valve-state.idle   { background: #a0aec0; color: white; }
+        .bb-status-bar { font-size: 10px; color: #718096; font-family: monospace; min-height: 16px; margin-bottom: 8px; }
+        .bb-status-bar.active { color: #2d3748; }
+        .bb-enable-btn {
+            width: 100%; padding: 7px; border: none; border-radius: 6px;
+            font-weight: bold; font-size: 12px; cursor: pointer; transition: all 0.2s;
+        }
+        .bb-enable-btn.off { background: #38a169; color: white; }
+        .bb-enable-btn.off:hover { background: #2f855a; }
+        .bb-enable-btn.on  { background: #e53e3e; color: white; }
+        .bb-enable-btn.on:hover  { background: #c53030; }
     </style>
 </head>
-<body>
 
-<div class="header">
-    <div style="display:flex;align-items:center;gap:10px;">
+<body>
+    <div class="header">
         <div class="title">MOE START/STOP</div>
-        <div class="conn-badges">
-            <div class="conn-badge" id="panda-badge">
-                <div class="dot"></div> PANDA :3941
-            </div>
-            <div class="conn-badge" id="nidaq-badge">
+        <div class="connection-status" style="display:flex;align-items:center;">
+            <span id="connection-text">Connecting...</span>
+            <div class="connection-indicator disconnected" id="connection-indicator"></div>
+            <div class="nidaq-badge" id="nidaq-badge">
                 <div class="dot"></div> NI DAQ :3000
             </div>
         </div>
+        <div class="abort-controls">
+            <button class="abort" id="abort_button">ABORT</button>
+        </div>
+        <div class="safety-controls">
+            <button class="emergency-stop" id="emergency_stop">EMERGENCY STOP</button>
+        </div>
+        <div class="arm-controls-top">
+            <button class="arm-btn-compact disarm" id="disarm-btn-top">
+                <i class="fas fa-shield-alt"></i> DISARM
+            </button>
+            <button class="arm-btn-compact arm" id="arm-btn-top">
+                <i class="fas fa-exclamation-triangle"></i> ARM
+            </button>
+        </div>
+        <div class="log-top-center">
+            <div class="logging-indicator top" id="logging-indicator-top"></div>
+            <span class="logging-filename-top" id="logging-filename-top">No active log</span>
+            <button class="log-btn start small" id="new-log-btn-top" onclick="createNewLog()"><i class="fas fa-file-alt"></i> New Log</button>
+            <a href="pid.html" class="log-btn start small" style="text-decoration:none;margin-left:8px;"><i class="fas fa-project-diagram"></i> P&amp;ID</a>
+        </div>
     </div>
-    <div class="abort-controls">
-        <button class="abort" id="abort_button">ABORT</button>
-    </div>
-    <div class="safety-controls">
-        <button class="emergency-stop" id="emergency_stop">EMERGENCY STOP</button>
-    </div>
-    <div class="arm-controls-top">
-        <button class="arm-btn-compact disarm" id="disarm-btn-top">
-            <i class="fas fa-shield-alt"></i> DISARM
-        </button>
-        <button class="arm-btn-compact arm" id="arm-btn-top">
-            <i class="fas fa-exclamation-triangle"></i> ARM
-        </button>
-    </div>
-    <div class="log-top-center">
-        <div class="logging-indicator top" id="logging-indicator-top"></div>
-        <span class="logging-filename-top" id="logging-filename-top">No active log</span>
-        <button class="log-btn start small" onclick="createNewLog()"><i class="fas fa-file-alt"></i> New Log</button>
-    </div>
-</div>
 
-<div class="info-bar">
-    <div class="info-left">
-        <div class="info-item">
-            <i class="fas fa-microchip"></i>
-            <span>Serial: <strong id="info-serial-port">--</strong></span>
-        </div>
-        <div class="info-item">
-            <i class="fas fa-clock"></i>
-            <span id="info-last-update">Last Update: --:--:--</span>
-        </div>
-        <div class="info-item">
-            <span id="stale-indicator" class="stale-indicator offline">
-                <i class="fas fa-circle"></i>
-                <span id="stale-text">No Data</span>
-            </span>
-        </div>
-        <div class="info-item">
-            <i class="fas fa-file-csv"></i>
-            <span id="info-log-file">Log: <strong>--</strong></span>
-        </div>
-    </div>
-    <div class="info-right">
-        <div class="info-item">
-            <i class="fas fa-signal"></i>
-            <span id="info-data-rate">-- Hz</span>
-        </div>
-        <div class="info-item">
-            <i class="fas fa-chart-line"></i>
-            <span id="info-message-count">0 msgs</span>
-        </div>
-        <div class="info-item">
-            <i class="fas fa-hourglass-half"></i>
-            <span id="info-uptime">Uptime: 00:00</span>
-        </div>
-    </div>
-</div>
-
-<div class="main-container">
-
-    <!-- ── LEFT: Controls Panel ── -->
-    <div class="controls-panel">
-        <div class="tab-container">
-            <div class="tab-buttons">
-                <button class="tab-button active" onclick="switchTab('manual', event)">
-                    <i class="fas fa-hand-pointer"></i> Manual Control
-                </button>
-                <button class="tab-button" onclick="switchTab('sequencer', event)">
-                    <i class="fas fa-list-ol"></i> AutoSequencer
-                </button>
+    <div class="info-bar">
+        <div class="info-left">
+            <div class="info-item"><i class="fas fa-microchip"></i><span>Serial: <strong id="info-serial-port">--</strong></span></div>
+            <div class="info-item"><i class="fas fa-clock"></i><span id="info-last-update">Last Update: --:--:--</span></div>
+            <div class="info-item">
+                <span id="stale-indicator" class="stale-indicator offline">
+                    <i class="fas fa-circle"></i>
+                    <span id="stale-text">No Data</span>
+                </span>
             </div>
+            <div class="info-item"><i class="fas fa-file-csv"></i><span id="info-log-file">Log: <strong>--</strong></span></div>
+        </div>
+        <div class="info-right">
+            <div class="info-item"><i class="fas fa-signal"></i><span id="info-data-rate">-- Hz</span></div>
+            <div class="info-item"><i class="fas fa-chart-line"></i><span id="info-message-count">0 messages</span></div>
+            <div class="info-item"><i class="fas fa-hourglass-half"></i><span id="info-uptime">Uptime: 00:00</span></div>
+        </div>
+    </div>
 
-            <!-- Tab 1: Manual Control + Bang-Bang -->
-            <div id="tab-manual" class="tab-content active">
-                <div class="dc-controls" id="dc-controls"></div>
+    <div class="main-container">
+        <div class="controls-panel">
+            <div class="tab-container">
+                <div class="tab-buttons">
+                    <button class="tab-button active" onclick="switchTab('manual')">
+                        <i class="fas fa-hand-pointer"></i> Manual Control
+                    </button>
+                    <button class="tab-button" onclick="switchTab('sequencer')">
+                        <i class="fas fa-list-ol"></i> AutoSequencer
+                    </button>
+                </div>
 
-                <!-- Bang-Bang Section -->
-                <div class="bb-section">
-                    <div class="bb-header">
-                        <i class="fas fa-sync-alt"></i> Bang-Bang Pressure Control
-                        <span class="bb-data-source">NI DAQ PTs → PANDA V1 Valves</span>
-                    </div>
-                    <div class="bb-buses">
-                        <!-- LOX Bus -->
-                        <div class="bb-bus lox-bus" id="bb-lox-card">
-                            <div class="bb-bus-label"><i class="fas fa-snowflake"></i> LOX Bus</div>
-                            <div class="bb-params">
-                                <div class="bb-param">
-                                    <label>Setpoint (PSI)</label>
-                                    <input type="number" id="bb-lox-setpoint" value="200" step="5" min="0" oninput="bbApplyParams('lox')">
+                <div id="tab-manual" class="tab-content active">
+                    <div class="dc-controls" id="dc-controls"></div>
+
+                    <!-- Bang-Bang Controller -->
+                    <div class="bb-section">
+                        <div class="bb-title"><i class="fas fa-sliders-h"></i> Bang-Bang Pressure Control <span style="font-size:10px;font-weight:normal;color:#718096;">(NI DAQ → PANDA)</span></div>
+                        <div class="bb-buses">
+                            <!-- LOX Bus -->
+                            <div class="bb-card lox" id="bb-lox-card">
+                                <div class="bb-card-title"><i class="fas fa-snowflake"></i> LOX Bus</div>
+                                <div class="bb-params">
+                                    <div class="bb-param">
+                                        <label>Setpoint (PSI)</label>
+                                        <input type="number" id="bb-lox-setpoint" value="200" step="5" min="0" oninput="bbApplyParams('lox')">
+                                    </div>
+                                    <div class="bb-param">
+                                        <label>Deadband (PSI)</label>
+                                        <input type="number" id="bb-lox-deadband" value="10" step="1" min="1" oninput="bbApplyParams('lox')">
+                                    </div>
+                                    <div class="bb-param">
+                                        <label>Wait (ms)</label>
+                                        <input type="number" id="bb-lox-wait" value="500" step="100" min="0" oninput="bbApplyParams('lox')">
+                                    </div>
                                 </div>
-                                <div class="bb-param">
-                                    <label>Deadband (PSI)</label>
-                                    <input type="number" id="bb-lox-deadband" value="10" step="1" min="1" oninput="bbApplyParams('lox')">
+                                <div class="bb-sensors" id="bb-lox-sensors">
+                                    <div class="bb-sensor">
+                                        <div class="bb-sensor-label">LOX Tank PT</div>
+                                        <div class="bb-sensor-value" id="bb-lox-pt0">-- PSI</div>
+                                    </div>
+                                    <div class="bb-sensor">
+                                        <div class="bb-sensor-label">LOX Feed PT</div>
+                                        <div class="bb-sensor-value" id="bb-lox-pt1">-- PSI</div>
+                                    </div>
                                 </div>
-                                <div class="bb-param">
-                                    <label>Wait (ms)</label>
-                                    <input type="number" id="bb-lox-wait" value="500" step="100" min="100" oninput="bbApplyParams('lox')">
+                                <div class="bb-valve-row">
+                                    <span class="bb-valve-label">Vent Valve:</span>
+                                    <span class="bb-valve-state idle" id="bb-lox-valve-state">IDLE</span>
                                 </div>
+                                <div class="bb-status-bar" id="bb-lox-status">Disabled</div>
+                                <button class="bb-enable-btn off" id="bb-lox-enable" onclick="bbToggle('lox')">
+                                    <i class="fas fa-play"></i> Enable BB
+                                </button>
                             </div>
-                            <div class="bb-sensors" id="bb-lox-sensors">
-                                <div class="bb-sensor">
-                                    <span class="bb-sensor-label">PT0 (Tank)</span>
-                                    <span class="bb-sensor-value" id="bb-lox-pt0">-- PSI</span>
+                            <!-- Fuel Bus -->
+                            <div class="bb-card fuel" id="bb-fuel-card">
+                                <div class="bb-card-title"><i class="fas fa-fire"></i> Fuel Bus</div>
+                                <div class="bb-params">
+                                    <div class="bb-param">
+                                        <label>Setpoint (PSI)</label>
+                                        <input type="number" id="bb-fuel-setpoint" value="200" step="5" min="0" oninput="bbApplyParams('fuel')">
+                                    </div>
+                                    <div class="bb-param">
+                                        <label>Deadband (PSI)</label>
+                                        <input type="number" id="bb-fuel-deadband" value="10" step="1" min="1" oninput="bbApplyParams('fuel')">
+                                    </div>
+                                    <div class="bb-param">
+                                        <label>Wait (ms)</label>
+                                        <input type="number" id="bb-fuel-wait" value="500" step="100" min="0" oninput="bbApplyParams('fuel')">
+                                    </div>
                                 </div>
-                                <div class="bb-sensor">
-                                    <span class="bb-sensor-label">PT1 (Feed)</span>
-                                    <span class="bb-sensor-value" id="bb-lox-pt1">-- PSI</span>
+                                <div class="bb-sensors" id="bb-fuel-sensors">
+                                    <div class="bb-sensor">
+                                        <div class="bb-sensor-label">Fuel Tank PT</div>
+                                        <div class="bb-sensor-value" id="bb-fuel-pt0">-- PSI</div>
+                                    </div>
+                                    <div class="bb-sensor">
+                                        <div class="bb-sensor-label">Fuel Feed PT</div>
+                                        <div class="bb-sensor-value" id="bb-fuel-pt1">-- PSI</div>
+                                    </div>
                                 </div>
+                                <div class="bb-valve-row">
+                                    <span class="bb-valve-label">Vent Valve:</span>
+                                    <span class="bb-valve-state idle" id="bb-fuel-valve-state">IDLE</span>
+                                </div>
+                                <div class="bb-status-bar" id="bb-fuel-status">Disabled</div>
+                                <button class="bb-enable-btn off" id="bb-fuel-enable" onclick="bbToggle('fuel')">
+                                    <i class="fas fa-play"></i> Enable BB
+                                </button>
                             </div>
-                            <div class="bb-valve-row">
-                                <span class="bb-valve-label" id="bb-lox-valve-label">Valve: --</span>
-                                <span class="bb-valve-state closed" id="bb-lox-valve-state">CLOSED</span>
-                            </div>
-                            <div class="bb-status-bar" id="bb-lox-status">Disabled</div>
-                            <button class="bb-enable-btn off" id="bb-lox-enable" onclick="bbToggle('lox')">
-                                <i class="fas fa-play"></i> Enable BB
-                            </button>
                         </div>
+                    </div>
+                </div>
 
-                        <!-- Fuel Bus -->
-                        <div class="bb-bus fuel-bus" id="bb-fuel-card">
-                            <div class="bb-bus-label"><i class="fas fa-fire"></i> Fuel Bus</div>
-                            <div class="bb-params">
-                                <div class="bb-param">
-                                    <label>Setpoint (PSI)</label>
-                                    <input type="number" id="bb-fuel-setpoint" value="200" step="5" min="0" oninput="bbApplyParams('fuel')">
+                <div id="tab-sequencer" class="tab-content">
+                    <div class="sequence-builder">
+                        <div class="sequence-toolbar">
+                            <div class="sequence-buttons">
+                                <button class="seq-btn seq-btn-blue" id="add-sequence-action"><i class="fas fa-plus"></i> Add Action</button>
+                            </div>
+                            <div class="sequence-buttons">
+                                <button class="seq-btn seq-btn-blue"  id="upload-sequence"><i class="fas fa-upload"></i> Upload</button>
+                                <button class="seq-btn seq-btn-red"   id="clear-sequence"><i class="fas fa-trash"></i> Clear</button>
+                                <button class="seq-btn seq-btn-gray"  id="save-sequence"><i class="fas fa-save"></i> Save</button>
+                                <button class="seq-btn seq-btn-gray"  id="load-sequence"><i class="fas fa-folder-open"></i> Load</button>
+                                <button class="seq-btn seq-btn-green" id="run-sequence"><i class="fas fa-play"></i> Fire</button>
+                            </div>
+                        </div>
+                        <div class="sequence-container" id="sequence-blocks"></div>
+                        <div class="command-preview" id="command-preview">command:</div>
+                        <div class="sequence-callback">
+                            <div class="callback-indicator" id="callback-indicator"></div>
+                            <div class="callback-text" id="callback-text">Waiting for sequence acknowledgment...</div>
+                            <div class="callback-timestamp" id="callback-timestamp"></div>
+                        </div>
+                        <div class="preset-sequences">
+                            <div class="preset-title"><i class="fas fa-star"></i> Preset Sequences</div>
+                            <div class="preset-grid">
+                                <div class="preset-card gox">
+                                    <div class="preset-header">
+                                        <span class="preset-name"><i class="fas fa-snowflake"></i> GOX Purge</span>
+                                        <span class="preset-status empty" id="gox-status">NOT SET</span>
+                                    </div>
+                                    <div class="preset-preview" id="gox-preview">No sequence set</div>
+                                    <div class="preset-buttons">
+                                        <button class="preset-btn preset-btn-set"    onclick="setPresetFromCurrent('gox')"><i class="fas fa-save"></i> Set</button>
+                                        <button class="preset-btn preset-btn-arm"    id="gox-upload-btn" onclick="armPreset('gox')" disabled><i class="fas fa-shield-alt"></i> Arm</button>
+                                        <button class="preset-btn preset-btn-fire"   id="gox-fire-btn"   onclick="firePreset('gox')" disabled><i class="fas fa-play"></i> Fire</button>
+                                    </div>
                                 </div>
-                                <div class="bb-param">
-                                    <label>Deadband (PSI)</label>
-                                    <input type="number" id="bb-fuel-deadband" value="10" step="1" min="1" oninput="bbApplyParams('fuel')">
-                                </div>
-                                <div class="bb-param">
-                                    <label>Wait (ms)</label>
-                                    <input type="number" id="bb-fuel-wait" value="500" step="100" min="100" oninput="bbApplyParams('fuel')">
+                                <div class="preset-card hotfire">
+                                    <div class="preset-header">
+                                        <span class="preset-name"><i class="fas fa-fire"></i> Hotfire</span>
+                                        <span class="preset-status empty" id="hotfire-status">NOT SET</span>
+                                    </div>
+                                    <div class="preset-preview" id="hotfire-preview">No sequence set</div>
+                                    <div class="preset-buttons">
+                                        <button class="preset-btn preset-btn-set"    onclick="setPresetFromCurrent('hotfire')"><i class="fas fa-save"></i> Set</button>
+                                        <button class="preset-btn preset-btn-arm"    id="hotfire-upload-btn" onclick="armPreset('hotfire')" disabled><i class="fas fa-shield-alt"></i> Arm</button>
+                                        <button class="preset-btn preset-btn-fire"   id="hotfire-fire-btn"   onclick="firePreset('hotfire')" disabled><i class="fas fa-play"></i> Fire</button>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="bb-sensors" id="bb-fuel-sensors">
-                                <div class="bb-sensor">
-                                    <span class="bb-sensor-label">PT2 (Tank)</span>
-                                    <span class="bb-sensor-value" id="bb-fuel-pt0">-- PSI</span>
-                                </div>
-                                <div class="bb-sensor">
-                                    <span class="bb-sensor-label">PT3 (Feed)</span>
-                                    <span class="bb-sensor-value" id="bb-fuel-pt1">-- PSI</span>
+                        </div>
+                        <div class="terminal-panel">
+                            <div class="terminal-header">
+                                <span><i class="fas fa-terminal"></i> PANDA Terminal</span>
+                                <div class="terminal-controls">
+                                    <button class="preset-btn preset-btn-arm"  style="max-width:120px;" onclick="requestPresetsFromServer()"><i class="fas fa-sync"></i> Force Sync</button>
+                                    <button class="preset-btn preset-btn-set"  style="max-width:120px;" onclick="clearTerminal()"><i class="fas fa-eraser"></i> Clear</button>
                                 </div>
                             </div>
-                            <div class="bb-valve-row">
-                                <span class="bb-valve-label" id="bb-fuel-valve-label">Valve: --</span>
-                                <span class="bb-valve-state closed" id="bb-fuel-valve-state">CLOSED</span>
-                            </div>
-                            <div class="bb-status-bar" id="bb-fuel-status">Disabled</div>
-                            <button class="bb-enable-btn off" id="bb-fuel-enable" onclick="bbToggle('fuel')">
-                                <i class="fas fa-play"></i> Enable BB
-                            </button>
+                            <div class="terminal-body" id="terminal-body"></div>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Tab 2: AutoSequencer -->
-            <div id="tab-sequencer" class="tab-content">
-                <div class="sequence-builder">
-                    <div class="sequence-toolbar">
-                        <div class="sequence-buttons">
-                            <button class="seq-btn seq-btn-blue" id="add-sequence-action">
-                                <i class="fas fa-plus"></i> Add Action
-                            </button>
-                        </div>
-                        <div class="sequence-buttons">
-                            <button class="seq-btn seq-btn-blue" id="upload-sequence"><i class="fas fa-upload"></i> Upload</button>
-                            <button class="seq-btn seq-btn-red"  id="clear-sequence"><i class="fas fa-trash"></i> Clear</button>
-                            <button class="seq-btn seq-btn-gray" id="save-sequence"><i class="fas fa-save"></i> Save</button>
-                            <button class="seq-btn seq-btn-gray" id="load-sequence"><i class="fas fa-folder-open"></i> Load</button>
-                            <button class="seq-btn seq-btn-green" id="run-sequence"><i class="fas fa-play"></i> Fire</button>
-                        </div>
-                    </div>
-                    <div class="sequence-container" id="sequence-blocks"></div>
-                    <div class="command-preview" id="command-preview">command:</div>
-                    <div class="sequence-callback">
-                        <div class="callback-indicator" id="callback-indicator"></div>
-                        <div class="callback-text" id="callback-text">Waiting for sequence acknowledgment...</div>
-                        <div class="callback-timestamp" id="callback-timestamp"></div>
-                    </div>
-                    <div class="preset-sequences">
-                        <div class="preset-title"><i class="fas fa-star"></i> Preset Sequences</div>
-                        <div class="preset-grid">
-                            <div class="preset-card gox">
-                                <div class="preset-header">
-                                    <span class="preset-name"><i class="fas fa-snowflake"></i> GOX Purge</span>
-                                    <span class="preset-status empty" id="gox-status">NOT SET</span>
-                                </div>
-                                <div class="preset-preview" id="gox-preview">No sequence set</div>
-                                <div class="preset-buttons">
-                                    <button class="preset-btn preset-btn-set" onclick="setPresetFromCurrent('gox')"><i class="fas fa-save"></i> Set</button>
-                                    <button class="preset-btn preset-btn-arm" id="gox-upload-btn" onclick="armPreset('gox')" disabled><i class="fas fa-shield-alt"></i> Arm</button>
-                                    <button class="preset-btn preset-btn-fire" id="gox-fire-btn" onclick="firePreset('gox')" disabled><i class="fas fa-play"></i> Fire</button>
-                                </div>
-                            </div>
-                            <div class="preset-card hotfire">
-                                <div class="preset-header">
-                                    <span class="preset-name"><i class="fas fa-fire"></i> Hotfire</span>
-                                    <span class="preset-status empty" id="hotfire-status">NOT SET</span>
-                                </div>
-                                <div class="preset-preview" id="hotfire-preview">No sequence set</div>
-                                <div class="preset-buttons">
-                                    <button class="preset-btn preset-btn-set" onclick="setPresetFromCurrent('hotfire')"><i class="fas fa-save"></i> Set</button>
-                                    <button class="preset-btn preset-btn-arm" id="hotfire-upload-btn" onclick="armPreset('hotfire')" disabled><i class="fas fa-shield-alt"></i> Arm</button>
-                                    <button class="preset-btn preset-btn-fire" id="hotfire-fire-btn" onclick="firePreset('hotfire')" disabled><i class="fas fa-play"></i> Fire</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="terminal-panel">
-                        <div class="terminal-header">
-                            <span><i class="fas fa-terminal"></i> PANDA Terminal</span>
-                            <div class="terminal-controls">
-                                <button class="preset-btn preset-btn-arm" style="max-width:110px;" onclick="requestPresetsFromServer()"><i class="fas fa-sync"></i> Sync</button>
-                                <button class="preset-btn preset-btn-set" style="max-width:80px;" onclick="clearTerminal()"><i class="fas fa-eraser"></i> Clear</button>
-                            </div>
-                        </div>
-                        <div class="terminal-body" id="terminal-body"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ── RIGHT: NI DAQ Telemetry with Sparklines ── -->
-    <div class="telemetry-panel">
-        <div class="telemetry-section section-pt">
-            <div class="telemetry-header">
-                <div class="telemetry-title">
-                    <i class="fas fa-gauge-high"></i>
-                    Pressure Transducers
-                    <span class="telemetry-count" id="pt-count">-- ch</span>
-                    <span style="font-size:8px;color:#805ad5;background:#e9d8fd;padding:1px 5px;border-radius:3px;">NI DAQ</span>
-                </div>
-            </div>
-            <div class="pt-row fuel" id="pt-fuel-row"></div>
-            <div class="pt-row lox"  id="pt-lox-row"></div>
-            <div class="pt-row misc" id="pt-misc-row"></div>
         </div>
 
-        <div class="section-lc-tc">
+        <!-- Telemetry Panel (Right) — identical to panda-daq-ui-v2 -->
+        <div class="telemetry-panel">
+            <div class="telemetry-section section-pt">
+                <div class="telemetry-header">
+                    <span class="telemetry-title">Pressure Transducers</span>
+                    <div>
+                        <button class="refresh-btn" onclick="tarePTs()" title="Tare to ambient"><i class="fas fa-bullseye"></i></button>
+                        <button class="refresh-btn" onclick="refreshTelemetry()"><i class="fas fa-sync-alt"></i></button>
+                        <span class="telemetry-count" id="pt-count">16 channels</span>
+                    </div>
+                </div>
+                <div class="telemetry-grid" id="pt-readings"></div>
+            </div>
             <div class="telemetry-section section-lc">
                 <div class="telemetry-header">
-                    <div class="telemetry-title"><i class="fas fa-scale-balanced"></i> Load Cells <span class="telemetry-count" id="lc-count">-- ch</span></div>
+                    <span class="telemetry-title">Load Cells</span>
+                    <div>
+                        <button class="refresh-btn" onclick="refreshTelemetry()"><i class="fas fa-sync-alt"></i></button>
+                        <span class="telemetry-count" id="lc-count">6 channels</span>
+                    </div>
                 </div>
-                <div class="compact-grid" id="lc-readings"></div>
+                <div class="telemetry-grid" id="lc-readings"></div>
             </div>
             <div class="telemetry-section section-tc">
                 <div class="telemetry-header">
-                    <div class="telemetry-title"><i class="fas fa-temperature-high"></i> Thermocouples <span class="telemetry-count" id="tc-count">-- ch</span></div>
+                    <span class="telemetry-title">Thermocouples</span>
+                    <div>
+                        <button class="refresh-btn" onclick="refreshTelemetry()"><i class="fas fa-sync-alt"></i></button>
+                        <span class="telemetry-count" id="tc-count">6 channels</span>
+                    </div>
                 </div>
-                <div class="compact-grid" id="tc-readings"></div>
+                <div class="telemetry-grid" id="tc-readings"></div>
             </div>
+            <div class="data-timestamp" id="data-timestamp">Last Update: --:--:--</div>
         </div>
-
-        <div class="data-timestamp" id="data-timestamp">Last Update: --:--:--</div>
     </div>
-</div>
 
-<div class="help-tooltip">
-    <div onclick="showHelp()"><i class="fas fa-question"></i></div>
-</div>
-
-<script>
-// ═══════════════════════════════════════════════
-//  GLOBAL STATE
-// ═══════════════════════════════════════════════
-let pandaWs = null;  // PANDA v1  @ port 3941
-let nidaqWs = null;  // NI DAQ    @ port 3000
-let isPandaConnected = false;
-let isNidaqConnected = false;
-let connectedSerialPort = null;
-
-let dcChannels = {};
-let ptChannels = {};
-let lcChannels = {};
-let tcChannels = {};
-let ptIndexMap = {};
-let lcIndexMap = {};
-let tcIndexMap = {};
-let dcIndexMap = {};
-const dcOrder = [7, 6, 5, 4, 3, 2, 1, 0, 11, 10, 9, 8];
-let currentData = { pt: {}, lc: {}, tc: {}, dc: {} };
-const PT_RAW_OFFSET = 0.4875;
-let lastDataUpdate = null;
-let dcState = {};
-let currentFirmwareSequence = '';
-let savedSequence = null;
-let valveConfig = {};
-let presetSequences = { gox: null, hotfire: null };
-let lastSequenceCallback = null;
-let abortState = 'normal';
-let runValveIds = [];
-let fuelRunValveIds = [];
-let loxRunValveIds = [];
-let gn2PurgeIds = [];
-let _firing = false;
-let _sentAllOffOnConnect = false;
-let messageCount = 0;
-let dataRateHistory = [];
-let startTime = Date.now();
-const terminalBuffer = [];
-const terminalMaxLines = 200;
-
-// NI DAQ live PT values (keyed by 0-based channel index)
-const nidaqPT = {};
-const nidaqLC = {};
-const nidaqTC = {};
-
-// Sparkline state
-const SPARK_WINDOW_MS = 30000;
-const charts = { pt: [], lc: [], tc: [] };
-const chartUpdateQueue = new Set();
-
-// Bang-bang config (loaded from bb_config.json, user-editable in UI)
-let bbConfig = null;
-const bbState = {
-    lox:  { enabled: false, valveOpen: false, lastSwitch: 0, setpoint: 200, deadband: 10, waitMs: 500 },
-    fuel: { enabled: false, valveOpen: false, lastSwitch: 0, setpoint: 200, deadband: 10, waitMs: 500 }
-};
-let bbIntervalId = null;
-
-// ═══════════════════════════════════════════════
-//  INIT
-// ═══════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', function () {
-    loadConfigurations();
-    initTelemetry();
-    initPandaWebSocket();
-    initNidaqWebSocket();
-    setupEventListeners();
-    setupSequencerEventListeners();
-    startChartRenderLoop();
-
-    for (let i = 1; i <= 12; i++) {
-        valveConfig[i] = { name: `Solenoid ${i}`, defaultState: false };
-    }
-    requestPresetsFromServer();
-});
-
-// ═══════════════════════════════════════════════
-//  CONFIGURATION
-// ═══════════════════════════════════════════════
-async function loadConfigurations() {
-    try {
-        const ts = Date.now();
-        const ns = { cache: 'no-store' };
-        const [dcR, ptR, lcR, tcR, bbR] = await Promise.all([
-            fetch(`./configs/dc_channels.json?ts=${ts}`, ns),
-            fetch(`./configs/pt_channels.json?ts=${ts}`, ns),
-            fetch(`./configs/lc_channels.json?ts=${ts}`, ns),
-            fetch(`./configs/tc_channels.json?ts=${ts}`, ns),
-            fetch(`./configs/bb_config.json?ts=${ts}`, ns)
-        ]);
-
-        runValveIds = []; fuelRunValveIds = []; loxRunValveIds = []; gn2PurgeIds = [];
-
-        dcChannels = (await dcR.json()).channels.reduce((acc, ch) => {
-            acc[ch.dc.id] = ch.dc;
-            valveConfig[ch.dc.id] = { name: ch.dc.name, defaultState: false };
-            if (ch.dc.abort_role === 'run_valve') {
-                runValveIds.push(ch.dc.id);
-                const t = (ch.dc.type || '').toLowerCase();
-                if (t.includes('fuel')) fuelRunValveIds.push(ch.dc.id);
-                else loxRunValveIds.push(ch.dc.id);
-            }
-            if (ch.dc.abort_role === 'gn2_purge') gn2PurgeIds.push(ch.dc.id);
-            return acc;
-        }, {});
-
-        ptChannels = (await ptR.json()).channels.reduce((acc, ch) => { acc[ch.pt.id] = ch.pt; return acc; }, {});
-        lcChannels = (await lcR.json()).channels.reduce((acc, ch) => { acc[ch.lc.id] = ch.lc; return acc; }, {});
-        tcChannels = (await tcR.json()).channels.reduce((acc, ch) => { acc[ch.tc.id] = ch.tc; return acc; }, {});
-
-        ptIndexMap = {}; Object.values(ptChannels).forEach(ch => { const ri = Number.isFinite(ch.raw_index) ? ch.raw_index : ch.id; ptIndexMap[ri] = ch.id; });
-        lcIndexMap = {}; Object.values(lcChannels).forEach(ch => { const ri = Number.isFinite(ch.raw_index) ? ch.raw_index : ch.id; lcIndexMap[ri] = ch.id; });
-        tcIndexMap = {}; Object.values(tcChannels).forEach(ch => { const ri = Number.isFinite(ch.raw_index) ? ch.raw_index : ch.id; tcIndexMap[ri] = ch.id; });
-        dcIndexMap = {}; Object.values(dcChannels).forEach(ch => { const ri = Number.isFinite(ch.raw_index) ? ch.raw_index : ch.id; dcIndexMap[ri] = ch.id; });
-
-        renderDCControls();
-
-        // Bang-bang config
-        bbConfig = await bbR.json();
-        initBBFromConfig();
-
-    } catch (e) {
-        console.error('Config load failed:', e);
-        showToast('Config Error', 'Failed to load configurations', 'error');
-    }
-}
-
-// ═══════════════════════════════════════════════
-//  PANDA WEBSOCKET  (port 3941 — valve control)
-// ═══════════════════════════════════════════════
-function initPandaWebSocket() {
-    try {
-        const host = window.location.hostname || 'localhost';
-        pandaWs = new WebSocket(`ws://${host}:3941`);
-    } catch (e) {
-        updatePandaBadge(false);
-        setTimeout(initPandaWebSocket, 3000);
-        return;
-    }
-
-    pandaWs.onopen = () => {
-        isPandaConnected = true;
-        updatePandaBadge(true);
-        pandaWs.send(JSON.stringify({ action: 'list_ports' }));
-        requestPresetsFromServer();
-        setTimeout(() => { if (!connectedSerialPort) connectToSerialPort('TEST_PORT_1'); }, 2000);
-        if (!_sentAllOffOnConnect && Object.keys(dcChannels).length > 0) {
-            _sentAllOffOnConnect = true;
-            setTimeout(setAllDCOff, 300);
-        }
-    };
-
-    pandaWs.onclose = () => {
-        isPandaConnected = false;
-        connectedSerialPort = null;
-        updatePandaBadge(false);
-        if (!pandaWs || pandaWs.readyState === WebSocket.CLOSED) setTimeout(initPandaWebSocket, 3000);
-    };
-
-    pandaWs.onerror = () => { isPandaConnected = false; updatePandaBadge(false); };
-
-    pandaWs.onmessage = (event) => {
-        try {
-            const msg = JSON.parse(event.data);
-            if (!msg || typeof msg !== 'object') return;
-
-            if (msg.action === 'preset_save')  { handlePresetSaveResponse(msg); return; }
-            if (msg.action === 'preset_load')  { handlePresetLoadResponse(msg); return; }
-
-            [msg.message, msg.raw].forEach(txt => {
-                if (typeof txt === 'string' && txt.toUpperCase().includes('SEQ')) {
-                    appendTerminalLine(txt, txt.toLowerCase().includes('error') ? 'err' : 'seq');
-                }
-            });
-
-            if (msg.ports) {
-                if (msg.ports.length > 0 && !connectedSerialPort) {
-                    const pref = msg.ports.find(p => /usbmodem|usbserial|ttyACM|ttyUSB/i.test(p)) || msg.ports[0];
-                    connectToSerialPort(pref);
-                }
-            } else if (msg.success !== undefined && typeof msg.message === 'string' &&
-                       (msg.message.startsWith('Connected to') || msg.message.includes('Already connected'))) {
-                const m = msg.message.match(/(?:Already connected to|Connected to)\s+(\S+)/);
-                connectedSerialPort = m && m[1] ? m[1] : connectedSerialPort;
-                document.getElementById('info-serial-port').textContent = connectedSerialPort || '--';
-            } else if (msg.type === 'data') {
-                const rawCtx = {};
-                if (Array.isArray(msg.pt_mA)) rawCtx.pt_mA = msg.pt_mA;
-                if (typeof msg.raw === 'string') {
-                    const f = msg.raw.trim()[0];
-                    if (f === 'p') rawCtx.pTokens = msg.raw.split(',');
-                    else if (f === 't') rawCtx.tTokens = msg.raw.split(',');
-                    else if (f === 's') rawCtx.sTokens = msg.raw.split(',');
-                }
-                parsePandaTelemetry(msg.content, rawCtx);
-                const ack = extractSequenceAckText(msg);
-                if (ack) handleSequenceCallback(msg, ack);
-            } else if (msg.active !== undefined || msg.filename !== undefined) {
-                updateLoggingStatus(msg);
-            } else if (msg.type === 'sequence_ack' || msg.sequence_received) {
-                handleSequenceCallback(msg, extractSequenceAckText(msg));
-            }
-        } catch (_) {}
-    };
-}
-
-function requestPortList() { if (pandaWs && pandaWs.readyState === WebSocket.OPEN) pandaWs.send(JSON.stringify({ action: 'list_ports' })); }
-function connectToSerialPort(port) { if (pandaWs && pandaWs.readyState === WebSocket.OPEN) pandaWs.send(JSON.stringify({ action: 'connect', port })); }
-function tarePTs() {
-    if (!pandaWs || pandaWs.readyState !== WebSocket.OPEN) return;
-    pandaWs.send(JSON.stringify({ action: 'tare_pts' }));
-    showToast('Tare PTs', 'Zeroing to ambient...', 'info');
-}
-function setAllDCOff() { Object.keys(dcChannels).forEach(id => controlDC(parseInt(id, 10), 0)); }
-
-function updatePandaBadge(ok) {
-    const b = document.getElementById('panda-badge');
-    if (!b) return;
-    b.className = 'conn-badge' + (ok ? ' ok' : ' err');
-    b.querySelector('.dot').style.background = ok ? '#38a169' : '#e53e3e';
-}
-
-// ═══════════════════════════════════════════════
-//  NI DAQ WEBSOCKET  (port 3000 — sensor data)
-// ═══════════════════════════════════════════════
-function initNidaqWebSocket() {
-    try {
-        const host = window.location.hostname || 'localhost';
-        nidaqWs = new WebSocket(`ws://${host}:3000`);
-    } catch (e) {
-        updateNidaqBadge(false);
-        setTimeout(initNidaqWebSocket, 3000);
-        return;
-    }
-
-    nidaqWs.onopen = () => { isNidaqConnected = true; updateNidaqBadge(true); };
-    nidaqWs.onclose = () => {
-        isNidaqConnected = false;
-        updateNidaqBadge(false);
-        if (!nidaqWs || nidaqWs.readyState === WebSocket.CLOSED) setTimeout(initNidaqWebSocket, 3000);
-    };
-    nidaqWs.onerror = () => { isNidaqConnected = false; updateNidaqBadge(false); };
-
-    nidaqWs.onmessage = (event) => {
-        try {
-            const msg = JSON.parse(event.data);
-
-            if (msg.type === 'batch' && msg.data) {
-                const d = msg.data;
-                const chs = Array.isArray(d.channels) ? d.channels : [];
-                const ptLatest = new Array(32).fill(undefined);
-                const lcLatest = new Array(16).fill(undefined);
-                const tcLatest = new Array(16).fill(undefined);
-
-                chs.forEach(key => {
-                    const series = d.data && d.data[key];
-                    if (!Array.isArray(series) || series.length === 0) return;
-                    const mPT = key.match(/^PT(\d+)_psi$/);
-                    const mLC = key.match(/^LC(\d+)_lbf$/);
-                    const mTC = key.match(/^TC(\d+)_degF$/);
-                    let type = 'pt', idx = 0;
-                    if (mPT) { type = 'pt'; idx = Number(mPT[1]); }
-                    else if (mLC) { type = 'lc'; idx = Number(mLC[1]); }
-                    else if (mTC) { type = 'tc'; idx = Number(mTC[1]); }
-                    const baseMs = typeof d.ts_unix_us === 'number' ? d.ts_unix_us / 1000 : Date.now();
-                    const dtMs  = typeof d.dt_us === 'number' ? Math.max(1, d.dt_us / 1000) : 10;
-                    for (let i = 0; i < series.length; i++) pushSpark(type, idx, Number(series[i]), baseMs + i * dtMs);
-                    const last = Number(series[series.length - 1]);
-                    if (type === 'pt') { ptLatest[idx] = { channel: idx, pressure_psi: last }; nidaqPT[idx] = last; }
-                    if (type === 'lc') { lcLatest[idx] = { channel: idx, lbf: last }; nidaqLC[idx] = last; }
-                    if (type === 'tc') { tcLatest[idx] = { channel: idx, temp_f: last }; nidaqTC[idx] = last; }
-                });
-                if (ptLatest.some(v => v !== undefined)) updatePTData(ptLatest.filter(Boolean));
-                if (lcLatest.some(v => v !== undefined)) updateLCData(lcLatest.filter(Boolean));
-                if (tcLatest.some(v => v !== undefined)) updateTCData(tcLatest.filter(Boolean));
-
-            } else if (msg.type === 'data' && msg.data && msg.data.channels) {
-                const pt = msg.data.channels.filter(ch => 'pressure_psi' in ch);
-                const lc = msg.data.channels.filter(ch => 'lbf' in ch);
-                const tc = msg.data.channels.filter(ch => 'temp_f' in ch);
-                pt.forEach(ch => { nidaqPT[ch.channel] = ch.pressure_psi; pushSpark('pt', ch.channel, ch.pressure_psi); });
-                lc.forEach(ch => { nidaqLC[ch.channel] = ch.lbf; pushSpark('lc', ch.channel, ch.lbf); });
-                tc.forEach(ch => { nidaqTC[ch.channel] = ch.temp_f; pushSpark('tc', ch.channel, ch.temp_f); });
-                if (pt.length) updatePTData(pt);
-                if (lc.length) updateLCData(lc);
-                if (tc.length) updateTCData(tc);
-            }
-
-            messageCount++;
-            lastDataUpdate = new Date();
-            dataRateHistory.push(Date.now());
-            document.getElementById('info-message-count').textContent = `${messageCount} msgs`;
-            updateTimestamp();
-        } catch (_) {}
-    };
-}
-
-function updateNidaqBadge(ok) {
-    const b = document.getElementById('nidaq-badge');
-    if (!b) return;
-    b.className = 'conn-badge' + (ok ? ' ok' : ' err');
-    b.querySelector('.dot').style.background = ok ? '#38a169' : '#e53e3e';
-}
-
-// ═══════════════════════════════════════════════
-//  NI DAQ TELEMETRY RENDERING (sparklines)
-// ═══════════════════════════════════════════════
-const niPTConfig = {
-    fuelChannels: [5, 6, 7, 8, 15, 14, 9],
-    loxChannels:  [0, 1, 2, 3, 12, 13, 4],
-    miscChannels: [10, 11]
-};
-
-function initTelemetry() {
-    const fuelRow = document.getElementById('pt-fuel-row');
-    const loxRow  = document.getElementById('pt-lox-row');
-    const miscRow = document.getElementById('pt-misc-row');
-    const lcGrid  = document.getElementById('lc-readings');
-    const tcGrid  = document.getElementById('tc-readings');
-
-    niPTConfig.fuelChannels.forEach(i => fuelRow.appendChild(createTelemetryItem('PT', i, 'PSI')));
-    niPTConfig.loxChannels .forEach(i => loxRow .appendChild(createTelemetryItem('PT', i, 'PSI')));
-    niPTConfig.miscChannels.forEach(i => miscRow.appendChild(createTelemetryItem('PT', i, 'PSI')));
-
-    for (let i = 0; i < 4; i++) lcGrid.appendChild(createTelemetryItem('LC', i, 'lbf'));
-    for (let i = 0; i < 4; i++) tcGrid.appendChild(createTelemetryItem('TC', i, '°F'));
-
-    const ptTotal = niPTConfig.fuelChannels.length + niPTConfig.loxChannels.length + niPTConfig.miscChannels.length;
-    document.getElementById('pt-count').textContent = `${ptTotal} ch`;
-    document.getElementById('lc-count').textContent = '4 ch';
-    document.getElementById('tc-count').textContent = '4 ch';
-}
-
-function createTelemetryItem(type, channel, units) {
-    const div = document.createElement('div');
-    div.className = 'telemetry-item';
-    div.id = `${type.toLowerCase()}-${channel}`;
-    div.innerHTML = `
-        <div class="telemetry-header-row">
-            <div class="telemetry-label">${type}${channel}</div>
-            <div class="telemetry-details"></div>
-        </div>
-        <div class="telemetry-value">--</div>
-        <div class="telemetry-units">${units}</div>
-        <div class="telemetry-raw-row">
-            <div class="telemetry-raw">--</div>
-            <div class="telemetry-delta">Δ --</div>
-        </div>
-        <canvas class="sparkline" width="400" height="60"></canvas>
-    `;
-    return div;
-}
-
-function updatePTData(channels) {
-    if (!Array.isArray(channels)) return;
-    channels.forEach(ch => {
-        if (!ch) return;
-        const idx = typeof ch.channel === 'number' ? ch.channel : 0;
-        const el = document.getElementById(`pt-${idx}`);
-        if (!el) return;
-        const psi = typeof ch.pressure_psi === 'number' ? ch.pressure_psi : 0;
-        el.querySelector('.telemetry-value').textContent = psi.toFixed(2);
-        el.querySelector('.telemetry-raw').textContent = psi.toFixed(3);
-        if (ch.name) el.querySelector('.telemetry-label').textContent = ch.name;
-    });
-}
-
-function updateLCData(channels) {
-    if (!Array.isArray(channels)) return;
-    channels.forEach(ch => {
-        if (!ch) return;
-        const idx = typeof ch.channel === 'number' ? ch.channel : 0;
-        const el = document.getElementById(`lc-${idx}`);
-        if (!el) return;
-        const lbf = typeof ch.lbf === 'number' ? ch.lbf : 0;
-        el.querySelector('.telemetry-value').textContent = lbf.toFixed(1);
-        el.querySelector('.telemetry-raw').textContent = lbf.toFixed(2);
-    });
-}
-
-function updateTCData(channels) {
-    if (!Array.isArray(channels)) return;
-    channels.forEach(ch => {
-        if (!ch) return;
-        const idx = typeof ch.channel === 'number' ? ch.channel : 0;
-        const el = document.getElementById(`tc-${idx}`);
-        if (!el) return;
-        const f = typeof ch.temp_f === 'number' ? ch.temp_f : 0;
-        el.querySelector('.telemetry-value').textContent = f.toFixed(1);
-        el.querySelector('.telemetry-raw').textContent = f.toFixed(2);
-    });
-}
-
-// ═══════════════════════════════════════════════
-//  SPARKLINES (Chart.js)
-// ═══════════════════════════════════════════════
-function ensureChart(type, idx) {
-    if (charts[type][idx]) return charts[type][idx];
-    const container = document.getElementById(`${type}-${idx}`);
-    if (!container) return null;
-    const canvas = container.querySelector('.sparkline');
-    if (!canvas) return null;
-    const ctx = canvas.getContext('2d');
-    const color = type === 'pt' ? '#3182ce' : type === 'tc' ? '#e53e3e' : '#805ad5';
-    const chart = new Chart(ctx, {
-        type: 'line',
-        data: { datasets: [{ data: [], borderColor: color, borderWidth: 2, pointRadius: 0, fill: false, tension: 0.3, spanGaps: true }] },
-        options: {
-            responsive: false, maintainAspectRatio: false, animation: false,
-            layout: { padding: { left: 2, right: 2, top: 2, bottom: 2 } },
-            plugins: { legend: { display: false }, tooltip: { enabled: false } },
-            scales: {
-                x: { type: 'time', adapters: { date: {} }, time: { unit: 'second', displayFormats: { second: 'mm:ss' } }, grid: { display: false }, ticks: { display: false } },
-                y: { grid: { display: false }, ticks: { display: false } }
-            },
-            elements: { line: { borderJoinStyle: 'round' } }
-        }
-    });
-    charts[type][idx] = chart;
-    return chart;
-}
-
-function pushSpark(type, idx, value, epochMs) {
-    const chart = ensureChart(type, idx);
-    if (!chart) return;
-    const data = chart.data.datasets[0].data;
-    const t = typeof epochMs === 'number' ? epochMs : Date.now();
-    data.push({ x: t, y: Number(value) });
-    const cutoff = Date.now() - SPARK_WINDOW_MS;
-    while (data.length && data[0].x < cutoff) data.shift();
-    chartUpdateQueue.add(chart);
-}
-
-function startChartRenderLoop() {
-    const render = () => {
-        if (chartUpdateQueue.size > 0) {
-            const now = Date.now();
-            chartUpdateQueue.forEach(chart => {
-                chart.options.scales.x.min = now - SPARK_WINDOW_MS;
-                chart.options.scales.x.max = now;
-                chart.update('none');
-            });
-            chartUpdateQueue.clear();
-        }
-        requestAnimationFrame(render);
-    };
-    requestAnimationFrame(render);
-}
-
-// ═══════════════════════════════════════════════
-//  BANG-BANG CONTROL
-// ═══════════════════════════════════════════════
-function initBBFromConfig() {
-    if (!bbConfig || !bbConfig.buses) return;
-
-    ['lox', 'fuel'].forEach(bus => {
-        const cfg = bbConfig.buses[bus];
-        if (!cfg) return;
-
-        // Load from localStorage if available, otherwise fall back to config file
-        let saved = {};
-        try { saved = (JSON.parse(localStorage.getItem('bbParams') || '{}'))[bus] || {}; } catch(e) {}
-        const sp = Number.isFinite(saved.setpoint) ? saved.setpoint : cfg.setpoint_psi;
-        const db = Number.isFinite(saved.deadband) && saved.deadband > 0 ? saved.deadband : cfg.deadband_psi;
-        const wt = Number.isFinite(saved.waitMs)   && saved.waitMs >= 0  ? saved.waitMs  : cfg.wait_ms;
-        bbState[bus].setpoint = sp;
-        bbState[bus].deadband = db;
-        bbState[bus].waitMs   = wt;
-
-        // Update UI inputs
-        const el = id => document.getElementById(`bb-${bus}-${id}`);
-        el('setpoint').value = sp;
-        el('deadband').value = db;
-        el('wait').value     = wt;
-
-        // Update sensor labels from config
-        if (cfg.pt_sensors && cfg.pt_sensors[0]) {
-            const s = document.querySelector(`#bb-${bus}-sensors .bb-sensor:nth-child(1) .bb-sensor-label`);
-            if (s) s.textContent = `PT${cfg.pt_sensors[0].ni_daq_channel} (${cfg.pt_sensors[0].label})`;
-        }
-        if (cfg.pt_sensors && cfg.pt_sensors[1]) {
-            const s = document.querySelector(`#bb-${bus}-sensors .bb-sensor:nth-child(2) .bb-sensor-label`);
-            if (s) s.textContent = `PT${cfg.pt_sensors[1].ni_daq_channel} (${cfg.pt_sensors[1].label})`;
-        }
-
-        // Valve label
-        if (cfg.valve) {
-            document.getElementById(`bb-${bus}-valve-label`).textContent = `Valve: ${cfg.valve.label}`;
-            // Highlight the valve's DC card
-            const pill = document.getElementById(`dc-toggle-${cfg.valve.dc_id}`);
-            if (pill) {
-                const card = pill.closest('.dc-channel');
-                if (card) {
-                    const bbTag = document.createElement('span');
-                    bbTag.className = 'dc-pill bb';
-                    bbTag.textContent = 'BB';
-                    bbTag.style.marginLeft = '4px';
-                    pill.parentElement.appendChild(bbTag);
-                }
-            }
-        }
-    });
-}
-
-function bbApplyParams(bus) {
-    const sp = parseFloat(document.getElementById(`bb-${bus}-setpoint`).value);
-    const db = parseFloat(document.getElementById(`bb-${bus}-deadband`).value);
-    const wt = parseFloat(document.getElementById(`bb-${bus}-wait`).value);
-    if (Number.isFinite(sp)) bbState[bus].setpoint = sp;
-    if (Number.isFinite(db) && db > 0) bbState[bus].deadband = db;
-    if (Number.isFinite(wt) && wt >= 0) bbState[bus].waitMs  = wt;
-    // Persist to localStorage so values survive page refresh
-    try {
-        const saved = JSON.parse(localStorage.getItem('bbParams') || '{}');
-        saved[bus] = { setpoint: bbState[bus].setpoint, deadband: bbState[bus].deadband, waitMs: bbState[bus].waitMs };
-        localStorage.setItem('bbParams', JSON.stringify(saved));
-    } catch(e) {}
-}
-
-function bbToggle(bus) {
-    bbState[bus].enabled = !bbState[bus].enabled;
-    const btn = document.getElementById(`bb-${bus}-enable`);
-    const statusEl = document.getElementById(`bb-${bus}-status`);
-    if (bbState[bus].enabled) {
-        btn.className = 'bb-enable-btn on';
-        btn.innerHTML = '<i class="fas fa-stop"></i> DISABLE BB';
-        statusEl.className = 'bb-status-bar active';
-        showToast(`${bus.toUpperCase()} BB Enabled`, `Setpoint: ${bbState[bus].setpoint} PSI ±${bbState[bus].deadband/2} PSI`, 'warning');
-    } else {
-        btn.className = 'bb-enable-btn off';
-        btn.innerHTML = '<i class="fas fa-play"></i> Enable BB';
-        statusEl.className = 'bb-status-bar';
-        statusEl.textContent = 'Disabled';
-        // Force valve closed when disabling
-        if (bbConfig && bbConfig.buses[bus] && bbConfig.buses[bus].valve) {
-            const dcId = bbConfig.buses[bus].valve.dc_id;
-            controlDC(dcId, 0);
-            bbState[bus].valveOpen = false;
-            updateBBValveUI(bus, false);
-        }
-        showToast(`${bus.toUpperCase()} BB Disabled`, 'Valve closed', 'info');
-    }
-
-    if (!bbIntervalId) {
-        bbIntervalId = setInterval(bbTick, 50);
-    }
-    const anyEnabled = bbState.lox.enabled || bbState.fuel.enabled;
-    if (!anyEnabled && bbIntervalId) {
-        clearInterval(bbIntervalId);
-        bbIntervalId = null;
-    }
-}
-
-function bbTick() {
-    ['lox', 'fuel'].forEach(bus => {
-        const st = bbState[bus];
-        if (!st.enabled || !bbConfig || !bbConfig.buses[bus]) return;
-
-        const cfg = bbConfig.buses[bus];
-
-        // Get primary PT value (sensor 0)
-        const ptCh0 = cfg.pt_sensors[0].ni_daq_channel;
-        const ptCh1 = cfg.pt_sensors[1] ? cfg.pt_sensors[1].ni_daq_channel : null;
-        const pressure = nidaqPT[ptCh0];
-
-        // Update PT displays
-        const pt0El = document.getElementById(`bb-${bus}-pt0`);
-        const pt1El = document.getElementById(`bb-${bus}-pt1`);
-        if (pt0El && typeof nidaqPT[ptCh0] === 'number') {
-            const v = nidaqPT[ptCh0];
-            pt0El.textContent = `${v.toFixed(1)} PSI`;
-            const hi = st.setpoint + st.deadband / 2;
-            const lo = st.setpoint - st.deadband / 2;
-            pt0El.className = 'bb-sensor-value' + (v > hi ? ' hi' : v < lo ? ' lo' : '');
-        }
-        if (pt1El && ptCh1 !== null && typeof nidaqPT[ptCh1] === 'number') {
-            pt1El.textContent = `${nidaqPT[ptCh1].toFixed(1)} PSI`;
-        }
-
-        // Control logic
-        if (typeof pressure !== 'number') return;
-
-        const now = Date.now();
-        if (now - st.lastSwitch < st.waitMs) return;
-
-        const hi = st.setpoint + st.deadband / 2;
-        const lo = st.setpoint - st.deadband / 2;
-        const dcId = cfg.valve.dc_id;
-
-        if (pressure > hi && !st.valveOpen) {
-            st.valveOpen = true;
-            st.lastSwitch = now;
-            controlDC(dcId, 1);
-            updateBBValveUI(bus, true);
-            updateBBStatus(bus, `OPEN | ${pressure.toFixed(1)} > ${hi.toFixed(1)} PSI`);
-        } else if (pressure < lo && st.valveOpen) {
-            st.valveOpen = false;
-            st.lastSwitch = now;
-            controlDC(dcId, 0);
-            updateBBValveUI(bus, false);
-            updateBBStatus(bus, `CLOSED | ${pressure.toFixed(1)} < ${lo.toFixed(1)} PSI`);
-        } else {
-            const zone = pressure > hi ? 'OVERPRESSURE' : pressure < lo ? 'UNDERPRESSURE' : 'IN BAND';
-            updateBBStatus(bus, `${zone} | ${pressure.toFixed(1)} PSI | wait ${Math.max(0, st.waitMs - (now - st.lastSwitch))}ms`);
-        }
-    });
-}
-
-function updateBBValveUI(bus, open) {
-    const el = document.getElementById(`bb-${bus}-valve-state`);
-    if (!el) return;
-    el.textContent = open ? 'OPEN' : 'CLOSED';
-    el.className = 'bb-valve-state ' + (open ? 'open' : 'closed');
-}
-
-function updateBBStatus(bus, text) {
-    const el = document.getElementById(`bb-${bus}-status`);
-    if (!el) return;
-    el.textContent = text;
-    el.className = 'bb-status-bar active';
-}
-
-// ═══════════════════════════════════════════════
-//  DC CONTROL (PANDA)
-// ═══════════════════════════════════════════════
-function renderDCControls() {
-    const container = document.getElementById('dc-controls');
-    container.innerHTML = '';
-    const typeOrder = { fuel: 0, lox: 1, misc: 2, fill: 3, vent: 3, drain: 4, pressurize: 5, cooling: 6, heating: 7, test: 8, spare: 9 };
-    const channels = Object.values(dcChannels).slice().sort((a, b) => {
-        const at = typeOrder[(a.type || 'misc').toLowerCase()] ?? 99;
-        const bt = typeOrder[(b.type || 'misc').toLowerCase()] ?? 99;
-        if (at !== bt) return at - bt;
-        return extractOrderKey(a.short_name || a.name || '') - extractOrderKey(b.short_name || b.name || '');
-    });
-    channels.forEach(channel => {
-        const div = document.createElement('div');
-        const t = (channel.type || 'misc').toLowerCase();
-        div.className = `dc-channel inactive dc-type-${t}`;
-        div.onclick = () => controlDCToggle(channel.id);
-        const ri = Number.isFinite(channel.raw_index) ? channel.raw_index : channel.id;
-        const bbTag = channel.bb ? `<span class="dc-pill bb" style="font-size:9px;padding:2px 5px;">BB</span>` : '';
-        div.innerHTML = `
-            <div class="dc-header">
-                <div>
-                    <div class="dc-name">${channel.name}</div>
-                    <div class="dc-short">${channel.short_name || ''} • ${t.toUpperCase()} <span style="color:#94a3b8">#${ri}</span></div>
-                </div>
-                <div class="dc-controls-row">
-                    ${bbTag}
-                    <span class="dc-pill off" id="dc-toggle-${channel.id}">OFF</span>
-                </div>
-            </div>
-            <div style="display:flex;justify-content:flex-end;font-size:9px;color:#718096;margin-top:2px;">
-                <span id="dc-current-${channel.id}">-- A</span>
-            </div>
-        `;
-        container.appendChild(div);
-        dcState[channel.id] = 0;
-    });
-}
-
-function extractOrderKey(text) {
-    const m = String(text).match(/(pb)?\s*([0-9]+)/i);
-    if (!m) return Number.MAX_SAFE_INTEGER;
-    const base = parseInt(m[2], 10);
-    return Number.isFinite(base) ? base : Number.MAX_SAFE_INTEGER;
-}
-
-function controlDC(channelId, state) {
-    const hexChar = toHexChannelChar(channelId);
-    serialSend(`S${hexChar}${state}`);
-    dcState[channelId] = state;
-    const pill = document.getElementById(`dc-toggle-${channelId}`);
-    if (!pill) return;
-    const card = pill.closest('.dc-channel');
-    if (state === 1) {
-        pill.textContent = 'ON'; pill.className = 'dc-pill on';
-        card.classList.remove('inactive'); card.classList.add('active');
-    } else {
-        pill.textContent = 'OFF'; pill.className = 'dc-pill off';
-        card.classList.remove('active'); card.classList.add('inactive');
-    }
-}
-
-function controlDCToggle(channelId) { controlDC(channelId, dcState[channelId] === 1 ? 0 : 1); }
-
-function toHexChannelChar(id) {
-    if (id >= 1 && id <= 9) return String(id);
-    return { 10: 'A', 11: 'B', 12: 'C' }[id] || String(id);
-}
-
-function serialSend(command) {
-    if (!pandaWs || pandaWs.readyState !== WebSocket.OPEN) { console.warn('Panda WS not connected; cannot send', command); return; }
-    try { pandaWs.send(JSON.stringify({ action: 'send', command })); } catch (e) { console.error('serialSend failed', e); }
-}
-
-function serialSendAsync(command) {
-    return new Promise((resolve, reject) => {
-        if (!pandaWs || pandaWs.readyState !== WebSocket.OPEN) { reject(new Error('WS not connected')); return; }
-        const sentPrefix = 'Sent: ' + command;
-        const onMsg = (event) => {
-            try {
-                const msg = JSON.parse(event.data);
-                if (msg.success !== undefined && typeof msg.message === 'string' && msg.message.startsWith(sentPrefix)) {
-                    pandaWs.removeEventListener('message', onMsg);
-                    clearTimeout(timeout);
-                    resolve(msg);
-                }
-            } catch (_) {}
+    <div class="help-tooltip">
+        <div onclick="showHelp()"><i class="fas fa-question"></i></div>
+    </div>
+
+    <script>
+        // ── Global state (identical to panda-daq-ui-v2) ──
+        let ws = null;
+        let isWsConnected = false;
+        let connectedSerialPort = null;
+        let dcChannels = {};
+        let ptChannels = {};
+        let lcChannels = {};
+        let tcChannels = {};
+        let ptIndexMap = {};
+        let lcIndexMap = {};
+        let tcIndexMap = {};
+        let dcIndexMap = {};
+        const dcOrder = [7,6,5,4,3,2,1,0,11,10,9,8];
+        let currentData = { pt:{}, lc:{}, tc:{}, dc:{} };
+        const PT_RAW_OFFSET = 0.4875;
+        let lastDataUpdate = null;
+        let dcState = {};
+        let currentFirmwareSequence = '';
+        let savedSequence = null;
+        let valveConfig = {};
+        let presetSequences = { gox: null, hotfire: null };
+        let lastSequenceCallback = null;
+        let abortState = 'normal';
+        let runValveIds = [];
+        let fuelRunValveIds = [];
+        let loxRunValveIds = [];
+        let gn2PurgeIds = [];
+        let _firing = false;
+        const terminalBuffer = [];
+        const terminalMaxLines = 200;
+
+        // ── NI DAQ state (MOE addition) ──
+        let nidaqWs = null;
+        let isNidaqConnected = false;
+        let nidaqPT = {};   // keyed by NI DAQ channel index
+
+        // ── Bang-Bang state (MOE addition) ──
+        let bbConfig = null;
+        let bbIntervalId = null;
+        const bbState = {
+            lox:  { enabled:false, setpoint:200, deadband:10, waitMs:500, valveOpen:false, lastSwitch:0 },
+            fuel: { enabled:false, setpoint:200, deadband:10, waitMs:500, valveOpen:false, lastSwitch:0 }
         };
-        const timeout = setTimeout(() => { pandaWs.removeEventListener('message', onMsg); resolve(null); }, 2000);
-        pandaWs.addEventListener('message', onMsg);
-        pandaWs.send(JSON.stringify({ action: 'send', command }));
-    });
-}
 
-// ═══════════════════════════════════════════════
-//  PANDA TELEMETRY PARSE (for DC current readback)
-// ═══════════════════════════════════════════════
-function parsePandaTelemetry(data, rawCtx = {}) {
-    if (typeof data !== 'string' || !data.includes(',')) return;
-    const tokens = data.split(',');
-    const id = tokens[0] && /^[a-zA-Z]/.test(tokens[0]) ? tokens[0][0] : null;
-    if (id !== 's') return;
-    const values = tokens.map(t => { const n = parseFloat(t.replace(/^[a-zA-Z]+/, '')); return Number.isFinite(n) ? n : null; });
-    for (let i = 0; i < values.length; i++) {
-        if (values[i] === null) continue;
-        const mappedRaw = i < dcOrder.length ? dcOrder[i] : i;
-        const rawIdx = mappedRaw + 1;
-        const dcId = dcIndexMap.hasOwnProperty(rawIdx) ? dcIndexMap[rawIdx] : rawIdx;
-        const cur = document.getElementById(`dc-current-${dcId}`);
-        if (cur) cur.textContent = `${values[i].toFixed(3)} A`;
-    }
-}
+        // ── Tab switching ──
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            event.target.closest('.tab-button').classList.add('active');
+        }
 
-// ═══════════════════════════════════════════════
-//  ARM / DISARM / ABORT / ESTOP
-// ═══════════════════════════════════════════════
-function armSystem()   { serialSend('a'); document.querySelector('.header').classList.add('armed'); showToast('Armed', 'Arm command sent', 'warning'); }
-function disarmSystem(){ serialSend('r'); document.querySelector('.header').classList.remove('armed'); showToast('Disarmed', 'Disarm command sent', 'success'); }
-
-function emergencyStop() {
-    // Also disable bang-bang
-    ['lox', 'fuel'].forEach(bus => { if (bbState[bus].enabled) bbToggle(bus); });
-    serialSend('r');
-    document.querySelector('.header').classList.remove('armed');
-    if (typeof Audio !== 'undefined') { try { new Audio('./assets/extremely-loud-incorrect-buzzer_0cDaG20.mp3').play().catch(() => {}); } catch(_){} }
-    setAllDCOff();
-    showToast('EMERGENCY STOP', 'All off, BB disabled', 'error');
-}
-
-let _fuelLagTimer = null;
-function abort() {
-    const btn = document.getElementById('abort_button');
-    if (abortState === 'normal') {
-        loxRunValveIds.forEach(id => controlDC(id, 0));
-        gn2PurgeIds.forEach(id => controlDC(id, 1));
-        fuelRunValveIds.forEach(id => {
-            const pill = document.getElementById(`dc-toggle-${id}`);
-            if (pill) { pill.textContent = 'CLOSING'; pill.style.background = '#d69e2e'; }
+        // ── Init ──
+        document.addEventListener('DOMContentLoaded', function() {
+            loadConfigurations();
+            initWebSocket();
+            initNidaqWebSocket();
+            setupEventListeners();
+            setupSequencerEventListeners();
+            for (let i = 1; i <= 12; i++) valveConfig[i] = { name:`Solenoid ${i}`, defaultState:false };
+            requestPresetsFromServer();
         });
-        if (_fuelLagTimer) clearTimeout(_fuelLagTimer);
-        _fuelLagTimer = setTimeout(() => { fuelRunValveIds.forEach(id => controlDC(id, 0)); _fuelLagTimer = null; }, 250);
-        // Disable BB on abort
-        ['lox', 'fuel'].forEach(bus => { if (bbState[bus].enabled) bbToggle(bus); });
-        abortState = 'aborted';
-        btn.classList.remove('safe'); btn.classList.add('aborted'); btn.textContent = 'PURGING';
-        showToast('ABORT', 'LOX closed, fuel closing, GN2 open, BB off', 'warning');
-    } else if (abortState === 'aborted') {
-        gn2PurgeIds.forEach(id => controlDC(id, 0));
-        abortState = 'safe';
-        btn.classList.remove('aborted'); btn.classList.add('safe'); btn.textContent = 'SAFE';
-        showToast('SAFE', 'GN2 purges closed', 'success');
-    } else {
-        abortState = 'normal';
-        btn.classList.remove('safe', 'aborted'); btn.textContent = 'ABORT';
-        showToast('READY', 'Abort system reset', 'info');
-    }
-}
 
-// ═══════════════════════════════════════════════
-//  LOGGING
-// ═══════════════════════════════════════════════
-function createNewLog() {
-    if (!pandaWs || pandaWs.readyState !== WebSocket.OPEN) { showToast('Error', 'PANDA WS not connected', 'error'); return; }
-    pandaWs.send(JSON.stringify({ action: 'create_new_log' }));
-    showToast('New Log', 'Log file created', 'success');
-}
-function updateLoggingStatus(status) {
-    const topInd  = document.getElementById('logging-indicator-top');
-    const topName = document.getElementById('logging-filename-top');
-    const logEl   = document.getElementById('info-log-file');
-    if (status.active || status.filename) {
-        const short = (status.filename || 'logging.csv').split(/[\/\\]/).pop();
-        if (topInd)  topInd.classList.add('active');
-        if (topName) topName.textContent = `Log: ${short}`;
-        if (logEl)   logEl.innerHTML = `Log: <strong>${short}</strong>`;
-    } else {
-        if (topInd)  topInd.classList.remove('active');
-        if (topName) topName.textContent = 'No active log';
-        if (logEl)   logEl.innerHTML = 'Log: <strong>--</strong>';
-    }
-}
-setInterval(() => { if (pandaWs && pandaWs.readyState === WebSocket.OPEN) pandaWs.send(JSON.stringify({ action: 'get_logging_status' })); }, 2000);
-
-// ═══════════════════════════════════════════════
-//  TIMESTAMP / INFO BAR
-// ═══════════════════════════════════════════════
-function updateTimestamp() {
-    const el = document.getElementById('data-timestamp');
-    const infoEl = document.getElementById('info-last-update');
-    if (lastDataUpdate) {
-        const t = lastDataUpdate.toLocaleTimeString();
-        if (el) el.textContent = `Last Update: ${t}`;
-        if (infoEl) infoEl.textContent = `Last Update: ${t}`;
-    }
-    const stale = document.getElementById('stale-indicator');
-    const staleText = document.getElementById('stale-text');
-    if (stale && staleText && lastDataUpdate) {
-        const age = Date.now() - lastDataUpdate.getTime();
-        const s = Math.floor(age / 1000);
-        if (age < 1000)       { stale.className = 'stale-indicator fresh'; staleText.textContent = 'Live'; }
-        else if (age < 5000)  { stale.className = 'stale-indicator fresh'; staleText.textContent = `${s}s ago`; }
-        else if (age < 30000) { stale.className = 'stale-indicator stale'; staleText.textContent = `${s}s ago`; }
-        else                  { stale.className = 'stale-indicator offline'; staleText.textContent = `${s}s ago`; }
-    }
-}
-function updateInfoBar() {
-    const now = Date.now();
-    dataRateHistory = dataRateHistory.filter(t => now - t < 10000);
-    if (dataRateHistory.length > 1) {
-        const rate = dataRateHistory.length / 10;
-        const el = document.getElementById('info-data-rate');
-        if (el) el.textContent = rate.toFixed(1) + ' Hz';
-    }
-    const elapsed = now - startTime;
-    const min = Math.floor(elapsed / 60000) % 60;
-    const hr  = Math.floor(elapsed / 3600000);
-    const up = document.getElementById('info-uptime');
-    if (up) up.textContent = `Uptime: ${String(hr).padStart(2,'0')}:${String(min).padStart(2,'0')}`;
-}
-setInterval(updateInfoBar, 1000);
-setInterval(updateTimestamp, 1000);
-setInterval(() => {
-    if (!isPandaConnected && (!pandaWs || pandaWs.readyState === WebSocket.CLOSED)) initPandaWebSocket();
-    if (!isNidaqConnected && (!nidaqWs || nidaqWs.readyState === WebSocket.CLOSED)) initNidaqWebSocket();
-}, 5000);
-
-// ═══════════════════════════════════════════════
-//  UI HELPERS
-// ═══════════════════════════════════════════════
-function switchTab(tabName, event) {
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
-    document.getElementById(`tab-${tabName}`).classList.add('active');
-    if (event) event.target.closest('.tab-button').classList.add('active');
-}
-
-function showToast(title, message, type = 'info') {
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    const icons = { success: 'fa-check-circle', warning: 'fa-exclamation-triangle', error: 'fa-times-circle', info: 'fa-info-circle' };
-    toast.innerHTML = `<i class="fas ${icons[type] || icons.info} toast-icon"></i><div class="toast-content"><div class="toast-title">${title}</div><div class="toast-message">${message}</div></div>`;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 1500);
-}
-
-function showHelp() { showToast('MOE Start/Stop', 'PANDA:3941 for valves | NI DAQ:3000 for sensors | BB: bang-bang control', 'info'); }
-
-function appendTerminalLine(text, type = 'normal') {
-    if (typeof text !== 'string' || !text.trim()) return;
-    const ts = new Date().toLocaleTimeString();
-    terminalBuffer.push({ text: `[${ts}] ${text.trim()}`, type });
-    if (terminalBuffer.length > terminalMaxLines) terminalBuffer.shift();
-    const body = document.getElementById('terminal-body');
-    if (!body) return;
-    body.innerHTML = terminalBuffer.map(e => `<div class="terminal-line ${e.type}">${e.text}</div>`).join('');
-    body.scrollTop = body.scrollHeight;
-}
-function clearTerminal() { terminalBuffer.length = 0; const b = document.getElementById('terminal-body'); if (b) b.innerHTML = ''; }
-
-function setupEventListeners() {
-    document.getElementById('arm-btn-top').addEventListener('click', armSystem);
-    document.getElementById('disarm-btn-top').addEventListener('click', disarmSystem);
-    document.getElementById('emergency_stop').addEventListener('click', emergencyStop);
-    document.getElementById('abort_button').addEventListener('click', abort);
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); e.stopImmediatePropagation(); if (document.activeElement) document.activeElement.blur(); abort(); return false; }
-    }, true);
-    document.addEventListener('keydown', (e) => {
-        if (e.ctrlKey && e.key === 'a') { e.preventDefault(); armSystem(); }
-        if (e.ctrlKey && e.key === 'd') { e.preventDefault(); disarmSystem(); }
-    });
-}
-
-// ═══════════════════════════════════════════════
-//  SEQUENCER
-// ═══════════════════════════════════════════════
-function setupSequencerEventListeners() {
-    document.getElementById('add-sequence-action').addEventListener('click', addSequenceAction);
-    document.getElementById('upload-sequence').addEventListener('click', uploadSequence);
-    document.getElementById('clear-sequence').addEventListener('click', clearSequence);
-    document.getElementById('save-sequence').addEventListener('click', saveSequenceToFile);
-    document.getElementById('load-sequence').addEventListener('click', loadSequenceFromFile);
-    document.getElementById('run-sequence').addEventListener('click', runSequence);
-}
-
-function addSequenceAction() {
-    const opts = Object.keys(valveConfig).map(id => `<option value="${id}">${valveConfig[id].name}</option>`).join('');
-    const block = document.createElement('div');
-    block.className = 'sequence-block'; block.dataset.type = 'action';
-    block.innerHTML = `
-        <div class="block-header block-action-on"><span>Action</span><button class="remove-block">&times;</button></div>
-        <div class="block-content">
-            <label class="form-label">Valve:</label>
-            <select class="form-select valve-select">${opts}</select>
-            <label class="form-label">Action:</label>
-            <select class="form-select action-select"><option value="on">OPEN</option><option value="off">CLOSE</option></select>
-            <label class="form-label">Delay (ms):</label>
-            <input type="number" class="form-input delay-input" value="0" min="0" step="1">
-        </div>`;
-    document.getElementById('sequence-blocks').appendChild(block);
-    block.querySelector('.remove-block').addEventListener('click', () => { block.remove(); updateSequencePreview(); });
-    block.querySelector('.action-select').addEventListener('change', function () {
-        const h = block.querySelector('.block-header');
-        h.className = `block-header block-action-${this.value}`;
-        updateSequencePreview();
-    });
-    block.querySelector('.valve-select').addEventListener('change', updateSequencePreview);
-    block.querySelector('.delay-input').addEventListener('input', updateSequencePreview);
-    updateSequencePreview();
-}
-
-function updateSequencePreview() {
-    const blocks = document.querySelectorAll('.sequence-block');
-    let command = 'command:';
-    const parts = [];
-    blocks.forEach((block, idx) => {
-        if (block.dataset.type !== 'action') return;
-        const ch  = block.querySelector('.valve-select').value;
-        const act = block.querySelector('.action-select').value === 'on' ? '1' : '0';
-        let delay = parseInt(block.querySelector('.delay-input').value || '0', 10);
-        if (isNaN(delay) || delay < 0) delay = 0;
-        if (delay > 99999) delay = 99999;
-        const dp = String(delay).padStart(5, '0');
-        const cc = { 10: 'A', 11: 'B', 12: 'C' }[parseInt(ch)] || ch;
-        parts.push(`s${cc}${act}.${dp}`);
-        command += `s${ch}${act}` + (idx < blocks.length - 1 ? `.${delay},` : delay > 0 ? `.${delay}` : '');
-    });
-    currentFirmwareSequence = parts.join(',');
-    document.getElementById('command-preview').textContent = command;
-}
-
-function uploadSequence() {
-    if (!currentFirmwareSequence) { showToast('Empty', 'Build a sequence first', 'warning'); return; }
-    serialSend(currentFirmwareSequence);
-    savedSequence = currentFirmwareSequence;
-    showToast('Uploaded', 'Sequence sent to PANDA', 'success');
-    appendTerminalLine(`Upload: ${currentFirmwareSequence}`, 'seq');
-}
-
-async function runSequence() {
-    const builderSeq = currentFirmwareSequence;
-    const sequenceToFire = builderSeq || savedSequence;
-    if (!sequenceToFire) { showToast('Empty', 'No sequence to fire', 'warning'); return; }
-    if (_firing) return;
-    _firing = true; resetCallbackIndicator();
-    try {
-        await serialSendAsync(sequenceToFire);
-        savedSequence = sequenceToFire;
-        await new Promise(r => setTimeout(r, 200));
-        await serialSendAsync('f');
-    } catch (e) { console.error('[SEQ] fire failed:', e); }
-    finally { _firing = false; }
-    showToast('Firing', builderSeq ? 'Current build executing' : 'Saved sequence executing', 'success');
-}
-
-function clearSequence() { document.getElementById('sequence-blocks').innerHTML = ''; updateSequencePreview(); }
-
-function saveSequenceToFile() {
-    const blocks = document.querySelectorAll('.sequence-block');
-    const seq = { blocks: [] };
-    blocks.forEach(b => { if (b.dataset.type === 'action') seq.blocks.push({ type: 'action', channel: b.querySelector('.valve-select').value, action: b.querySelector('.action-select').value, delay: b.querySelector('.delay-input').value }); });
-    const url = URL.createObjectURL(new Blob([JSON.stringify(seq, null, 2)], { type: 'application/json' }));
-    const a = Object.assign(document.createElement('a'), { href: url, download: 'moe_sequence.json' });
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-    showToast('Saved', 'Sequence downloaded', 'success');
-}
-
-function loadSequenceFromFile() {
-    const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.json' });
-    input.onchange = e => {
-        const file = e.target.files[0]; if (!file) return;
-        const reader = new FileReader();
-        reader.onload = ev => {
+        // ── Load configs ──
+        async function loadConfigurations() {
             try {
-                clearSequence();
-                JSON.parse(ev.target.result).blocks.forEach(b => { if (b.type === 'action') addSequenceActionWithData(b.channel, b.action, b.delay); });
-                showToast('Loaded', 'Sequence loaded', 'success');
-            } catch (_) { showToast('Error', 'Invalid sequence file', 'error'); }
-        };
-        reader.readAsText(file);
-    };
-    input.click();
-}
+                const ts = Date.now();
+                const noStore = { cache:'no-store' };
+                const [dcResp, ptResp, lcResp, tcResp, bbResp] = await Promise.all([
+                    fetch(`./configs/dc_channels.json?ts=${ts}`, noStore),
+                    fetch(`./configs/pt_channels.json?ts=${ts}`, noStore),
+                    fetch(`./configs/lc_channels.json?ts=${ts}`, noStore),
+                    fetch(`./configs/tc_channels.json?ts=${ts}`, noStore),
+                    fetch(`./configs/bb_config.json?ts=${ts}`,   noStore)
+                ]);
+                runValveIds = []; fuelRunValveIds = []; loxRunValveIds = []; gn2PurgeIds = [];
+                dcChannels = (await dcResp.json()).channels.reduce((acc, ch) => {
+                    acc[ch.dc.id] = ch.dc;
+                    valveConfig[ch.dc.id] = { name:ch.dc.name, defaultState:false };
+                    if (ch.dc.abort_role === 'run_valve') {
+                        runValveIds.push(ch.dc.id);
+                        const t = (ch.dc.type||'').toLowerCase();
+                        if (t.includes('fuel')) fuelRunValveIds.push(ch.dc.id);
+                        else loxRunValveIds.push(ch.dc.id);
+                    }
+                    if (ch.dc.abort_role === 'gn2_purge') gn2PurgeIds.push(ch.dc.id);
+                    return acc;
+                }, {});
+                ptChannels = (await ptResp.json()).channels.reduce((acc, ch) => { acc[ch.pt.id] = ch.pt; return acc; }, {});
+                lcChannels = (await lcResp.json()).channels.reduce((acc, ch) => { acc[ch.lc.id] = ch.lc; return acc; }, {});
+                tcChannels = (await tcResp.json()).channels.reduce((acc, ch) => { acc[ch.tc.id] = ch.tc; return acc; }, {});
+                ptIndexMap = {}; Object.values(ptChannels).forEach(ch => { ptIndexMap[Number.isFinite(ch.raw_index)?ch.raw_index:ch.id] = ch.id; });
+                lcIndexMap = {}; Object.values(lcChannels).forEach(ch => { lcIndexMap[Number.isFinite(ch.raw_index)?ch.raw_index:ch.id] = ch.id; });
+                tcIndexMap = {}; Object.values(tcChannels).forEach(ch => { tcIndexMap[Number.isFinite(ch.raw_index)?ch.raw_index:ch.id] = ch.id; });
+                dcIndexMap = {}; Object.values(dcChannels).forEach(ch => { dcIndexMap[Number.isFinite(ch.raw_index)?ch.raw_index:ch.id] = ch.id; });
+                renderDCControls();
+                renderTelemetryPlaceholders();
+                // Load BB config
+                try { bbConfig = await bbResp.json(); initBBFromConfig(); } catch(e) { console.warn('bb_config.json not found', e); }
+            } catch(e) {
+                console.error('Config load failed:', e);
+                showToast('Config Error', 'Failed to load channel configurations', 'error');
+            }
+        }
 
-function addSequenceActionWithData(channel, action, delay) {
-    const opts = Object.keys(valveConfig).map(id => `<option value="${id}" ${id == channel ? 'selected' : ''}>${valveConfig[id].name}</option>`).join('');
-    const block = document.createElement('div');
-    block.className = 'sequence-block'; block.dataset.type = 'action';
-    block.innerHTML = `
-        <div class="block-header block-action-${action}"><span>Action</span><button class="remove-block">&times;</button></div>
-        <div class="block-content">
-            <label class="form-label">Valve:</label><select class="form-select valve-select">${opts}</select>
-            <label class="form-label">Action:</label>
-            <select class="form-select action-select"><option value="on" ${action==='on'?'selected':''}>OPEN</option><option value="off" ${action==='off'?'selected':''}>CLOSE</option></select>
-            <label class="form-label">Delay (ms):</label>
-            <input type="number" class="form-input delay-input" value="${delay||0}" min="0" step="1">
-        </div>`;
-    document.getElementById('sequence-blocks').appendChild(block);
-    block.querySelector('.remove-block').addEventListener('click', () => { block.remove(); updateSequencePreview(); });
-    block.querySelector('.action-select').addEventListener('change', function () { block.querySelector('.block-header').className = `block-header block-action-${this.value}`; updateSequencePreview(); });
-    block.querySelector('.valve-select').addEventListener('change', updateSequencePreview);
-    block.querySelector('.delay-input').addEventListener('input', updateSequencePreview);
-    updateSequencePreview();
-}
+        // ── Logging ──
+        async function createNewLog() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) { showToast('Connection Error','WebSocket not connected','error'); return; }
+            try { ws.send(JSON.stringify({action:'create_new_log'})); showToast('New Log Created','Started','success'); } catch(e) {}
+        }
+        function updateLoggingStatus(status) {
+            const infoLogEl = document.getElementById('info-log-file');
+            const topInd    = document.getElementById('logging-indicator-top');
+            const topName   = document.getElementById('logging-filename-top');
+            if (status.active || status.filename) {
+                const shortName = (status.filename||'logging.csv').split(/[\/\\]/).pop();
+                if (infoLogEl) infoLogEl.innerHTML = `Log: <strong>${shortName}</strong>`;
+                if (topInd)  topInd.classList.add('active');
+                if (topName) topName.textContent = `Log: ${shortName}`;
+            } else {
+                if (infoLogEl) infoLogEl.innerHTML = 'Log: <strong>--</strong>';
+                if (topInd)  topInd.classList.remove('active');
+                if (topName) topName.textContent = 'No active log';
+            }
+        }
+        function pollLoggingStatus() {
+            if (ws && ws.readyState === WebSocket.OPEN) try { ws.send(JSON.stringify({action:'get_logging_status'})); } catch(e) {}
+        }
+        setInterval(pollLoggingStatus, 2000);
 
-// ═══════════════════════════════════════════════
-//  PRESETS
-// ═══════════════════════════════════════════════
-function requestPresetsFromServer() {
-    if (!pandaWs || pandaWs.readyState !== WebSocket.OPEN) return;
-    pandaWs.send(JSON.stringify({ action: 'preset_load' }));
-    appendTerminalLine('Requesting presets...', 'seq');
-}
-function savePresetToServer(name, sequence) {
-    if (!pandaWs || pandaWs.readyState !== WebSocket.OPEN) { showToast('Error', 'Not connected', 'error'); return; }
-    pandaWs.send(JSON.stringify({ action: 'preset_save', name, sequence }));
-    appendTerminalLine(`Saving preset ${name.toUpperCase()}...`, 'seq');
-}
-function handlePresetLoadResponse(msg) {
-    if (!msg || !msg.success || !msg.presets) return;
-    Object.keys(presetSequences).forEach(k => { const v = msg.presets[k]; presetSequences[k] = (typeof v === 'string' && v.trim()) ? v : null; updatePresetUI(k, presetSequences[k]); });
-    appendTerminalLine('Presets synchronized', 'seq');
-}
-function handlePresetSaveResponse(msg) {
-    if (!msg) return;
-    if (!msg.success) { showToast('Preset Error', msg.message || 'Save failed', 'error'); return; }
-    if (msg.presets) handlePresetLoadResponse(msg);
-    else if (msg.name && msg.sequence) { presetSequences[msg.name] = msg.sequence; updatePresetUI(msg.name, msg.sequence); }
-    const label = (msg.name || '').toUpperCase();
-    showToast('Preset Saved', label ? `${label} ready` : 'Preset updated', 'success');
-    if (msg.name) setTimeout(() => armPreset(msg.name), 50);
-}
-function getPresetLabel(name) { const k = (name||'').toLowerCase(); return k === 'gox' ? 'GOX Purge' : k === 'hotfire' ? 'Hotfire' : (name||'').toUpperCase(); }
-function getPresetSequence(name) { const k = (name||'').toLowerCase(); const s = presetSequences[k]; return (typeof s === 'string' && s.trim()) ? s.trim() : null; }
-function armPreset(name) {
-    const seq = getPresetSequence(name);
-    if (!seq) { showToast('Empty', `No sequence for ${getPresetLabel(name)}`, 'error'); requestPresetsFromServer(); return false; }
-    resetCallbackIndicator(); serialSend(seq); savedSequence = seq;
-    showToast('Armed', `${getPresetLabel(name)} uploaded`, 'success');
-    appendTerminalLine(`Preset ${getPresetLabel(name)} armed → ${seq}`, 'seq');
-    return true;
-}
-function setPresetFromCurrent(name) {
-    if (!currentFirmwareSequence) { showToast('Empty', 'Build a sequence first', 'warning'); return; }
-    Swal.fire({ title: `Set ${getPresetLabel(name)}?`, icon: 'question', showCancelButton: true, confirmButtonColor: '#3182ce', cancelButtonColor: '#718096', confirmButtonText: 'Save', timer: 3000 }).then(r => { if (r.isConfirmed) savePresetToServer(name, currentFirmwareSequence); });
-}
-function updatePresetUI(name, seq) {
-    const statusEl   = document.getElementById(`${name}-status`);
-    const previewEl  = document.getElementById(`${name}-preview`);
-    const uploadBtn  = document.getElementById(`${name}-upload-btn`);
-    const fireBtn    = document.getElementById(`${name}-fire-btn`);
-    if (seq && seq.trim()) {
-        statusEl.textContent = 'SET'; statusEl.className = 'preset-status set';
-        previewEl.textContent = seq;
-        uploadBtn.disabled = false; fireBtn.disabled = false;
-    } else {
-        statusEl.textContent = 'NOT SET'; statusEl.className = 'preset-status empty';
-        previewEl.textContent = 'No sequence set';
-        uploadBtn.disabled = true; fireBtn.disabled = true;
-    }
-}
-async function firePreset(name) {
-    if (_firing) return;
-    const seq = getPresetSequence(name);
-    if (!seq) { showToast('Empty', `No sequence for ${getPresetLabel(name)}`, 'error'); requestPresetsFromServer(); return; }
-    _firing = true; resetCallbackIndicator();
-    try {
-        await serialSendAsync(seq); savedSequence = seq;
-        await new Promise(r => setTimeout(r, 200));
-        await serialSendAsync('f');
-    } catch (e) { console.error('[PRESET] fire failed:', e); } finally { _firing = false; }
-    showToast('Firing', `${getPresetLabel(name)} executing`, 'success');
-    appendTerminalLine(`Preset ${getPresetLabel(name)} fire sent`, 'seq');
-}
+        // ── PANDA WebSocket ──
+        function initWebSocket() {
+            try {
+                const host = window.location.hostname || 'localhost';
+                ws = new WebSocket(`ws://${host}:3941`);
+            } catch(e) { updateConnectionStatus(false); setTimeout(initWebSocket, 2000); return; }
+            ws.onopen = () => {
+                isWsConnected = true;
+                requestPortList(); requestPresetsFromServer(); updateConnectionStatus(true);
+                setTimeout(() => { if (!connectedSerialPort) connectToSerialPort('TEST_PORT_1'); }, 2000);
+                if (!_sentAllOffOnConnect && Object.keys(dcChannels).length > 0) { _sentAllOffOnConnect = true; setTimeout(setAllDCOff, 300); }
+            };
+            ws.onclose = () => {
+                isWsConnected = false; connectedSerialPort = null; updateConnectionStatus(false);
+                if (!ws || ws.readyState === WebSocket.CLOSED) setTimeout(initWebSocket, 2000);
+            };
+            ws.onerror = () => { isWsConnected = false; updateConnectionStatus(false); };
+            ws.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    if (msg && typeof msg === 'object') {
+                        if (msg.action === 'preset_save') { handlePresetSaveResponse(msg); return; }
+                        if (msg.action === 'preset_load') { handlePresetLoadResponse(msg); return; }
+                        const maybeLogLines = [];
+                        if (typeof msg.message === 'string' && msg.message.toUpperCase().includes('SEQ')) maybeLogLines.push(msg.message);
+                        if (typeof msg.raw === 'string' && msg.raw.toUpperCase().includes('SEQ')) maybeLogLines.push(msg.raw);
+                        maybeLogLines.forEach(line => { const t = line.toLowerCase().includes('error')?'err':'seq'; appendTerminalLine(line,t); });
+                    }
+                    if (msg.ports) {
+                        if (msg.ports.length > 0 && !connectedSerialPort) {
+                            const preferred = msg.ports.find(p => /usbmodem|usbserial|ttyACM|ttyUSB/i.test(p)) || msg.ports[0];
+                            connectToSerialPort(preferred);
+                        }
+                    } else if (msg.success !== undefined && msg.message && (msg.message.startsWith('Connected to') || msg.message.includes('Already connected to'))) {
+                        const m = msg.message.match(/(?:Connected to|Already connected to)\s+([A-Za-z0-9:_\\/.-]+)/);
+                        connectedSerialPort = m && m[1] ? m[1] : connectedSerialPort;
+                        updateConnectionStatus(true);
+                    } else if (msg.type === 'data') {
+                        const rawCtx = {};
+                        if (Array.isArray(msg.pt_mA)) rawCtx.pt_mA = msg.pt_mA;
+                        if (typeof msg.raw === 'string' && msg.raw.length > 0) {
+                            try {
+                                const rf = msg.raw.trim()[0];
+                                if (rf==='p' && msg.raw.includes(',')) rawCtx.pTokens = msg.raw.split(',');
+                                else if (rf==='t' && msg.raw.includes(',')) rawCtx.tTokens = msg.raw.split(',');
+                                else if (rf==='s' && msg.raw.includes(',')) rawCtx.sTokens = msg.raw.split(',');
+                            } catch(_) {}
+                        }
+                        parseTelemetryData(msg.content, rawCtx);
+                        const ackText = extractSequenceAckText(msg);
+                        if (ackText) handleSequenceCallback(msg, ackText);
+                    } else if (msg.success !== undefined && msg.message && (msg.message.includes('Logging') || msg.message.includes('Log file'))) {
+                        if (msg.success) showToast('Success', msg.message, 'success');
+                        pollLoggingStatus();
+                    } else if (msg.active !== undefined || msg.filename !== undefined) {
+                        updateLoggingStatus(msg);
+                    } else if (msg.type === 'sequence_ack' || msg.sequence_received) {
+                        handleSequenceCallback(msg, extractSequenceAckText(msg));
+                    }
+                } catch(_) {}
+            };
+        }
 
-// ═══════════════════════════════════════════════
-//  SEQUENCE ACK / CALLBACK
-// ═══════════════════════════════════════════════
-function isSequenceAckText(text) {
-    if (typeof text !== 'string' || !text) return false;
-    const l = text.toLowerCase();
-    if (l.includes('firing idx')) return true;
-    if (!l.includes('sequence')) return false;
-    return ['ack', 'received', 'upload', 'packet', 'firing', 'saved', 'complete'].some(k => l.includes(k));
-}
-function extractSequenceAckText(msg) {
-    if (!msg) return null;
-    const candidates = typeof msg === 'string' ? [msg] : [msg.content, msg.message, msg.raw].filter(Boolean);
-    for (const c of candidates) { if (isSequenceAckText(c)) return c.trim(); }
-    return null;
-}
-function handleSequenceCallback(data, messageText) {
-    const indicator = document.getElementById('callback-indicator');
-    const textEl    = document.getElementById('callback-text');
-    const tsEl      = document.getElementById('callback-timestamp');
-    if (!indicator) return;
-    lastSequenceCallback = new Date();
-    indicator.classList.add('received'); textEl.classList.add('received');
-    const display = messageText || extractSequenceAckText(data) || 'Sequence received ✓';
-    textEl.textContent = display; tsEl.textContent = lastSequenceCallback.toLocaleTimeString();
-    appendTerminalLine(display, display.toLowerCase().includes('error') ? 'err' : 'seq');
-    setTimeout(() => { indicator.classList.remove('received'); textEl.classList.remove('received'); textEl.textContent = 'Waiting for sequence acknowledgment...'; }, 5000);
-}
-function resetCallbackIndicator() {
-    const i = document.getElementById('callback-indicator');
-    const t = document.getElementById('callback-text');
-    const s = document.getElementById('callback-timestamp');
-    if (i) i.classList.remove('received');
-    if (t) { t.classList.remove('received'); t.textContent = 'Waiting for sequence acknowledgment...'; }
-    if (s) s.textContent = '';
-}
-</script>
+        // ── NI DAQ WebSocket (MOE addition) ──
+        function initNidaqWebSocket() {
+            try {
+                const host = window.location.hostname || 'localhost';
+                nidaqWs = new WebSocket(`ws://${host}:3000`);
+            } catch(e) { updateNidaqBadge(false); setTimeout(initNidaqWebSocket, 3000); return; }
+            nidaqWs.onopen  = () => { isNidaqConnected = true;  updateNidaqBadge(true); };
+            nidaqWs.onclose = () => { isNidaqConnected = false; updateNidaqBadge(false); setTimeout(initNidaqWebSocket, 3000); };
+            nidaqWs.onerror = () => { isNidaqConnected = false; updateNidaqBadge(false); };
+            nidaqWs.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    // batch message: {type:'batch', data:{PT0_psi:..., PT1_psi:...}}
+                    if (msg.type === 'batch' && msg.data) {
+                        Object.entries(msg.data).forEach(([key, val]) => {
+                            const m = key.match(/^PT(\d+)_psi$/i);
+                            if (m) nidaqPT[parseInt(m[1],10)] = val;
+                        });
+                    }
+                    // data message: {type:'data', channels:[{type:'pt',index:0,value:...},...]}
+                    if (msg.type === 'data' && Array.isArray(msg.channels)) {
+                        msg.channels.forEach(ch => {
+                            if ((ch.type||'').toLowerCase() === 'pt') nidaqPT[ch.index ?? ch.channel] = ch.value ?? ch.pressure_psi;
+                        });
+                    }
+                } catch(_) {}
+            };
+        }
+        function updateNidaqBadge(ok) {
+            const el = document.getElementById('nidaq-badge');
+            if (!el) return;
+            el.className = ok ? 'nidaq-badge ok' : 'nidaq-badge';
+        }
+
+        function requestPortList()       { if (ws && ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify({action:'list_ports'})); }
+        function connectToSerialPort(p)  { if (ws && ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify({action:'connect',port:p})); }
+        function tarePTs() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            try { ws.send(JSON.stringify({action:'tare_pts'})); showToast('Tare PTs','Capturing ambient...','info'); } catch(e) {}
+        }
+
+        let _sentAllOffOnConnect = false;
+        function setAllDCOff() { Object.keys(dcChannels).forEach(id => controlDC(parseInt(id,10), 0)); }
+
+        function parseTelemetryData(data, rawCtx={}) {
+            if (typeof data !== 'string' || data.length === 0) return;
+            messageCount++; dataRateHistory.push(Date.now());
+            if (data.includes(',')) {
+                const tokens = data.split(',');
+                const first = tokens[0]||'';
+                const id = /^[a-zA-Z]/.test(first) ? first[0] : null;
+                if (id==='p'||id==='t'||id==='s') {
+                    const values = tokens.map(tok => { const n=parseFloat(tok.replace(/^[a-zA-Z]+/,'')); return Number.isFinite(n)?n:null; }).filter(v=>v!==null);
+                    if (id==='p') {
+                        for (let i=0; i<Math.min(values.length,16); i++) {
+                            const rawIdx=i+1;
+                            const cid = ptIndexMap.hasOwnProperty(rawIdx)?ptIndexMap[rawIdx]:rawIdx;
+                            currentData.pt[cid]=values[i]; updateSensorDisplay('pt',cid,values[i]);
+                            const el=document.getElementById(`pt-${cid}`);
+                            if (el) {
+                                const rawEl=el.querySelector('.sensor-raw');
+                                if (rawEl) { const srcTok=(rawCtx.pTokens&&rawCtx.pTokens[i])?rawCtx.pTokens[i]:(tokens[i]||''); const rn=parseFloat(String(srcTok).replace(/^[a-zA-Z]+/,'')); const adj=Number.isFinite(rn)?(rn+PT_RAW_OFFSET):null; rawEl.textContent=`raw: ${adj!==null?adj.toFixed(5):String(srcTok).replace(/^[a-zA-Z]+/,'')}`; }
+                                const maEl=el.querySelector('.sensor-raw-ma');
+                                if (maEl&&rawCtx.pt_mA&&Number.isFinite(rawCtx.pt_mA[i])) maEl.textContent=`mA: ${rawCtx.pt_mA[i].toFixed(3)}`;
+                            }
+                        }
+                    } else if (id==='t') {
+                        for (let i=0;i<Math.min(values.length,6);i++) { const ri=i+1; const cid=lcIndexMap.hasOwnProperty(ri)?lcIndexMap[ri]:ri; currentData.lc[cid]=values[i]; updateSensorDisplay('lc',cid,values[i]); const el=document.getElementById(`lc-${cid}`); if(el){const r=el.querySelector('.sensor-raw');if(r)r.textContent=`raw: ${(tokens[i]||'').replace(/^[a-zA-Z]+/,'')}`; } }
+                        for (let i=0;i<Math.min(Math.max(values.length-6,0),6);i++) { const ri=i+1; const v=values[i+6]; const cid=tcIndexMap.hasOwnProperty(ri)?tcIndexMap[ri]:ri; currentData.tc[cid]=v; updateSensorDisplay('tc',cid,v); const el=document.getElementById(`tc-${cid}`); if(el){const r=el.querySelector('.sensor-raw');if(r)r.textContent=`raw: ${(tokens[i+6]||'').replace(/^[a-zA-Z]+/,'')}`; } }
+                    } else if (id==='s') {
+                        for (let i=0;i<values.length;i++) { const mi=(i<dcOrder.length)?dcOrder[i]:i; const ri=mi+1; const dcId=dcIndexMap.hasOwnProperty(ri)?dcIndexMap[ri]:ri; currentData.dc[dcId]=values[i]; const cel=document.getElementById(`dc-current-${dcId}`); if(cel)cel.textContent=`${values[i].toFixed(3)} A`; }
+                    }
+                    lastDataUpdate=new Date(); updateTimestamp(); return;
+                }
+            }
+            if (data.includes('LC Channel')) { const m=data.match(/LC Channel (\d+): ([\d\.-]+)/); if(m){const cid=parseInt(m[1]);const v=parseFloat(m[2]);currentData.lc[cid]=v;updateSensorDisplay('lc',cid,v);const el=document.getElementById(`lc-${cid}`);if(el){const r=el.querySelector('.sensor-raw');if(r)r.textContent=`raw: ${m[2]}`;}} }
+            else if (data.includes('TC Channel')) { const m=data.match(/TC Channel (\d+): ([\d\.-]+)/); if(m){const cid=parseInt(m[1]);const v=parseFloat(m[2]);currentData.tc[cid]=v;updateSensorDisplay('tc',cid,v);const el=document.getElementById(`tc-${cid}`);if(el){const r=el.querySelector('.sensor-raw');if(r)r.textContent=`raw: ${m[2]}`;}} }
+            else if (data.includes('PT Channel')) { const m=data.match(/PT Channel (\d+): ([\d\.-]+)/); if(m){const cid=parseInt(m[1]);const v=parseFloat(m[2]);currentData.pt[cid]=v;updateSensorDisplay('pt',cid,v);const el=document.getElementById(`pt-${cid}`);if(el){const r=el.querySelector('.sensor-raw');if(r)r.textContent=`raw: ${m[2]}`;}} }
+            lastDataUpdate=new Date(); updateTimestamp();
+        }
+
+        function updateSensorDisplay(type, channelId, value) {
+            const element = document.getElementById(`${type}-${channelId}`);
+            if (!element) return;
+            const config = type==='pt'?ptChannels[channelId]:type==='lc'?lcChannels[channelId]:tcChannels[channelId];
+            if (!config||typeof config!=='object') return;
+            const valEl = element.querySelector('.sensor-main');
+            if (valEl) valEl.textContent = value.toFixed(2);
+            element._lastValue = element._lastValue ?? value;
+            const delta = value - element._lastValue;
+            element._lastValue = value;
+            let tc='flat', tc2='→';
+            if (delta>0.05){tc='up';tc2='↑';} else if(delta<-0.05){tc='down';tc2='↓';}
+            let trendEl = element.querySelector('.trend');
+            if (!trendEl) { trendEl=document.createElement('span'); trendEl.className='trend flat'; element.querySelector('.sensor-value').appendChild(trendEl); }
+            trendEl.className=`trend ${tc}`; trendEl.textContent=tc2;
+            element.classList.remove('normal','warning','critical','offline');
+            if (config.critical_high&&value>=config.critical_high) element.classList.add('critical');
+            else if (config.critical_low&&value<=config.critical_low) element.classList.add('critical');
+            else if (config.warning_high&&value>=config.warning_high) element.classList.add('warning');
+            else if (config.warning_low&&value<=config.warning_low)   element.classList.add('warning');
+            else element.classList.add('normal');
+            element.classList.add('updating');
+            setTimeout(()=>element.classList.remove('updating'), 500);
+        }
+
+        function renderDCControls() {
+            const container = document.getElementById('dc-controls');
+            container.innerHTML = '';
+            const typeOrder = {fuel:0,lox:1,misc:2};
+            const channels = Object.values(dcChannels).slice().sort((a,b)=>{
+                const at=typeOrder[(a.type||'misc').toLowerCase()]??99;
+                const bt=typeOrder[(b.type||'misc').toLowerCase()]??99;
+                if(at!==bt)return at-bt;
+                return extractOrderKey(a.short_name||a.name||'')-extractOrderKey(b.short_name||b.name||'');
+            });
+            channels.forEach(channel=>{
+                const d=document.createElement('div');
+                const t=(channel.type||'misc').toLowerCase();
+                d.className=`dc-channel inactive dc-type-${t}`;
+                d.onclick=()=>controlDCToggle(channel.id);
+                const ri=Number.isFinite(channel.raw_index)?channel.raw_index:channel.id;
+                d.innerHTML=`<div class="dc-header"><div><div class="dc-name">${channel.name}</div><div class="dc-short">${channel.short_name} • ${(channel.type||'misc').toUpperCase()} <span style="color:#94a3b8">#${ri}</span></div></div><div class="dc-controls-row"><span class="dc-pill off" id="dc-toggle-${channel.id}">OFF</span></div></div><div style="display:flex;justify-content:flex-end;font-size:9px;color:#718096;margin-top:3px;"><span id="dc-current-${channel.id}">-- A</span></div>`;
+                container.appendChild(d);
+                dcState[channel.id]=0;
+            });
+        }
+
+        function extractOrderKey(text) { const m=String(text).match(/(pb)?\s*([0-9]+)/i); if(!m)return Number.MAX_SAFE_INTEGER; const b=parseInt(m[2],10); return Number.isFinite(b)?b:Number.MAX_SAFE_INTEGER; }
+
+        function renderSensorGroup(type, channels, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            Object.values(channels).forEach(channel=>{
+                const d=document.createElement('div');
+                d.className='sensor-reading offline'; d.id=`${type}-${channel.id}`;
+                const ri=Number.isFinite(channel.raw_index)?channel.raw_index:channel.id;
+                let maxPsi=null;
+                if(type==='pt'){try{if(Array.isArray(channel.range)&&channel.range.length>1)maxPsi=Number(channel.range[1]);}catch(_){}if(!Number.isFinite(maxPsi))maxPsi=(channel.id===1)?10000:1500;}
+                const channelInfo=type==='pt'&&channel.id!==ri?`PT${channel.id} <span style="color:#94a3b8">(raw #${ri})</span>`:type==='pt'?`PT${channel.id} <span style="color:#94a3b8">#${ri}</span>`:`${channel.short_name} <span style="color:#94a3b8">#${ri}</span>`;
+                d.innerHTML=`<div class="sensor-info"><div class="sensor-name">${channel.name}</div><div class="sensor-short">${channelInfo}</div></div><div class="sensor-value"><div class="sensor-main-row">${type==='pt'?`<div class="sensor-raw-group"><span class="sensor-raw">raw: --</span><span class="sensor-raw-ma">mA: --</span>${maxPsi?`<span class="sensor-config">cfg: ${maxPsi}</span>`:''}</div>`:''}<span class="sensor-main">--</span><span class="sensor-units">${channel.units||''}</span></div>${type!=='pt'?'<div class="sensor-raw-group"><span class="sensor-raw">raw: --</span></div>':''}</div>`;
+                container.appendChild(d);
+            });
+        }
+
+        function renderTelemetryPlaceholders() {
+            try { renderSensorGroup('pt',ptChannels,'pt-readings'); } catch(e) {}
+            try { renderSensorGroup('lc',lcChannels,'lc-readings'); } catch(e) {}
+            try { renderSensorGroup('tc',tcChannels,'tc-readings'); } catch(e) {}
+        }
+
+        function controlDC(channelId, state) {
+            const hexChar = toHexChannelChar(channelId);
+            serialSend(`S${hexChar}${state}`);
+            dcState[channelId]=state;
+            const pill=document.getElementById(`dc-toggle-${channelId}`);
+            if(!pill)return;
+            const channelElement=pill.closest('.dc-channel');
+            if(state===1){pill.textContent='ON';pill.className='dc-pill on';channelElement.classList.remove('inactive');channelElement.classList.add('active');}
+            else{pill.textContent='OFF';pill.className='dc-pill off';channelElement.classList.remove('active');channelElement.classList.add('inactive');}
+        }
+
+        function serialSend(command) {
+            if (!ws||ws.readyState!==WebSocket.OPEN){console.warn('WS not connected',command);return;}
+            try{ws.send(JSON.stringify({action:'send',command}));}catch(e){console.error('send failed',e);}
+        }
+        function serialSendAsync(command) {
+            return new Promise((resolve,reject)=>{
+                if(!ws||ws.readyState!==WebSocket.OPEN){reject(new Error('WS not connected'));return;}
+                const sentPrefix='Sent: '+command;
+                const onMsg=(event)=>{try{const msg=JSON.parse(event.data);if(msg.success!==undefined&&typeof msg.message==='string'&&(msg.message===sentPrefix||msg.message.startsWith(sentPrefix))){ws.removeEventListener('message',onMsg);clearTimeout(timeout);resolve(msg);}}catch(_){}};
+                const timeout=setTimeout(()=>{ws.removeEventListener('message',onMsg);resolve(null);},2000);
+                ws.addEventListener('message',onMsg);
+                ws.send(JSON.stringify({action:'send',command}));
+            });
+        }
+        function controlDCToggle(channelId) { controlDC(channelId, dcState[channelId]===1?0:1); }
+        function toHexChannelChar(id) { if(id>=1&&id<=9)return String(id); return {10:'A',11:'B',12:'C'}[id]||String(id); }
+
+        // ── Toast ──
+        function showToast(title, message, type='info') {
+            const icons={success:'fa-check-circle',warning:'fa-exclamation-triangle',error:'fa-times-circle',info:'fa-info-circle'};
+            const toast=document.createElement('div'); toast.className=`toast ${type}`;
+            toast.innerHTML=`<i class="fas ${icons[type]} toast-icon"></i><div class="toast-content"><div class="toast-title">${title}</div><div class="toast-message">${message}</div></div>`;
+            document.body.appendChild(toast); setTimeout(()=>toast.remove(),1500);
+        }
+
+        // ── Terminal ──
+        function appendTerminalLine(text, type='normal') {
+            if(typeof text!=='string'||text.trim().length===0)return;
+            terminalBuffer.push({text:`[${new Date().toLocaleTimeString()}] ${text.trim()}`,type});
+            if(terminalBuffer.length>terminalMaxLines)terminalBuffer.shift();
+            const body=document.getElementById('terminal-body');
+            if(!body)return;
+            body.innerHTML=terminalBuffer.map(e=>`<div class="terminal-line ${e.type}">${e.text}</div>`).join('');
+            body.scrollTop=body.scrollHeight;
+        }
+        function clearTerminal(){terminalBuffer.length=0;const b=document.getElementById('terminal-body');if(b)b.innerHTML='';}
+
+        // ── Arm / Abort / ESTOP ──
+        function armSystem()   { serialSend('a'); document.querySelector('.header').classList.add('armed');    showToast('System Armed','Arm command sent','warning'); }
+        function disarmSystem(){ serialSend('r'); document.querySelector('.header').classList.remove('armed'); showToast('System Disarmed','Disarm command sent','success'); }
+
+        function emergencyStop() {
+            serialSend('r'); document.querySelector('.header').classList.remove('armed');
+            if(typeof Audio!=='undefined'){try{new Audio('./assets/extremely-loud-incorrect-buzzer_0cDaG20.mp3').play().catch(()=>{});}catch(_){}}
+            setAllDCOff();
+            // Disable bang-bang
+            ['lox','fuel'].forEach(bus=>{if(bbState[bus].enabled)bbToggle(bus);});
+            showToast('EMERGENCY STOP','Emergency stop activated','error');
+        }
+
+        let _fuelLagTimer = null;
+        function abort() {
+            const btn = document.getElementById('abort_button');
+            if (abortState==='normal') {
+                loxRunValveIds.forEach(id=>controlDC(id,0));
+                gn2PurgeIds.forEach(id=>controlDC(id,1));
+                fuelRunValveIds.forEach(id=>{const p=document.getElementById(`dc-toggle-${id}`);if(p){p.textContent='CLOSING';p.style.background='#d69e2e';}});
+                if(_fuelLagTimer)clearTimeout(_fuelLagTimer);
+                _fuelLagTimer=setTimeout(()=>{fuelRunValveIds.forEach(id=>controlDC(id,0));_fuelLagTimer=null;},250);
+                // Disable bang-bang
+                ['lox','fuel'].forEach(bus=>{if(bbState[bus].enabled)bbToggle(bus);});
+                abortState='aborted'; btn.classList.remove('safe'); btn.classList.add('aborted'); btn.textContent='PURGING';
+                if(typeof Audio!=='undefined'){try{new Audio('./assets/abort-sound.mp3').play().catch(()=>{});}catch(_){}}
+                showToast('ABORT','LOX closed, fuel closing in 250ms, GN2 purges opened','warning');
+            } else if (abortState==='aborted') {
+                gn2PurgeIds.forEach(id=>controlDC(id,0));
+                abortState='safe'; btn.classList.remove('aborted'); btn.classList.add('safe'); btn.textContent='SAFE';
+                showToast('SAFE','GN2 purges closed','success');
+            } else {
+                abortState='normal'; btn.classList.remove('safe','aborted'); btn.textContent='ABORT';
+                showToast('READY','Abort system reset','info');
+            }
+        }
+
+        function updateConnectionStatus(connected) {
+            const indicator=document.getElementById('connection-indicator');
+            const text=document.getElementById('connection-text');
+            if(connected&&connectedSerialPort){indicator.className='connection-indicator connected';text.textContent=`Connected to ${connectedSerialPort}`;}
+            else{indicator.className='connection-indicator disconnected';text.textContent=connected?'WebSocket Connected':'Disconnected';}
+        }
+
+        let messageCount=0; let dataRateHistory=[]; let startTime=Date.now();
+        function updateTimestamp(){
+            const el=document.getElementById('data-timestamp'); const ie=document.getElementById('info-last-update');
+            if(lastDataUpdate){const ts=lastDataUpdate.toLocaleTimeString();if(el)el.textContent=`Last Update: ${ts}`;if(ie)ie.textContent=`Last Update: ${ts}`;}
+            const si=document.getElementById('stale-indicator'); const st=document.getElementById('stale-text');
+            if(si&&st&&lastDataUpdate){const age=Date.now()-lastDataUpdate.getTime();const s=Math.floor(age/1000);if(age<1000){si.className='stale-indicator fresh';st.textContent='Live';}else if(age<5000){si.className='stale-indicator fresh';st.textContent=`${s}s ago`;}else if(age<30000){si.className='stale-indicator stale';st.textContent=`${s}s ago`;}else{si.className='stale-indicator offline';st.textContent=`${s}s ago`;}}
+        }
+        function updateInfoBar(){
+            const se=document.getElementById('info-serial-port'); if(se)se.textContent=connectedSerialPort||'--';
+            const me=document.getElementById('info-message-count'); if(me)me.textContent=`${messageCount} messages`;
+            const now=Date.now(); dataRateHistory=dataRateHistory.filter(t=>now-t<10000);
+            if(dataRateHistory.length>1){const re=document.getElementById('info-data-rate');if(re)re.textContent=(dataRateHistory.length/10).toFixed(1)+' Hz';}
+            const elapsed=now-startTime; const mins=Math.floor(elapsed/60000)%60; const hrs=Math.floor(elapsed/3600000);
+            const ue=document.getElementById('info-uptime'); if(ue)ue.textContent=`Uptime: ${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}`;
+        }
+        setInterval(updateInfoBar,1000);
+        function refreshTelemetry(){document.querySelectorAll('.refresh-btn i').forEach(i=>{i.classList.add('fa-spin');setTimeout(()=>i.classList.remove('fa-spin'),1000)});try{loadConfigurations();}catch(_){}}
+        function showHelp(){showToast('MOE Start/Stop','PANDA :3941 for valves | NI DAQ :3000 for sensors | BB: bang-bang','info');}
+
+        function setupEventListeners() {
+            document.getElementById('arm-btn-top').addEventListener('click', armSystem);
+            document.getElementById('disarm-btn-top').addEventListener('click', disarmSystem);
+            document.getElementById('emergency_stop').addEventListener('click', emergencyStop);
+            document.getElementById('abort_button').addEventListener('click', abort);
+            document.addEventListener('keydown',(e)=>{if(e.key==='Escape'||e.key==='Enter'){e.preventDefault();e.stopImmediatePropagation();if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();abort();return false;}},true);
+            document.addEventListener('keydown',(e)=>{if(e.ctrlKey&&e.key==='a'){e.preventDefault();armSystem();}if(e.ctrlKey&&e.key==='d'){e.preventDefault();disarmSystem();}});
+        }
+
+        setInterval(updateTimestamp,1000);
+        setInterval(()=>{if(!isWsConnected&&(!ws||ws.readyState===WebSocket.CLOSED))initWebSocket();if(!isNidaqConnected&&(!nidaqWs||nidaqWs.readyState===WebSocket.CLOSED))initNidaqWebSocket();},5000);
+
+        // ── Bang-Bang (MOE addition) ──
+        function initBBFromConfig() {
+            if (!bbConfig||!bbConfig.buses) return;
+            ['lox','fuel'].forEach(bus=>{
+                const cfg=bbConfig.buses[bus]; if(!cfg)return;
+                let saved={};
+                try{saved=(JSON.parse(localStorage.getItem('bbParams')||'{}'))[bus]||{};}catch(e){}
+                const sp=Number.isFinite(saved.setpoint)?saved.setpoint:cfg.setpoint_psi;
+                const db=(Number.isFinite(saved.deadband)&&saved.deadband>0)?saved.deadband:cfg.deadband_psi;
+                const wt=(Number.isFinite(saved.waitMs)&&saved.waitMs>=0)?saved.waitMs:cfg.wait_ms;
+                bbState[bus].setpoint=sp; bbState[bus].deadband=db; bbState[bus].waitMs=wt;
+                document.getElementById(`bb-${bus}-setpoint`).value=sp;
+                document.getElementById(`bb-${bus}-deadband`).value=db;
+                document.getElementById(`bb-${bus}-wait`).value=wt;
+                // Update sensor labels
+                if(cfg.pt_sensors){
+                    cfg.pt_sensors.forEach((s,i)=>{
+                        const el=document.querySelector(`#bb-${bus}-sensors .bb-sensor:nth-child(${i+1}) .bb-sensor-label`);
+                        if(el)el.textContent=`PT${s.ni_daq_channel} — ${s.label}`;
+                    });
+                }
+                // Update card title
+                const titleEl=document.querySelector(`#bb-${bus}-card .bb-card-title`);
+                if(titleEl&&cfg.label)titleEl.innerHTML=`<i class="fas ${bus==='lox'?'fa-snowflake':'fa-fire'}"></i> ${cfg.label}`;
+                // Update valve label
+                if(cfg.valve){const vl=document.querySelector(`#bb-${bus}-card .bb-valve-label`);if(vl)vl.textContent=`${cfg.valve.label}:`;}
+            });
+        }
+
+        function bbApplyParams(bus) {
+            const sp=parseFloat(document.getElementById(`bb-${bus}-setpoint`).value);
+            const db=parseFloat(document.getElementById(`bb-${bus}-deadband`).value);
+            const wt=parseFloat(document.getElementById(`bb-${bus}-wait`).value);
+            if(Number.isFinite(sp))bbState[bus].setpoint=sp;
+            if(Number.isFinite(db)&&db>0)bbState[bus].deadband=db;
+            if(Number.isFinite(wt)&&wt>=0)bbState[bus].waitMs=wt;
+            try{const saved=JSON.parse(localStorage.getItem('bbParams')||'{}');saved[bus]={setpoint:bbState[bus].setpoint,deadband:bbState[bus].deadband,waitMs:bbState[bus].waitMs};localStorage.setItem('bbParams',JSON.stringify(saved));}catch(e){}
+        }
+
+        function bbToggle(bus) {
+            bbState[bus].enabled=!bbState[bus].enabled;
+            const btn=document.getElementById(`bb-${bus}-enable`);
+            const card=document.getElementById(`bb-${bus}-card`);
+            const statusEl=document.getElementById(`bb-${bus}-status`);
+            if(bbState[bus].enabled){
+                btn.className='bb-enable-btn on'; btn.innerHTML='<i class="fas fa-stop"></i> Disable BB';
+                card.classList.add(`active-${bus}`);
+                statusEl.className='bb-status-bar active';
+                showToast(`${bus.toUpperCase()} BB Enabled`,`Setpoint: ${bbState[bus].setpoint} PSI ±${bbState[bus].deadband/2} PSI`,'warning');
+            } else {
+                btn.className='bb-enable-btn off'; btn.innerHTML='<i class="fas fa-play"></i> Enable BB';
+                card.classList.remove(`active-${bus}`);
+                statusEl.className='bb-status-bar'; statusEl.textContent='Disabled';
+                if(bbConfig&&bbConfig.buses[bus]&&bbConfig.buses[bus].valve){controlDC(bbConfig.buses[bus].valve.dc_id,0);}
+                bbState[bus].valveOpen=false;
+                updateBBValveUI(bus,false,'idle');
+                showToast(`${bus.toUpperCase()} BB Disabled`,'Valve forced closed','info');
+            }
+            // Start interval if any bus is enabled; stop if none
+            const anyEnabled=bbState.lox.enabled||bbState.fuel.enabled;
+            if(anyEnabled&&!bbIntervalId) bbIntervalId=setInterval(bbTick,50);
+            if(!anyEnabled&&bbIntervalId){clearInterval(bbIntervalId);bbIntervalId=null;}
+        }
+
+        function bbTick() {
+            ['lox','fuel'].forEach(bus=>{
+                const st=bbState[bus];
+                if(!st.enabled||!bbConfig||!bbConfig.buses[bus])return;
+                const cfg=bbConfig.buses[bus];
+                const ch0=cfg.pt_sensors[0].ni_daq_channel;
+                const ch1=cfg.pt_sensors[1]?cfg.pt_sensors[1].ni_daq_channel:null;
+                const pressure=nidaqPT[ch0];
+                // Update PT displays
+                const pt0El=document.getElementById(`bb-${bus}-pt0`);
+                const pt1El=document.getElementById(`bb-${bus}-pt1`);
+                if(pt0El&&typeof nidaqPT[ch0]==='number'){const v=nidaqPT[ch0];const hi=st.setpoint+st.deadband/2;const lo=st.setpoint-st.deadband/2;pt0El.textContent=`${v.toFixed(1)} PSI`;pt0El.className='bb-sensor-value'+(v>hi?' hi':v<lo?' lo':'');}
+                if(pt1El&&ch1!==null&&typeof nidaqPT[ch1]==='number')pt1El.textContent=`${nidaqPT[ch1].toFixed(1)} PSI`;
+                if(typeof pressure!=='number')return;
+                const now=Date.now();
+                if(now-st.lastSwitch<st.waitMs)return;
+                const hi=st.setpoint+st.deadband/2;
+                const lo=st.setpoint-st.deadband/2;
+                const dcId=cfg.valve.dc_id;
+                if(pressure>hi&&!st.valveOpen){
+                    st.valveOpen=true; st.lastSwitch=now; controlDC(dcId,1); updateBBValveUI(bus,true);
+                    updateBBStatus(bus,`OPEN | ${pressure.toFixed(1)} > ${hi.toFixed(1)} PSI`);
+                } else if(pressure<lo&&st.valveOpen){
+                    st.valveOpen=false; st.lastSwitch=now; controlDC(dcId,0); updateBBValveUI(bus,false);
+                    updateBBStatus(bus,`CLOSED | ${pressure.toFixed(1)} < ${lo.toFixed(1)} PSI`);
+                } else {
+                    const zone=pressure>hi?'OVERPRESSURE':pressure<lo?'UNDERPRESSURE':'IN BAND';
+                    updateBBStatus(bus,`${zone} | ${pressure.toFixed(1)} PSI | wait ${Math.max(0,st.waitMs-(now-st.lastSwitch))}ms`);
+                }
+            });
+        }
+
+        function updateBBValveUI(bus, open, forceClass) {
+            const el=document.getElementById(`bb-${bus}-valve-state`); if(!el)return;
+            if(forceClass){el.textContent=forceClass.toUpperCase();el.className=`bb-valve-state ${forceClass}`;return;}
+            el.textContent=open?'OPEN':'CLOSED'; el.className=`bb-valve-state ${open?'open':'closed'}`;
+        }
+        function updateBBStatus(bus, text){const el=document.getElementById(`bb-${bus}-status`);if(!el)return;el.textContent=text;el.className='bb-status-bar active';}
+
+        // ── Sequencer (identical to panda-daq-ui-v2) ──
+        function setupSequencerEventListeners() {
+            document.getElementById('add-sequence-action').addEventListener('click', addSequenceAction);
+            document.getElementById('upload-sequence').addEventListener('click', uploadSequence);
+            document.getElementById('clear-sequence').addEventListener('click', clearSequence);
+            document.getElementById('save-sequence').addEventListener('click', saveSequenceToFile);
+            document.getElementById('load-sequence').addEventListener('click', loadSequenceFromFile);
+            document.getElementById('run-sequence').addEventListener('click', runSequence);
+        }
+        function addSequenceAction() {
+            const valveOptions=Object.keys(valveConfig).map(id=>`<option value="${id}">${valveConfig[id].name}</option>`).join('');
+            const block=document.createElement('div'); block.className='sequence-block'; block.dataset.type='action';
+            block.innerHTML=`<div class="block-header block-action-on"><span>Action</span><button class="remove-block">&times;</button></div><div class="block-content"><label class="form-label">Valve:</label><select class="form-select valve-select">${valveOptions}</select><label class="form-label">Action:</label><select class="form-select action-select"><option value="on">OPEN</option><option value="off">CLOSE</option></select><label class="form-label">Delay After (ms):</label><input type="number" class="form-input delay-input" value="0" min="0" step="1"></div>`;
+            document.getElementById('sequence-blocks').appendChild(block);
+            block.querySelector('.remove-block').addEventListener('click',()=>{block.remove();updateSequencePreview();});
+            const as=block.querySelector('.action-select'); as.addEventListener('change',function(){const h=block.querySelector('.block-header');if(this.value==='on'){h.classList.remove('block-action-off');h.classList.add('block-action-on');}else{h.classList.remove('block-action-on');h.classList.add('block-action-off');}updateSequencePreview();});
+            block.querySelector('.valve-select').addEventListener('change',updateSequencePreview);
+            block.querySelector('.delay-input').addEventListener('input',updateSequencePreview);
+            updateSequencePreview();
+        }
+        function updateSequencePreview() {
+            const blocks=document.querySelectorAll('.sequence-block'); let command='command:'; const fp=[];
+            blocks.forEach((block,index)=>{if(block.dataset.type==='action'){const ch=block.querySelector('.valve-select').value;const action=block.querySelector('.action-select').value==='on'?'1':'0';const delay=block.querySelector('.delay-input').value.trim();command+=`s${ch}${action}`;let dm=parseInt(delay||'0',10);if(isNaN(dm)||dm<0)dm=0;if(dm>99999)dm=99999;const dp=String(dm).padStart(5,'0');let cc=ch;const cn=parseInt(ch,10);if(!isNaN(cn)){if(cn===10)cc='A';else if(cn===11)cc='B';else if(cn===12)cc='C';}fp.push(`s${cc}${action}.${dp}`);if(index<blocks.length-1){command+=`.${delay||'0'},`;}else if(delay&&parseInt(delay)>0)command+=`.${delay}`;}});
+            document.getElementById('command-preview').textContent=command; currentFirmwareSequence=fp.join(',');
+        }
+        function uploadSequence(){if(!currentFirmwareSequence||!currentFirmwareSequence.trim()){showToast('Empty Sequence','Add an action first','warning');return;}resetCallbackIndicator();serialSend(currentFirmwareSequence);savedSequence=currentFirmwareSequence;try{new Audio('./assets/click.mp3').play().catch(()=>{});}catch(_){}showToast('Uploaded','Sequence saved','success');}
+        async function runSequence(){if(_firing)return;const seq=(currentFirmwareSequence&&currentFirmwareSequence.trim())?currentFirmwareSequence:savedSequence;if(!seq){showToast('No Sequence','Create or upload one first.','warning');return;}_firing=true;resetCallbackIndicator();try{await serialSendAsync(seq);savedSequence=seq;await new Promise(r=>setTimeout(r,200));await serialSendAsync('f');}catch(e){console.error('[SEQ]',e);}finally{_firing=false;}try{new Audio('./assets/click.mp3').play().catch(()=>{});}catch(_){}showToast('Firing',currentFirmwareSequence?'Current build executing':'Sequence executing','success');}
+        function clearSequence(){document.getElementById('sequence-blocks').innerHTML='';updateSequencePreview();}
+        function saveSequenceToFile(){const blocks=document.querySelectorAll('.sequence-block');const seq={blocks:[]};blocks.forEach(b=>{if(b.dataset.type==='action')seq.blocks.push({type:'action',channel:b.querySelector('.valve-select').value,action:b.querySelector('.action-select').value,delay:b.querySelector('.delay-input').value});});const blob=new Blob([JSON.stringify(seq,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='sequence.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);try{new Audio('./assets/click.mp3').play().catch(()=>{});}catch(_){}showToast('Saved','Sequence downloaded','success');}
+        function loadSequenceFromFile(){const input=document.createElement('input');input.type='file';input.accept='.json';input.onchange=function(e){const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=function(ev){try{const seq=JSON.parse(ev.target.result);clearSequence();seq.blocks.forEach(b=>{if(b.type==='action')addSequenceActionWithData(b.channel,b.action,b.delay);});try{new Audio('./assets/click.mp3').play().catch(()=>{});}catch(_){}showToast('Loaded','Sequence loaded','success');}catch(err){showToast('Error','Invalid sequence file','error');}};reader.readAsText(file);};input.click();}
+        function addSequenceActionWithData(channel,action,delay){const valveOptions=Object.keys(valveConfig).map(id=>`<option value="${id}" ${id==channel?'selected':''}>${valveConfig[id].name}</option>`).join('');const block=document.createElement('div');block.className='sequence-block';block.dataset.type='action';const acc=action==='on'?'block-action-on':'block-action-off';block.innerHTML=`<div class="block-header ${acc}"><span>Action</span><button class="remove-block">&times;</button></div><div class="block-content"><label class="form-label">Valve:</label><select class="form-select valve-select">${valveOptions}</select><label class="form-label">Action:</label><select class="form-select action-select"><option value="on" ${action==='on'?'selected':''}>OPEN</option><option value="off" ${action==='off'?'selected':''}>CLOSE</option></select><label class="form-label">Delay After (ms):</label><input type="number" class="form-input delay-input" value="${delay||0}" min="0" step="1"></div>`;document.getElementById('sequence-blocks').appendChild(block);block.querySelector('.remove-block').addEventListener('click',()=>{block.remove();updateSequencePreview();});const as=block.querySelector('.action-select');as.addEventListener('change',function(){const h=block.querySelector('.block-header');if(this.value==='on'){h.classList.remove('block-action-off');h.classList.add('block-action-on');}else{h.classList.remove('block-action-on');h.classList.add('block-action-off');}updateSequencePreview();});block.querySelector('.valve-select').addEventListener('change',updateSequencePreview);block.querySelector('.delay-input').addEventListener('input',updateSequencePreview);updateSequencePreview();}
+
+        // ── Presets (identical to panda-daq-ui-v2) ──
+        function requestPresetsFromServer(){if(!ws||ws.readyState!==WebSocket.OPEN)return;appendTerminalLine('Requesting presets from server...','seq');ws.send(JSON.stringify({action:'preset_load'}));}
+        function savePresetToServer(name,sequence){if(!ws||ws.readyState!==WebSocket.OPEN){showToast('Connection Error','WebSocket not connected','error');return;}appendTerminalLine(`Saving preset ${String(name).toUpperCase()}...`,'seq');ws.send(JSON.stringify({action:'preset_save',name,sequence}));}
+        function handlePresetLoadResponse(msg){if(!msg||!msg.success||!msg.presets)return;Object.keys(presetSequences).forEach(k=>{const v=msg.presets[k];presetSequences[k]=(typeof v==='string'&&v.trim().length>0)?v:null;updatePresetUI(k,presetSequences[k]);});appendTerminalLine('Preset set synchronized from server','seq');}
+        function handlePresetSaveResponse(msg){if(!msg)return;if(!msg.success){showToast('Preset Error',msg.message||'Failed to save preset','error');appendTerminalLine(msg.message||'Preset save failed','err');return;}if(msg.presets)handlePresetLoadResponse(msg);else if(msg.name&&msg.sequence){presetSequences[msg.name]=msg.sequence;updatePresetUI(msg.name,msg.sequence);}const label=(msg.name||'').toUpperCase();showToast('Preset Saved',label?`${label} ready`:'Preset updated','success');appendTerminalLine(`Preset ${label||msg.name} saved`,'seq');if(msg.name)setTimeout(()=>armPreset(msg.name),50);}
+        function getPresetLabel(name){const k=(name||'').toLowerCase();if(k==='gox')return 'GOX Purge';if(k==='hotfire')return 'Hotfire';return(name||'').toUpperCase();}
+        function getPresetSequence(name){const k=(name||'').toLowerCase();const s=presetSequences[k];return(typeof s==='string'&&s.trim().length>0)?s.trim():null;}
+        function armPreset(name){const label=getPresetLabel(name);const seq=getPresetSequence(name);if(!seq){showToast('Preset Empty',`No sequence for ${label}`,'error');requestPresetsFromServer();return false;}resetCallbackIndicator();serialSend(seq);savedSequence=seq;try{new Audio('./assets/click.mp3').play().catch(()=>{});}catch(_){}showToast('Preset Armed',`${label} uploaded`,'success');appendTerminalLine(`Preset ${label} armed -> ${seq}`,'seq');return true;}
+        function setPresetFromCurrent(name){if(!currentFirmwareSequence||!currentFirmwareSequence.trim()){showToast('Empty Sequence','Build a sequence first','warning');return;}Swal.fire({title:`Set ${getPresetLabel(name)}?`,icon:'question',showCancelButton:true,confirmButtonColor:'#3182ce',cancelButtonColor:'#718096',confirmButtonText:'Save',timer:3000}).then(r=>{if(r.isConfirmed)savePresetToServer(name,currentFirmwareSequence);});}
+        function updatePresetUI(name,sequence){const se=document.getElementById(`${name}-status`);const pe=document.getElementById(`${name}-preview`);const ub=document.getElementById(`${name}-upload-btn`);const fb=document.getElementById(`${name}-fire-btn`);if(sequence&&sequence.trim()){se.textContent='SET';se.className='preset-status set';pe.textContent=sequence;ub.disabled=false;fb.disabled=false;}else{se.textContent='NOT SET';se.className='preset-status empty';pe.textContent='No sequence set';ub.disabled=true;fb.disabled=true;}}
+        async function firePreset(name){if(_firing)return;const label=getPresetLabel(name);const seq=getPresetSequence(name);if(!seq){showToast('Preset Empty',`No sequence for ${label}`,'error');requestPresetsFromServer();return;}_firing=true;resetCallbackIndicator();try{await serialSendAsync(seq);savedSequence=seq;await new Promise(r=>setTimeout(r,200));await serialSendAsync('f');}catch(e){console.error('[PRESET]',e);}finally{_firing=false;}appendTerminalLine(`Preset ${label} fire command sent`,'seq');showToast('Firing',`${label} executing`,'success');}
+
+        // ── Sequence Callback ──
+        function isSequenceAckText(text){if(typeof text!=='string'||!text)return false;const l=text.toLowerCase();if(l.includes('firing idx'))return true;if(!l.includes('sequence'))return false;return['ack','received','upload','packet','firing','saved','complete'].some(k=>l.includes(k));}
+        function extractSequenceAckText(msg){if(!msg)return null;const c=typeof msg==='string'?[msg]:[msg.content,msg.message,msg.raw].filter(Boolean);for(const x of c){if(isSequenceAckText(x))return x.trim();}return null;}
+        function handleSequenceCallback(data,messageText=null){const i=document.getElementById('callback-indicator');const t=document.getElementById('callback-text');const ts=document.getElementById('callback-timestamp');if(!i)return;lastSequenceCallback=new Date();i.classList.add('received');t.classList.add('received');const display=messageText||(extractSequenceAckText(data)||'Sequence received by PANDA ✓');t.textContent=display;ts.textContent=lastSequenceCallback.toLocaleTimeString();appendTerminalLine(display,display.toLowerCase().includes('error')?'err':'seq');try{const a=new Audio('./assets/click.mp3');a.volume=0.3;a.play().catch(()=>{});}catch(_){}setTimeout(()=>{i.classList.remove('received');t.classList.remove('received');t.textContent='Waiting for sequence acknowledgment...';},5000);}
+        function resetCallbackIndicator(){const i=document.getElementById('callback-indicator');const t=document.getElementById('callback-text');const ts=document.getElementById('callback-timestamp');if(i)i.classList.remove('received');if(t){t.classList.remove('received');t.textContent='Waiting for sequence acknowledgment...';}if(ts)ts.textContent='';}
+    </script>
 </body>
 </html>

@@ -1,21 +1,35 @@
 @echo off
-setlocal enabledelayedexpansion
-
-echo MOE Ground Control Backend - Startup
-echo.
-
-if not exist venv (
-    echo Creating virtual environment...
-    python -m venv venv
-)
-
-call venv\Scripts\activate.bat
-
-echo Installing dependencies...
-pip install -q -r requirements.txt
+setlocal enableextensions
+pushd "%~dp0.."
 
 echo.
-echo Starting MOE server on port 3942...
-python server.py --config configs/moe_system.json
+echo ================================================
+echo   ERPL Ground Control - MOE System Startup
+echo ================================================
+echo.
 
-pause
+echo Regenerating configs from sensor_config.xlsx...
+python generate_configs.py
+echo.
+
+call start_nidaq.bat
+timeout /t 2 /nobreak >nul
+call start_panda.bat
+
+echo.
+echo ================================================
+echo   MOE System Started
+echo ================================================
+echo.
+echo NI DAQ:      http://localhost:3000
+echo PANDA:       http://localhost:8080
+echo MOE UI:      http://localhost:8080/moe-start-stop.html
+echo.
+echo Use moe\stop_moe.bat to shutdown everything
+echo.
+
+timeout /t 3 /nobreak >nul
+start http://localhost:8080/moe-start-stop.html
+
+popd
+endlocal
