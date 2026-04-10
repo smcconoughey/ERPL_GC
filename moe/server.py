@@ -546,7 +546,7 @@ class MOEBackend:
             logger.info(f"Connected {device_id}")
         return result
 
-    async def handle_client(self, websocket: WebSocketServerProtocol, path: str):
+    async def handle_client(self, websocket):
         """Handle WebSocket client connection"""
         with self.clients_lock:
             self.clients.append(websocket)
