@@ -1,0 +1,32 @@
+{
+    "buses": {
+        "lox": {
+            "label": "LOX Bus",
+            "setpoint_psi": 200.0,
+            "deadband_psi": 10.0,
+            "wait_ms": 500,
+            "pt_sensors": [
+                {"ni_daq_channel": 0, "label": "LOX Tank PT"},
+                {"ni_daq_channel": 1, "label": "LOX Feed PT"}
+            ],
+            "valve": {
+                "dc_id": 4,
+                "label": "PB9 GOX Purge (DC4)"
+            }
+        },
+        "fuel": {
+            "label": "Fuel Bus",
+            "setpoint_psi": 200.0,
+            "deadband_psi": 10.0,
+            "wait_ms": 500,
+            "pt_sensors": [
+                {"ni_daq_channel": 2, "label": "Fuel Tank PT"},
+                {"ni_daq_channel": 3, "label": "Fuel Feed PT"}
+            ],
+            "valve": {
+                "dc_id": 7,
+                "label": "PB7 Fuel Vent (DC7)"
+            }
+        }
+    }
+}
