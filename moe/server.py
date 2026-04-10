@@ -292,17 +292,36 @@ class PandaConnection(DeviceConnection):
         self.update_state()
         return data
 
+    def _resolve_port(self) -> str:
+        """Return the configured port, or auto-detect the first available USB serial device."""
+        import os
+        if os.path.exists(self.port):
+            return self.port
+        # Windows COM ports don't appear as filesystem paths — try them directly
+        if self.port.upper().startswith('COM'):
+            return self.port
+        # Auto-detect: pick the first USB/ACM/modem port
+        candidates = [
+            p.device for p in serial.tools.list_ports.comports()
+            if any(k in p.device.lower() for k in ('usb', 'acm', 'modem', 'usbserial'))
+        ]
+        if candidates:
+            logger.warning(f"{self.device_id}: {self.port} not found, trying {candidates[0]}")
+            return candidates[0]
+        return self.port  # let Serial() raise with the original name
+
     async def connect(self) -> bool:
+        port = self._resolve_port()
         try:
-            self.ser = serial.Serial(self.port, self.baud, timeout=2)
+            self.ser = serial.Serial(port, self.baud, timeout=2)
             self.connected = True
             self.stop_reading = False
             self.read_thread = threading.Thread(target=self._read_loop, daemon=True)
             self.read_thread.start()
-            logger.info(f"{self.device_id} connected to {self.port}")
+            logger.info(f"{self.device_id} connected to {port}")
             return True
         except Exception as e:
-            logger.error(f"{self.device_id} connection failed: {e}")
+            logger.error(f"{self.device_id} connection failed on {port}: {e}")
             return False
 
     async def disconnect(self):
@@ -315,17 +334,41 @@ class PandaConnection(DeviceConnection):
                 pass
             self.ser = None
 
+    def _handle_line(self, line: str):
+        """Route a received serial line to the right handler."""
+        # V2 init strings — mark confirmed connected and log
+        if line in ('BOOT', 'PANDA_V2_INIT'):
+            logger.info(f"{self.device_id}: {line}")
+            self.connected = True
+            self.update_state()
+            return
+        if line.startswith(('ARM_ACK', 'ARM_ALREADY', 'ARM_BUSY')):
+            self.armed = True
+            self.update_state()
+            return
+        if line.startswith('DISARM_ACK'):
+            self.armed = False
+            self.update_state()
+            return
+        if line.startswith('WARN:'):
+            logger.warning(f"{self.device_id}: {line}")
+            return
+        self._parse_serial_packet(line)
+
     def _read_loop(self):
-        """Background thread: read serial data"""
+        """Background thread: read serial data from PandaV2."""
         while self.connected and not self.stop_reading:
             try:
-                if self.ser and self.ser.in_waiting:
+                if self.ser:
+                    # readline blocks up to timeout=2s — no in_waiting guard needed.
+                    # The guard caused missed lines on fresh connect when the OS buffer
+                    # hadn't filled yet.
                     line = self.ser.readline().decode('utf-8', errors='ignore').strip()
                     if line:
-                        self._parse_serial_packet(line)
+                        self._handle_line(line)
             except Exception as e:
                 logger.debug(f"{self.device_id} read error: {e}")
-                time.sleep(0.01)
+                time.sleep(0.1)
 
     async def send_command(self, command: str) -> bool:
         """Send a command to the device"""
@@ -817,7 +860,7 @@ class MOEBackend:
                             if self._log_count % 10 == 0:
                                 self.log_file.flush()
 
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.1)
             except Exception as e:
                 logger.error(f"Broadcast loop error: {e}")
                 await asyncio.sleep(1)
@@ -873,14 +916,16 @@ class ReusableTCPServer(socketserver.TCPServer):
 
 
 def start_http_server(http_port: int):
-    web_root = str(Path(__file__).parent / "public")
+    # Serve from the repo root public/ directory so moeui.html is accessible.
+    # server.py lives in moe/, so go one level up.
+    web_root = str(Path(__file__).parent.parent / "public")
     import os
     os.chdir(web_root)
     handler = http.server.SimpleHTTPRequestHandler
     try:
         httpd = ReusableTCPServer(("0.0.0.0", http_port), handler)
         threading.Thread(target=httpd.serve_forever, daemon=True).start()
-        logger.info(f"HTTP server on http://0.0.0.0:{http_port}")
+        logger.info(f"HTTP server on http://0.0.0.0:{http_port} (serving {web_root})")
         return httpd
     except Exception as e:
         logger.error(f"HTTP server failed: {e}")
@@ -900,7 +945,7 @@ async def main():
     http_port = args.http_port
     httpd = start_http_server(http_port)
     if httpd:
-        logger.info(f"  MOE UI: http://localhost:{http_port}/moe.html")
+        logger.info(f"  MOE UI: http://localhost:{http_port}/moeui.html")
         logger.info(f"  Index:  http://localhost:{http_port}/index.html")
 
     if args.test:

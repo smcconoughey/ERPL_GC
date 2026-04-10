@@ -23,13 +23,13 @@ echo ================================================
 echo.
 echo NI DAQ:      http://localhost:3000
 echo PANDA:       http://localhost:8080
-echo MOE UI:      http://localhost:8080/moe-start-stop.html
+echo MOE UI:      http://localhost:8080/moeui.html
 echo.
 echo Use moe\stop_moe.bat to shutdown everything
 echo.
 
 timeout /t 3 /nobreak >nul
-start http://localhost:8080/moe-start-stop.html
+start http://localhost:8080/moeui.html
 
 popd
 endlocal
