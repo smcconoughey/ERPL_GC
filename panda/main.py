@@ -18,16 +18,16 @@ import os
 from typing import List, Dict
 import logging
 import csv
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Configuration
-BAUD_RATE = 460800 # Originally 115200
+BAUD_RATE = 460800
 WS_PORT = 3941  # WebSocket port for UIs to connect
 HTTP_PORT = 8080  # Static file server port
 UDP_GROUP = "239.255.0.1"
 UDP_PORT = 5005
-FORCE_SERIAL_PORT = "COM4"  # Hardcoded per request
+FORCE_SERIAL_PORT = "COM5"  # Hardcoded per request
 
 class TestDataGenerator:
     def __init__(self, test_data_file="test_data.json", scenario="normal_operation"):
@@ -461,20 +461,18 @@ class SerialProcessor:
                     for i, val in enumerate(numeric[:6], 1):
                         self.current_data['lc'][i] = val
                 elif id_char == 't':
-                    # Panda firmware: 't' packet contains LC first (0..5), then TC (0..5)
                     numeric = [_to_float(tok) for tok in tokens]
                     out_lines.append(line)
-                    # First up to 6 -> LC
-                    for i, val in enumerate(numeric[:6], 1):
+                    num_lc = min(8, len(numeric))
+                    for i, val in enumerate(numeric[:num_lc], 1):
                         self.current_data['lc'][i] = val
-                    # Next up to 6 -> TC
-                    for i, val in enumerate(numeric[6:12], 1):
+                    for i, val in enumerate(numeric[num_lc:num_lc + 8], 1):
                         self.current_data['tc'][i] = val
                 elif id_char == 's':
                     currents = [_to_float(tok) for tok in tokens]
                     states = [val >= getattr(self, 'dc_threshold', 0.1) for val in currents]
                     dc_meta = {
-                        "timestamp": datetime.utcnow().isoformat() + 'Z',
+                        "timestamp": datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
                         "currents": currents,
                         "states": states,
                     }
@@ -525,33 +523,72 @@ class SerialProcessor:
             self.ser.close()
 
     def read_serial(self):
-        # Stream at full line rate from the board; let UI throttle display if needed
         lines_read = 0
         last_report = time.time()
+        _hex_diag_remaining = 3
+        _buf = bytearray()
+
         while self.connected:
             try:
-                line = self.ser.readline().decode('utf-8', errors='ignore').strip()
-                if line:
-                    # Echo raw bus for debugging (throttled)
+                waiting = self.ser.in_waiting
+                chunk = self.ser.read(max(1, waiting))
+                if not chunk:
+                    now = time.time()
+                    if now - last_report >= 2.0:
+                        logging.info("Serial lines/sec: %.1f  buf=%dB  (no data)",
+                                     lines_read / (now - last_report), len(_buf))
+                        lines_read = 0
+                        last_report = now
+                    continue
+
+                if _hex_diag_remaining > 0:
+                    snippet = chunk[:120]
+                    logging.info("SERIAL HEX (%dB): %s", len(chunk), snippet.hex(' '))
+                    _hex_diag_remaining -= 1
+
+                _buf.extend(chunk)
+
+                while b'\n' in _buf:
+                    idx = _buf.index(b'\n')
+                    raw_line = bytes(_buf[:idx])
+                    del _buf[:idx + 1]
+                    line = raw_line.decode('ascii', errors='replace').strip()
+                    if not line:
+                        continue
+
                     if self.debug_print_serial:
                         try:
                             now = time.time()
-                            if (now - self._last_raw_print) >= max(0.0, self.debug_raw_throttle_sec):
+                            if (now - self._last_raw_print) >= max(
+                                0.0, self.debug_raw_throttle_sec
+                            ):
                                 print(f"RAW: {line}")
                                 self._last_raw_print = now
                         except Exception:
                             pass
+
                     self.data_queue.put(line)
                     lines_read += 1
-                    now = time.time()
-                    if now - last_report >= 2.0:
-                        try:
-                            rate = lines_read / (now - last_report)
-                            logging.info(f"Serial lines/sec: {rate:.1f}")
-                        except Exception:
-                            pass
-                        lines_read = 0
-                        last_report = now
+
+                if len(_buf) > 16384:
+                    overflow = bytes(_buf[-200:])
+                    logging.warning(
+                        "Serial buffer overflow (%dB, no newline); tail hex: %s",
+                        len(_buf), overflow.hex(' ')
+                    )
+                    _buf.clear()
+
+                now = time.time()
+                if now - last_report >= 2.0:
+                    try:
+                        rate = lines_read / (now - last_report)
+                        logging.info("Serial lines/sec: %.1f  buf=%dB",
+                                     rate, len(_buf))
+                    except Exception:
+                        pass
+                    lines_read = 0
+                    last_report = now
+
             except Exception:
                 pass
     
@@ -807,7 +844,7 @@ class SerialProcessor:
             return
         
         with self.log_lock:
-            timestamp = datetime.utcnow().isoformat() + 'Z'
+            timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
             elapsed_ms = int((time.time() - self.log_start_time) * 1000) if self.log_start_time else 0
             
             row = [timestamp, elapsed_ms]
@@ -840,7 +877,7 @@ class SerialProcessor:
         try:
             if not self.cmd_log_writer or not self.logging_enabled:
                 return
-            timestamp = datetime.utcnow().isoformat() + 'Z'
+            timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
             elapsed_ms = int((time.time() - self.log_start_time) * 1000) if self.log_start_time else 0
             self.cmd_log_writer.writerow([timestamp, elapsed_ms, command])
             # Flush commands more aggressively to not lose actions

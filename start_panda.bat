@@ -11,7 +11,7 @@ echo.
 set "VENV_DIR=.venv"
 set "PY=%VENV_DIR%\Scripts\python.exe"
 set "WS_PORT=3941"
-set "DEFAULT_PORT=COM4"
+set "DEFAULT_PORT=COM5"
 set "ARGS=%*"
 
 rem If no --port/-p provided, default to COM4
