@@ -1,13 +1,41 @@
 <script>
+  import { onMount } from 'svelte';
   import SensorCard from '../components/SensorCard.svelte';
   import { devices } from '../stores/devices.js';
   import { sensorStatus } from '../utils/format.js';
 
-  // Reactive device data
-  $: rocketPt = $devices['rocket_panda']?.pt || {};
-  $: gsePt = $devices['gse_panda']?.pt || {};
-  $: rocketLc = $devices['rocket_panda']?.lc || {};
-  $: rocketTc = $devices['rocket_panda']?.tc || {};
+  // per-device TC metadata { deviceId: { channelId: { chill_threshold } } }
+  let tcMeta = {};
+
+  onMount(async () => {
+    const host = window.location.hostname || 'localhost';
+    const base = `http://${host}:8081/configs`;
+    const files = {
+      rocket_panda: 'rocket_panda_tc.json',
+      gse_panda: 'gse_panda_tc.json',
+      ni_daq: 'ni_daq_tc.json',
+    };
+    const results = await Promise.all(
+      Object.entries(files).map(async ([dev, path]) => {
+        try {
+          const r = await fetch(`${base}/${path}`, { cache: 'no-store' });
+          if (!r.ok) return [dev, null];
+          return [dev, await r.json()];
+        } catch { return [dev, null]; }
+      })
+    );
+    const next = {};
+    for (const [dev, json] of results) {
+      if (!json || !Array.isArray(json.channels)) continue;
+      next[dev] = {};
+      for (const entry of json.channels) {
+        const t = entry.tc;
+        if (!t) continue;
+        next[dev][t.id] = { chill_threshold: t.chill_threshold ?? null };
+      }
+    }
+    tcMeta = next;
+  });
 
   function ptChannels(deviceId) {
     const d = $devices[deviceId];
@@ -38,6 +66,7 @@
   function tcChannels(deviceId) {
     const d = $devices[deviceId];
     if (!d || !d.tc) return [];
+    const meta = tcMeta[deviceId] || {};
     return Object.entries(d.tc).map(([ch, data]) => ({
       ch,
       name: data.name || `TC${ch}`,
@@ -45,6 +74,7 @@
       units: data.units || 'degF',
       status: sensorStatus(data.value, null),
       history: devices.getTcHistory(deviceId, ch),
+      chillThreshold: meta[ch]?.chill_threshold ?? null,
     })).sort((a, b) => parseInt(a.ch) - parseInt(b.ch));
   }
 
@@ -52,6 +82,8 @@
   $: gsePtCh = ptChannels('gse_panda');
   $: rocketLcCh = lcChannels('rocket_panda');
   $: rocketTcCh = tcChannels('rocket_panda');
+  $: gseTcCh = tcChannels('gse_panda');
+  $: niDaqTcCh = (tcMeta, tcChannels('ni_daq'));
 </script>
 
 <div class="telemetry-layout">

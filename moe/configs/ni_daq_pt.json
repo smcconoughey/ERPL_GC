@@ -1,0 +1,212 @@
+{
+    "channels": [
+        {
+            "pt": {
+                "id": 1,
+                "raw_index": 1,
+                "name": "PT1 LOX REG UPSTREAM",
+                "short_name": "pt1_lox_reg_up",
+                "units": "psi",
+                "range": [
+                    0.0,
+                    10000.0
+                ]
+            }
+        },
+        {
+            "pt": {
+                "id": 2,
+                "raw_index": 2,
+                "name": "PT2 LOX REG DOWNSTREAM",
+                "short_name": "pt2_lox_reg_dn",
+                "units": "psi",
+                "range": [
+                    0.0,
+                    1500.0
+                ]
+            }
+        },
+        {
+            "pt": {
+                "id": 3,
+                "raw_index": 3,
+                "name": "PT3 LOX TANK UPSTREAM",
+                "short_name": "pt3_lox_tank_up",
+                "units": "psi",
+                "range": [
+                    0.0,
+                    1500.0
+                ]
+            }
+        },
+        {
+            "pt": {
+                "id": 4,
+                "raw_index": 4,
+                "name": "PT4 LOX TANK DOWNSTREAM",
+                "short_name": "pt4_lox_tank_dn",
+                "units": "psi",
+                "range": [
+                    0.0,
+                    1500.0
+                ]
+            }
+        },
+        {
+            "pt": {
+                "id": 5,
+                "raw_index": 5,
+                "name": "PT5 LOX MANIFOLD",
+                "short_name": "pt5_lox_manifold",
+                "units": "psi",
+                "range": [
+                    0.0,
+                    1500.0
+                ]
+            }
+        },
+        {
+            "pt": {
+                "id": 6,
+                "raw_index": 6,
+                "name": "PT11 FUEL REG UPSTREAM",
+                "short_name": "pt11_fuel_reg_up",
+                "units": "psi",
+                "range": [
+                    0.0,
+                    10000.0
+                ]
+            }
+        },
+        {
+            "pt": {
+                "id": 7,
+                "raw_index": 7,
+                "name": "PT12 FUEL REG DOWNSTREAM",
+                "short_name": "pt12_fuel_reg_dn",
+                "units": "psi",
+                "range": [
+                    0.0,
+                    1500.0
+                ]
+            }
+        },
+        {
+            "pt": {
+                "id": 8,
+                "raw_index": 8,
+                "name": "PT13 FUEL TANK UPSTREAM",
+                "short_name": "pt13_fuel_tank_up",
+                "units": "psi",
+                "range": [
+                    0.0,
+                    2000.0
+                ]
+            }
+        },
+        {
+            "pt": {
+                "id": 9,
+                "raw_index": 9,
+                "name": "PT14 FUEL TANK DOWNSTREAM",
+                "short_name": "pt14_fuel_tank_dn",
+                "units": "psi",
+                "range": [
+                    0.0,
+                    1500.0
+                ]
+            }
+        },
+        {
+            "pt": {
+                "id": 10,
+                "raw_index": 10,
+                "name": "PT15 FUEL ENGINE MANIFOLD",
+                "short_name": "pt15_fuel_manifold",
+                "units": "psi",
+                "range": [
+                    0.0,
+                    1500.0
+                ]
+            }
+        },
+        {
+            "pt": {
+                "id": 11,
+                "raw_index": 11,
+                "name": "PT31 MUSCLE BUS",
+                "short_name": "pt31_muscle",
+                "units": "psi",
+                "range": [
+                    0.0,
+                    500.0
+                ]
+            }
+        },
+        {
+            "pt": {
+                "id": 12,
+                "raw_index": 12,
+                "name": "PT32 PURGE BUS",
+                "short_name": "pt32_purge",
+                "units": "psi",
+                "range": [
+                    0.0,
+                    500.0
+                ]
+            }
+        },
+        {
+            "pt": {
+                "id": 13,
+                "raw_index": 13,
+                "name": "PT21 LOX VENTURI INLET",
+                "short_name": "pt21_venturi_in",
+                "units": "psi",
+                "range": [
+                    0.0,
+                    1500.0
+                ]
+            }
+        },
+        {
+            "pt": {
+                "id": 14,
+                "raw_index": 14,
+                "name": "PT22 LOX VENTURI THROAT",
+                "short_name": "pt22_venturi_throat",
+                "units": "psi",
+                "range": [
+                    0.0,
+                    1500.0
+                ]
+            }
+        },
+        {
+            "pt": {
+                "id": 15,
+                "raw_index": 15,
+                "name": "PT23 FUEL VENTURI THROAT",
+                "short_name": "pt23_fuel_venturi",
+                "units": "psi",
+                "range": [
+                    0.0,
+                    1500.0
+                ]
+            }
+        },
+        {
+            "pt": {
+                "id": 16,
+                "raw_index": 16,
+                "name": "PT24 FUEL VENTURI INLET",
+                "short_name": "pt24_fuel_venturi_in",
+                "units": "psi",
+                "range": [
+                    0.0,
+                    1500.0
+                ]
+            }
+        }
+    ]
+}

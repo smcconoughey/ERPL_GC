@@ -1,18 +1,19 @@
 <script>
+  import { onMount } from 'svelte';
   import DCChannel from '../components/DCChannel.svelte';
   import { devices } from '../stores/devices.js';
   import { sendCommand } from '../stores/websocket.js';
   import { showToast } from '../stores/ui.js';
 
-  // GSE DC channel metadata (from gse_dc.json)
+  // GSE DC channel metadata (fallback if JSON config can't be fetched)
   const gseDcMeta = {
-    1: { name: 'LOX FILL VALVE', short: 'lox_fill', type: 'fill' },
-    2: { name: 'FUEL FILL VALVE', short: 'fuel_fill', type: 'fill' },
-    3: { name: 'LOX DRAIN VALVE', short: 'lox_drain', type: 'drain' },
-    4: { name: 'FUEL DRAIN VALVE', short: 'fuel_drain', type: 'drain' },
-    5: { name: 'LOX VENT GROUND', short: 'lox_vent_gse', type: 'vent' },
-    6: { name: 'FUEL VENT GROUND', short: 'fuel_vent_gse', type: 'vent' },
-    7: { name: 'PRESSURANT SUPPLY', short: 'pressurant', type: 'pressurize' },
+    1: { name: 'LOX FILL VALVE', short: 'lox_fill', type: 'fill', timer: 30 },
+    2: { name: 'FUEL FILL VALVE', short: 'fuel_fill', type: 'fill', timer: 30 },
+    3: { name: 'LOX DRAIN VALVE', short: 'lox_drain', type: 'drain', timer: 30 },
+    4: { name: 'FUEL DRAIN VALVE', short: 'fuel_drain', type: 'drain', timer: 30 },
+    5: { name: 'LOX VENT GROUND', short: 'lox_vent_gse', type: 'vent', timer: 30 },
+    6: { name: 'FUEL VENT GROUND', short: 'fuel_vent_gse', type: 'vent', timer: 30 },
+    7: { name: 'PRESSURANT SUPPLY', short: 'pressurant', type: 'pressurize', timer: 30 },
     8: { name: 'WATER PUMP', short: 'water_pump', type: 'cooling' },
     9: { name: 'LOX BOILOFF HEATER', short: 'lox_heater', type: 'heating' },
     10: { name: 'TEST VALVE 1', short: 'test1', type: 'test' },
@@ -25,13 +26,13 @@
   };
 
   const rocketDcMeta = {
-    1: { name: 'LOX MAIN VALVE', short: 'lox_main', type: 'run_valve' },
-    2: { name: 'FUEL MAIN VALVE', short: 'fuel_main', type: 'run_valve' },
+    1: { name: 'LOX MAIN VALVE', short: 'lox_main', type: 'run_valve', timer: 30 },
+    2: { name: 'FUEL MAIN VALVE', short: 'fuel_main', type: 'run_valve', timer: 30 },
     3: { name: 'IGNITER SOLENOID', short: 'igniter', type: 'ignition' },
-    4: { name: 'LOX VENT VALVE', short: 'lox_vent', type: 'vent' },
-    5: { name: 'FUEL VENT VALVE', short: 'fuel_vent', type: 'vent' },
-    6: { name: 'LOX PRESSURIZATION', short: 'lox_pressurize', type: 'pressurize' },
-    7: { name: 'FUEL PRESSURIZATION', short: 'fuel_pressurize', type: 'pressurize' },
+    4: { name: 'LOX VENT VALVE', short: 'lox_vent', type: 'vent', timer: 30 },
+    5: { name: 'FUEL VENT VALVE', short: 'fuel_vent', type: 'vent', timer: 30 },
+    6: { name: 'LOX PRESSURIZATION', short: 'lox_pressurize', type: 'pressurize', timer: 30 },
+    7: { name: 'FUEL PRESSURIZATION', short: 'fuel_pressurize', type: 'pressurize', timer: 30 },
     8: { name: 'LOX PURGE', short: 'lox_purge', type: 'purge' },
     9: { name: 'FUEL PURGE', short: 'fuel_purge', type: 'purge' },
     10: { name: 'ENGINE COOLDOWN', short: 'cooldown', type: 'cooling' },
@@ -42,6 +43,40 @@
     15: { name: 'ROCKET SPARE 15', short: 'spare15', type: 'spare' },
     16: { name: 'ROCKET SPARE 16', short: 'spare16', type: 'spare' },
   };
+
+  let gseDcCfg = { ...gseDcMeta };
+  let rocketDcCfg = { ...rocketDcMeta };
+
+  onMount(async () => {
+    const host = window.location.hostname || 'localhost';
+    const base = `http://${host}:8081/configs`;
+    const fetchCfg = async (path) => {
+      try {
+        const r = await fetch(`${base}/${path}`, { cache: 'no-store' });
+        if (!r.ok) return null;
+        return await r.json();
+      } catch { return null; }
+    };
+    const [gse, rocket] = await Promise.all([
+      fetchCfg('gse_panda_dc.json'),
+      fetchCfg('rocket_panda_dc.json'),
+    ]);
+    const toMeta = (json) => {
+      const out = {};
+      (json?.channels || []).forEach(c => {
+        const d = c.dc; if (!d) return;
+        out[d.id] = {
+          name: d.name,
+          short: d.short_name,
+          type: d.type || 'misc',
+          timer: d.timer || 0,
+        };
+      });
+      return out;
+    };
+    if (gse) gseDcCfg = { ...gseDcMeta, ...toMeta(gse) };
+    if (rocket) rocketDcCfg = { ...rocketDcMeta, ...toMeta(rocket) };
+  });
 
   $: gseDc = $devices['gse_panda']?.dc || {};
   $: rocketDc = $devices['rocket_panda']?.dc || {};
@@ -56,6 +91,7 @@
         name: m.name,
         shortName: m.short,
         type: m.type,
+        timer: m.timer || 0,
         state: data.state || false,
         current: data.value || 0,
         device: deviceId,
@@ -64,8 +100,8 @@
     }).sort((a, b) => a.ch - b.ch);
   }
 
-  $: gseDcChannels = dcChannelList(gseDc, gseDcMeta, 'gse_panda', gseArmed);
-  $: rocketDcChannels = dcChannelList(rocketDc, rocketDcMeta, 'rocket_panda', rocketArmed);
+  $: gseDcChannels = dcChannelList(gseDc, gseDcCfg, 'gse_panda', gseArmed);
+  $: rocketDcChannels = dcChannelList(rocketDc, rocketDcCfg, 'rocket_panda', rocketArmed);
 </script>
 
 <div class="controls-layout">
@@ -86,6 +122,7 @@
           state={ch.state}
           current={ch.current}
           armed={ch.armed}
+          timer={ch.timer}
         />
       {/each}
     </div>
@@ -108,6 +145,7 @@
           state={ch.state}
           current={ch.current}
           armed={ch.armed}
+          timer={ch.timer}
         />
       {/each}
     </div>

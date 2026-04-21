@@ -7,7 +7,7 @@
                 "name": "LOX Tank Bottom",
                 "short_name": "t_lox",
                 "tc_type": "K",
-                "units": "°F",
+                "units": "degF",
                 "range": [
                     -320.0,
                     200.0
@@ -27,7 +27,7 @@
                 "name": "LOX Tank Top",
                 "short_name": "t_loxln",
                 "tc_type": "K",
-                "units": "°F",
+                "units": "degF",
                 "range": [
                     -320.0,
                     200.0
@@ -47,7 +47,7 @@
                 "name": "Dragon",
                 "short_name": "t_loxinj",
                 "tc_type": "K",
-                "units": "°F",
+                "units": "degF",
                 "range": [
                     -320.0,
                     200.0
@@ -67,7 +67,7 @@
                 "name": "Chamber",
                 "short_name": "t_chmb",
                 "tc_type": "K",
-                "units": "°F",
+                "units": "degF",
                 "range": [
                     -100.0,
                     2282.0

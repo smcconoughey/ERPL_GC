@@ -119,6 +119,46 @@
                     "tare_offset": 0.0
                 }
             }
+        },
+        {
+            "lc": {
+                "id": 7,
+                "raw_index": 7,
+                "name": "LC Spare 7",
+                "short_name": "lc7",
+                "units": "lbf",
+                "range": [
+                    0,
+                    1000
+                ],
+                "calibration": {
+                    "slope": 1000000.0,
+                    "slope_alt": 1000000.0,
+                    "slope_alt_label": "Cal B",
+                    "offset": 0.0,
+                    "tare_offset": 0.0
+                }
+            }
+        },
+        {
+            "lc": {
+                "id": 8,
+                "raw_index": 8,
+                "name": "LC Spare 8",
+                "short_name": "lc8",
+                "units": "lbf",
+                "range": [
+                    0,
+                    1000
+                ],
+                "calibration": {
+                    "slope": 1000000.0,
+                    "slope_alt": 1000000.0,
+                    "slope_alt_label": "Cal B",
+                    "offset": 0.0,
+                    "tare_offset": 0.0
+                }
+            }
         }
     ]
 }

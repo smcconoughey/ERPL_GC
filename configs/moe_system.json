@@ -11,10 +11,10 @@
             },
             "domain": "rocket",
             "channels": {
-                "pt": {"count": 16, "config_file": "rocket_pt.json"},
-                "lc": {"count": 6},
-                "tc": {"count": 6},
-                "dc": {"count": 16, "config_file": "rocket_dc.json"}
+                "pt": {"count": 16, "config_file": "rocket_panda_pt.json"},
+                "lc": {"count": 6, "config_file": "rocket_panda_lc.json"},
+                "tc": {"count": 6, "config_file": "rocket_panda_tc.json"},
+                "dc": {"count": 16, "config_file": "rocket_panda_dc.json"}
             }
         },
         {
@@ -27,10 +27,10 @@
             },
             "domain": "gse",
             "channels": {
-                "pt": {"count": 16, "config_file": "gse_pt.json"},
-                "lc": {"count": 6},
-                "tc": {"count": 6},
-                "dc": {"count": 16, "config_file": "gse_dc.json"}
+                "pt": {"count": 16, "config_file": "gse_panda_pt.json"},
+                "lc": {"count": 6, "config_file": "gse_panda_lc.json"},
+                "tc": {"count": 6, "config_file": "gse_panda_tc.json"},
+                "dc": {"count": 16, "config_file": "gse_panda_dc.json"}
             }
         },
         {
@@ -43,8 +43,9 @@
             },
             "domain": "gse",
             "channels": {
-                "pt": {"count": 16},
-                "lc": {"count": 8}
+                "pt": {"count": 16, "config_file": "ni_daq_pt.json"},
+                "lc": {"count": 8, "config_file": "ni_daq_lc.json"},
+                "tc": {"count": 4, "config_file": "ni_daq_tc.json"}
             }
         }
     ],

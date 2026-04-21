@@ -1,0 +1,52 @@
+{
+    "system_name": "Draco",
+    "launch_mode": "standalone",
+    "devices": [
+        {
+            "device_id": "panda",
+            "device_type": "panda_v1",
+            "connection": {
+                "type": "serial",
+                "port": "COM4",
+                "baud": 460800
+            },
+            "domain": "vehicle",
+            "channels": {
+                "pt": {"count": 16, "config_file": "../panda/configs/pt_channels.json"},
+                "lc": {"count": 6, "config_file": "../panda/configs/lc_channels.json"},
+                "tc": {"count": 6, "config_file": "../panda/configs/tc_channels.json"},
+                "dc": {"count": 12, "config_file": "../panda/configs/dc_channels.json"}
+            }
+        },
+        {
+            "device_id": "ni_daq",
+            "device_type": "ni_daq",
+            "connection": {
+                "type": "tcp",
+                "host": "localhost",
+                "port": 5001
+            },
+            "domain": "gse",
+            "channels": {
+                "pt": {"count": 16},
+                "lc": {"count": 8},
+                "tc": {"count": 4}
+            }
+        }
+    ],
+    "safety": {
+        "abort_sequence": "all_valves_off",
+        "estop_sequence": "all_valves_off_disarm",
+        "dc_current_threshold_amps": 0.1
+    },
+    "logging": {
+        "auto_start": false,
+        "log_dir": "logs"
+    },
+    "network": {
+        "panda_ws_port": 3941,
+        "panda_http_port": 8080,
+        "nidaq_ws_port": 3000,
+        "nidaq_tcp_port": 5001
+    }
+}

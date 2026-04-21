@@ -1,0 +1,36 @@
+{
+    "system_name": "GSE_V1",
+    "devices": [
+        {
+            "device_id": "gse_panda",
+            "device_type": "panda_v1",
+            "connection": {
+                "type": "serial",
+                "port": "COM5",
+                "baud": 460800
+            },
+            "domain": "gse",
+            "channels": {
+                "pt": {"count": 16, "config_file": "gse_v1_pt.json"},
+                "lc": {"count": 6, "config_file": "gse_v1_lc.json"},
+                "tc": {"count": 6, "config_file": "gse_v1_tc.json"},
+                "dc": {"count": 12, "config_file": "gse_v1_dc.json"}
+            }
+        }
+    ],
+    "safety": {
+        "abort_sequence": "all_valves_off",
+        "estop_sequence": "all_valves_off_disarm",
+        "dc_current_threshold_amps": 0.1
+    },
+    "logging": {
+        "auto_start": false,
+        "log_dir": "logs"
+    },
+    "network": {
+        "ws_port": 3942,
+        "http_port": 8081,
+        "udp_group": "239.255.0.1",
+        "udp_port": 5006
+    }
+}

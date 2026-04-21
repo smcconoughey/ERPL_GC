@@ -1,4 +1,5 @@
 <script>
+  import { onDestroy } from 'svelte';
   import { sendCommand } from '../stores/websocket.js';
   import { showToast } from '../stores/ui.js';
 
@@ -10,6 +11,49 @@
   export let state = false;
   export let current = 0;
   export let armed = false;
+  // Minutes before the energized timer flashes red. 0/undefined = no timer shown.
+  export let timer = 0;
+
+  let energizedAt = 0;
+  let elapsedSec = 0;
+  let tick;
+
+  $: if (state) {
+    if (!energizedAt) {
+      energizedAt = Date.now();
+      startTick();
+    }
+  } else {
+    stopTick();
+    energizedAt = 0;
+    elapsedSec = 0;
+  }
+
+  function startTick() {
+    if (tick) return;
+    tick = setInterval(() => {
+      elapsedSec = Math.floor((Date.now() - energizedAt) / 1000);
+    }, 500);
+    elapsedSec = 0;
+  }
+
+  function stopTick() {
+    if (tick) {
+      clearInterval(tick);
+      tick = null;
+    }
+  }
+
+  onDestroy(stopTick);
+
+  $: ratingSec = (timer || 0) * 60;
+  $: overLimit = ratingSec > 0 && elapsedSec >= ratingSec;
+
+  function fmt(s) {
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+  }
 
   function toggle() {
     if (!armed) {
@@ -36,7 +80,18 @@
       {state ? 'ON' : 'OFF'}
     </span>
   </div>
-  <div class="dc-current">{current.toFixed(3)} A</div>
+  <div class="dc-footer">
+    {#if timer > 0}
+      <span class="dc-timer" class:running={state} class:over={overLimit}>
+        <i class="fa-regular fa-clock" aria-hidden="true"></i>
+        {state ? fmt(elapsedSec) : '--:--'}
+        <span class="dc-rating">/ {timer}m</span>
+      </span>
+    {:else}
+      <span class="dc-timer-placeholder"></span>
+    {/if}
+    <span class="dc-current">{current.toFixed(3)} A</span>
+  </div>
 </button>
 
 <style>
@@ -103,11 +158,46 @@
   .dc-pill.on  { background: var(--green-600); color: white; }
   .dc-pill.off { background: var(--red-500); color: white; }
 
+  .dc-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+    gap: 8px;
+  }
   .dc-current {
     font-size: 10px;
     color: var(--text-tertiary);
     font-family: var(--font-mono);
     text-align: right;
-    margin-top: 6px;
   }
+  .dc-timer {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.04);
+  }
+  .dc-timer.running {
+    color: var(--text-primary);
+    background: rgba(49, 130, 206, 0.12);
+  }
+  .dc-timer .dc-rating {
+    color: var(--text-tertiary);
+    font-size: 9px;
+  }
+  .dc-timer.over {
+    color: #fff;
+    background: #e53e3e;
+    animation: dcTimerFlash 0.8s ease-in-out infinite;
+  }
+  @keyframes dcTimerFlash {
+    0%, 100% { background: #e53e3e; box-shadow: 0 0 0 0 rgba(229, 62, 62, 0.55); }
+    50%      { background: #b91c1c; box-shadow: 0 0 0 4px rgba(229, 62, 62, 0.0); }
+  }
+  .dc-timer-placeholder { flex: 1; }
 </style>

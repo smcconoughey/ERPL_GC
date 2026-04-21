@@ -10,15 +10,21 @@
   export let history = [];
   export let channelId = '';
   export let type = 'pt'; // pt, lc, tc
+  // TC-only: flash red when value is above this threshold (line not chilled).
+  export let chillThreshold = null;
 
   $: displayValue = formatValue(value, type === 'pt' ? 1 : type === 'lc' ? 1 : 1);
   $: displayUnits = formatUnits(units);
   $: trend = trendDirection(history);
   $: trendChar = trendSymbols[trend];
-  $: sparkColor = status === 'critical' ? '#ef4444' : status === 'warning' ? '#f59e0b' : '#16a34a';
+  $: notChilled = type === 'tc'
+    && chillThreshold !== null && chillThreshold !== undefined
+    && typeof value === 'number' && isFinite(value)
+    && value > chillThreshold;
+  $: sparkColor = (notChilled || status === 'critical') ? '#ef4444' : status === 'warning' ? '#f59e0b' : '#16a34a';
 </script>
 
-<div class="sensor-card {status}">
+<div class="sensor-card {status}" class:not-chilled={notChilled}>
   <div class="sensor-left">
     <div class="sensor-name">{name}</div>
     <div class="sensor-short">{shortName || type.toUpperCase() + channelId}</div>
@@ -32,6 +38,11 @@
       <span class="units">{displayUnits}</span>
       <span class="trend {trend}">{trendChar}</span>
     </div>
+    {#if notChilled}
+      <div class="chill-badge" title="TC is above chill threshold ({chillThreshold} {displayUnits})">
+        NOT CHILLED &gt; {chillThreshold}{displayUnits}
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -51,6 +62,27 @@
   .sensor-card.normal  { border-left-color: var(--sensor-normal); }
   .sensor-card.warning { border-left-color: var(--sensor-warning); background: #fff7ed; }
   .sensor-card.critical { border-left-color: var(--sensor-critical); background: #fef2f2; }
+  .sensor-card.not-chilled {
+    border-left-color: #dc2626;
+    background: #fef2f2;
+    animation: chillFlash 0.9s ease-in-out infinite;
+  }
+  @keyframes chillFlash {
+    0%, 100% { background: #fef2f2; }
+    50%      { background: #fecaca; }
+  }
+  .chill-badge {
+    font-size: 8px;
+    font-weight: 800;
+    color: #fff;
+    background: #dc2626;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-top: 3px;
+    letter-spacing: 0.3px;
+    display: inline-block;
+    white-space: nowrap;
+  }
 
   .sensor-left {
     flex: 1;
