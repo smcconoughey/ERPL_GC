@@ -5,6 +5,7 @@ import threading
 import time
 import queue
 import math
+import collections
 import csv
 import socket
 import serial.tools.list_ports
@@ -45,7 +46,8 @@ class DeviceState:
     lc: Dict[str, Dict] = field(default_factory=dict)
     tc: Dict[str, Dict] = field(default_factory=dict)
     dc: Dict[str, Dict] = field(default_factory=dict)
-    bb: Dict[str, Dict] = field(default_factory=dict)  # bang-bang status per bus ('l'/'f')
+    bb: Dict[str, Dict] = field(default_factory=dict)  # bang-bang status per side ('l'/'f')
+    events: List[Dict] = field(default_factory=list)     # recent EVT audit events
     last_update: str = ""
 
 
@@ -87,6 +89,8 @@ class PandaConnection(DeviceConnection):
         self.baud = baud
         self.ser = None
         self.read_thread = None
+        self._pending_messages: list = []       # device messages to forward to WS clients
+        self._msg_lock = threading.Lock()
         self.stop_reading = False
 
         self.pt_count = 16
@@ -108,6 +112,7 @@ class PandaConnection(DeviceConnection):
         self.dc_threshold = 0.100
 
         self.pt_meta = self._load_pt_metadata()
+        self.event_log = collections.deque(maxlen=200)  # EVT ring buffer
         self._init_channels()
 
     def _init_channels(self):
@@ -128,7 +133,23 @@ class PandaConnection(DeviceConnection):
             self.state.dc[str(i)] = {"value": 0.0, "state": False, "name": f"DC{i}"}
 
         for bus in ('l', 'f'):
-            self.state.bb[bus] = {"enabled": False, "valve_open": False, "pressure": 0.0}
+            self.state.bb[bus] = self._default_bb_side()
+
+    @staticmethod
+    def _default_bb_side() -> Dict:
+        """Return the default BB state dict for one side."""
+        return {
+            "state": "OFF",       # OFF | SUS | AV | ABT
+            "press": False,       # press solenoid actuated
+            "vent": False,        # vent solenoid actuated
+            "pressure": 0.0,      # latest PT reading (psi)
+            "config": {
+                "setpoint": 0, "deadband": 0, "wait_ms": 0, "max_open_ms": 0,
+                "vent_trigger": 0, "vent_auto": False,
+                "mdot_target": 0, "sp_min": 0, "sp_max": 0,
+                "mdot_gain": 0, "mdot_on": False
+            }
+        }
 
     def _load_pt_metadata(self) -> List[Dict]:
         """Load PT channel metadata from config"""
@@ -226,18 +247,61 @@ class PandaConnection(DeviceConnection):
     def _parse_serial_packet(self, line: str) -> Optional[Dict]:
         """Parse a serial packet and extract channel data"""
 
-        # Bang-bang status: "BB:L:<enabled>:<valve_open>:<pressure>"
+        # Bang-bang heartbeat: "BB:<side>:<state>:<press01>:<vent01>:<pressure_psi>"
+        # <state> is OFF / SUS / AV / ABT
         if line.startswith('BB:') and line.count(':') >= 4:
             parts = line.split(':')
             bus = parts[1].lower()  # 'l' or 'f'
             if bus in self.state.bb:
                 try:
-                    self.state.bb[bus]['enabled']    = parts[2] == '1'
-                    self.state.bb[bus]['valve_open'] = parts[3] == '1'
-                    self.state.bb[bus]['pressure']   = float(parts[4])
+                    self.state.bb[bus]['state']    = parts[2]          # OFF/SUS/AV/ABT
+                    self.state.bb[bus]['press']    = parts[3] == '1'
+                    self.state.bb[bus]['vent']     = parts[4] == '1'
+                    if len(parts) > 5:
+                        self.state.bb[bus]['pressure'] = float(parts[5])
                 except (IndexError, ValueError):
                     pass
             self.update_state()
+            return {}
+
+        # EVT audit events: "EVT:<ms>:<category>:<side>:<detail>"
+        if line.startswith('EVT:'):
+            parts = line.split(':', 4)
+            evt = {
+                'raw': line,
+                'ms': parts[1] if len(parts) > 1 else '',
+                'category': parts[2] if len(parts) > 2 else '',
+                'side': parts[3].lower() if len(parts) > 3 else '',
+                'detail': parts[4] if len(parts) > 4 else '',
+                'timestamp': datetime.utcnow().isoformat() + 'Z'
+            }
+            self.event_log.append(evt)
+            self.state.events = list(self.event_log)
+
+            # Update local config cache when firmware confirms CFG_PUSH
+            if evt['category'] == 'CFG_PUSH' and evt['side'] in self.state.bb:
+                self._apply_cfg_push(evt['side'], evt['detail'])
+
+            self._enqueue_message(line, 'event')
+            self.update_state()
+            return {}
+
+        # BB / CMD errors
+        if line.startswith(('BB_ERROR:', 'CMD_ERROR:')):
+            self._enqueue_message(line, 'error')
+            return {}
+
+        # Sequence / arm ack lines
+        if line.startswith(('SEQ_', 'Arming!', 'Disarming!', 'Panda Initialized!', 'Firing sequence!')):
+            self._enqueue_message(line, 'ack')
+            # Also handle arm state from these legacy acks
+            if line == 'Arming!':
+                self.armed = True
+                self.update_state()
+            elif line == 'Disarming!':
+                self.armed = False
+                self._clear_bb_state()
+                self.update_state()
             return {}
 
         if not line or ',' not in line:
@@ -334,29 +398,97 @@ class PandaConnection(DeviceConnection):
                 pass
             self.ser = None
 
+    def _enqueue_message(self, line: str, category: str):
+        """Queue a device message for forwarding to WS clients."""
+        msg = {
+            'type': 'device_message',
+            'device': self.device_id,
+            'line': line,
+            'category': category,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+        with self._msg_lock:
+            self._pending_messages.append(msg)
+
+    def drain_messages(self) -> list:
+        """Return and clear all pending device messages (called by backend broadcast loop)."""
+        with self._msg_lock:
+            msgs = self._pending_messages[:]
+            self._pending_messages.clear()
+        return msgs
+
+    def _clear_bb_state(self):
+        """Reset both BB sides to OFF / closed — mirrors firmware forceSafe()."""
+        for bus in ('l', 'f'):
+            self.state.bb[bus]['state'] = 'OFF'
+            self.state.bb[bus]['press'] = False
+            self.state.bb[bus]['vent'] = False
+
+    def _apply_cfg_push(self, side: str, detail: str):
+        """Parse CFG_PUSH detail string and update local config cache."""
+        cfg = self.state.bb[side].get('config', {})
+        for kv in detail.split(','):
+            kv = kv.strip()
+            if '=' not in kv:
+                continue
+            k, v = kv.split('=', 1)
+            k = k.strip()
+            v = v.strip()
+            try:
+                if k == 'sp':
+                    cfg['setpoint'] = float(v)
+                elif k == 'db':
+                    cfg['deadband'] = float(v)
+                elif k == 'wait':
+                    cfg['wait_ms'] = int(float(v))
+                elif k == 'maxOpen':
+                    cfg['max_open_ms'] = int(float(v))
+                elif k == 'ventTrig':
+                    cfg['vent_trigger'] = float(v)
+                elif k == 'ventAuto':
+                    cfg['vent_auto'] = v == '1'
+                elif k == 'mdot':
+                    cfg['mdot_target'] = float(v)
+                elif k == 'spMin':
+                    cfg['sp_min'] = float(v)
+                elif k == 'spMax':
+                    cfg['sp_max'] = float(v)
+                elif k == 'gain':
+                    cfg['mdot_gain'] = float(v)
+                elif k == 'mdotOn':
+                    cfg['mdot_on'] = v == '1'
+            except (ValueError, TypeError):
+                pass
+        self.state.bb[side]['config'] = cfg
+
     def _handle_line(self, line: str):
         """Route a received serial line to the right handler."""
-        # V2 init strings — mark confirmed connected and log
-        if line in ('BOOT', 'PANDA_V2_INIT'):
+        # Init strings — mark confirmed connected and log
+        if line in ('BOOT', 'PANDA_V2_INIT', 'PANDA_V1_INIT', 'PANDA_INIT'):
             logger.info(f"{self.device_id}: {line}")
             self.connected = True
+            self._enqueue_message(line, 'info')
             self.update_state()
             return
         if line.startswith(('ARM_ACK', 'ARM_ALREADY', 'ARM_BUSY')):
             self.armed = True
+            self._enqueue_message(line, 'ack')
             self.update_state()
             return
         if line.startswith('DISARM_ACK'):
             self.armed = False
+            self._clear_bb_state()
+            self._enqueue_message(line, 'ack')
             self.update_state()
             return
         if line.startswith('WARN:'):
             logger.warning(f"{self.device_id}: {line}")
+            self._enqueue_message(line, 'warning')
             return
         self._parse_serial_packet(line)
 
     def _read_loop(self):
-        """Background thread: read serial data from PandaV2."""
+        """Background thread: read serial data from Panda."""
         while self.connected and not self.stop_reading:
             try:
                 if self.ser:
@@ -384,6 +516,7 @@ class PandaConnection(DeviceConnection):
                 self.armed = True
             elif command.lower() == 'r':
                 self.armed = False
+                self._clear_bb_state()
 
             self.update_state()
             return True
@@ -679,19 +812,45 @@ class MOEBackend:
                     self.devices[device].tare_pt(ch)
 
             elif action == 'bb_config':
-                # Push bang-bang config to firmware: setpoint, deadband, wait_ms
-                bus      = msg.get('bus', '')       # 'lox' or 'fuel'
-                setpoint = float(msg.get('setpoint', 200))
-                deadband = float(msg.get('deadband', 10))
-                wait_ms  = int(msg.get('wait_ms', 500))
+                # Push bang-bang config: setpoint, deadband, wait_ms, max_open_ms
+                bus          = msg.get('bus', '')       # 'lox' or 'fuel'
+                setpoint     = float(msg.get('setpoint', 200))
+                deadband     = float(msg.get('deadband', 10))
+                wait_ms      = int(msg.get('wait_ms', 500))
+                max_open_ms  = int(msg.get('max_open_ms', 0))
                 bus_char = 'L' if bus == 'lox' else 'F'
-                cmd = f'B{bus_char}{int(setpoint)},{int(deadband)},{wait_ms}'
+                cmd = f'B{bus_char}{int(setpoint)},{int(deadband)},{wait_ms},{max_open_ms}'
                 if device in self.devices:
                     await self.devices[device].send_command(cmd)
                     logger.info(f"BB config pushed to {device}: {cmd}")
 
+            elif action == 'bb_vent_config':
+                # Push vent config: trigger psi, auto-vent enable
+                bus       = msg.get('bus', '')       # 'lox' or 'fuel'
+                trigger   = float(msg.get('trigger', 0))
+                auto_on   = bool(msg.get('auto_on', False))
+                bus_char  = 'L' if bus == 'lox' else 'F'
+                cmd = f'V{bus_char}{int(trigger)},{"1" if auto_on else "0"}'
+                if device in self.devices:
+                    await self.devices[device].send_command(cmd)
+                    logger.info(f"BB vent config pushed to {device}: {cmd}")
+
+            elif action == 'bb_mdot_config':
+                # Push mass-flow config: mdot, sp_min, sp_max, gain, enable
+                bus       = msg.get('bus', '')       # 'lox' or 'fuel'
+                mdot      = float(msg.get('mdot', 0))
+                sp_min    = float(msg.get('sp_min', 0))
+                sp_max    = float(msg.get('sp_max', 0))
+                gain      = float(msg.get('gain', 0))
+                enable    = bool(msg.get('enable', False))
+                bus_char  = 'L' if bus == 'lox' else 'F'
+                cmd = f'M{bus_char}{int(mdot)},{int(sp_min)},{int(sp_max)},{int(gain)},{"1" if enable else "0"}'
+                if device in self.devices:
+                    await self.devices[device].send_command(cmd)
+                    logger.info(f"BB mdot config pushed to {device}: {cmd}")
+
             elif action == 'bb_enable':
-                # Enable or disable bang-bang on firmware
+                # Enter/leave SUSTAIN: b<side>1 / b<side>0
                 bus     = msg.get('bus', '')        # 'lox' or 'fuel'
                 enable  = bool(msg.get('enable', False))
                 bus_char = 'L' if bus == 'lox' else 'F'
@@ -699,6 +858,25 @@ class MOEBackend:
                 if device in self.devices:
                     await self.devices[device].send_command(cmd)
                     logger.info(f"BB {'enable' if enable else 'disable'} sent to {device}: {cmd}")
+
+            elif action == 'bb_vent':
+                # Manual auto-vent open/close: v<side>1 / v<side>0
+                bus     = msg.get('bus', '')        # 'lox' or 'fuel'
+                open_v  = bool(msg.get('open', False))
+                bus_char = 'L' if bus == 'lox' else 'F'
+                cmd = f'v{bus_char}{"1" if open_v else "0"}'
+                if device in self.devices:
+                    await self.devices[device].send_command(cmd)
+                    logger.info(f"BB vent {'open' if open_v else 'close'} sent to {device}: {cmd}")
+
+            elif action == 'bb_abort':
+                # Latched per-side abort: x<side>
+                bus      = msg.get('bus', '')       # 'lox' or 'fuel'
+                bus_char = 'L' if bus == 'lox' else 'F'
+                cmd = f'x{bus_char}'
+                if device in self.devices:
+                    await self.devices[device].send_command(cmd)
+                    logger.info(f"BB ABORT sent to {device}: {cmd}")
 
             elif action == 'preset_save':
                 name = msg.get('name', '')
@@ -724,10 +902,11 @@ class MOEBackend:
         SAFETY: never short-circuit on error; every device gets attempted."""
         logger.warning(">>> ABORT ALL DEVICES <<<")
         for device_id, device in self.devices.items():
-            # Phase 1: disarm (firmware-side kill)
+            # Phase 1: disarm (firmware-side kill — also runs forceSafe on both BB)
             try:
                 if isinstance(device, PandaConnection):
                     await device.send_command('r')
+                    device._clear_bb_state()
             except Exception as e:
                 logger.error(f"ABORT disarm {device_id} failed: {e}")
             # Phase 2: explicit DC off (belt-and-suspenders)
@@ -805,6 +984,13 @@ class MOEBackend:
                         self._log_headers.append(f'{device_id}.TC{ch}_degF')
                     for ch in sorted(device.state.dc.keys(), key=lambda x: int(x)):
                         self._log_headers.append(f'{device_id}.DC{ch}_A')
+                    # BB columns
+                    if isinstance(device, PandaConnection):
+                        for bus_label in ('L', 'F'):
+                            self._log_headers.append(f'{device_id}.BB_{bus_label}_state')
+                            self._log_headers.append(f'{device_id}.BB_{bus_label}_press')
+                            self._log_headers.append(f'{device_id}.BB_{bus_label}_vent')
+                            self._log_headers.append(f'{device_id}.BB_{bus_label}_psi')
 
                 self.log_writer = csv.writer(self.log_file)
                 self.log_writer.writerow(self._log_headers)
@@ -835,10 +1021,16 @@ class MOEBackend:
             logger.error(f"Preset save error: {e}")
 
     async def data_broadcast_loop(self):
-        """Periodically broadcast device data"""
+        """Periodically broadcast device data + device messages"""
         while True:
             try:
                 await self._send_status()
+
+                # Forward any queued device messages (EVT, errors, acks)
+                for device_id, device in self.devices.items():
+                    if isinstance(device, PandaConnection):
+                        for msg in device.drain_messages():
+                            await self._broadcast(json.dumps(msg))
 
                 if self.logging_enabled and self.log_writer:
                     elapsed_ms = int((time.time() - self._log_start_time) * 1000)
@@ -852,6 +1044,14 @@ class MOEBackend:
                             row.append(device.state.tc[ch]['value'])
                         for ch in sorted(device.state.dc.keys(), key=lambda x: int(x)):
                             row.append(device.state.dc[ch]['value'])
+                        # BB columns
+                        if isinstance(device, PandaConnection):
+                            for bus in ('l', 'f'):
+                                bb = device.state.bb.get(bus, {})
+                                row.append(bb.get('state', 'OFF'))
+                                row.append(1 if bb.get('press') else 0)
+                                row.append(1 if bb.get('vent') else 0)
+                                row.append(bb.get('pressure', 0.0))
 
                     with self.log_lock:
                         if self.log_writer and self.log_file:
@@ -907,6 +1107,15 @@ class TestDataGenerator:
                 for ch in device.state.dc:
                     device.state.dc[ch]['value'] = 0.0
                     device.state.dc[ch]['state'] = False
+
+                # BB test data
+                for bus in device.state.bb:
+                    bb = device.state.bb[bus]
+                    bb['state'] = 'OFF'
+                    bb['press'] = False
+                    bb['vent'] = False
+                    base_p = 200.0 if bus == 'l' else 180.0
+                    bb['pressure'] = base_p + random.uniform(-5, 5)
 
             time.sleep(0.1)
 

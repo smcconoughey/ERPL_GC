@@ -2,10 +2,21 @@
     "buses": {
         "lox": {
             "label": "LOX Bus",
-            "device": "panda_rocket",
+            "device": "rocket_panda",
             "setpoint_psi": 200.0,
             "deadband_psi": 10.0,
             "wait_ms": 500,
+            "max_open_ms": 0,
+            "vent_trigger_psi": 0,
+            "vent_auto": false,
+            "mdot_target": 0,
+            "mdot_sp_min": 0,
+            "mdot_sp_max": 0,
+            "mdot_gain": 0,
+            "mdot_enable": false,
+            "pt_channel": 0,
+            "press_dc": 4,
+            "vent_dc": 0,
             "pt_sensors": [
                 {"ni_daq_channel": 0, "label": "LOX Tank PT"},
                 {"ni_daq_channel": 1, "label": "LOX Feed PT"}
@@ -17,10 +28,21 @@
         },
         "fuel": {
             "label": "Fuel Bus",
-            "device": "panda_rocket",
+            "device": "rocket_panda",
             "setpoint_psi": 200.0,
             "deadband_psi": 10.0,
             "wait_ms": 500,
+            "max_open_ms": 0,
+            "vent_trigger_psi": 0,
+            "vent_auto": false,
+            "mdot_target": 0,
+            "mdot_sp_min": 0,
+            "mdot_sp_max": 0,
+            "mdot_gain": 0,
+            "mdot_enable": false,
+            "pt_channel": 1,
+            "press_dc": 7,
+            "vent_dc": 0,
             "pt_sensors": [
                 {"ni_daq_channel": 2, "label": "Fuel Tank PT"},
                 {"ni_daq_channel": 3, "label": "Fuel Feed PT"}

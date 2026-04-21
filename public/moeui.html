@@ -403,6 +403,121 @@
         .bb-enable-btn.off:hover { background: #2f855a; }
         .bb-enable-btn.on  { background: #e53e3e; color: white; }
         .bb-enable-btn.on:hover  { background: #c53030; }
+
+        /* ─── BB Tab ─── */
+        .bb-tab-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .bb-tab-card {
+            background: white; border: 2px solid #cbd5e0; border-radius: 10px;
+            padding: 14px; display: flex; flex-direction: column; gap: 10px;
+        }
+        .bb-tab-card.lox  { border-color: #63b3ed; }
+        .bb-tab-card.fuel { border-color: #f6ad55; }
+        .bb-tab-card.lox.active  { border-color: #3182ce; box-shadow: 0 0 12px rgba(49,130,206,0.25); }
+        .bb-tab-card.fuel.active { border-color: #dd6b20; box-shadow: 0 0 12px rgba(221,107,32,0.25); }
+        .bb-tab-card.bb-abort { border-color: #e53e3e; box-shadow: 0 0 16px rgba(229,62,62,0.4); }
+        .bb-state-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 12px; border-radius: 16px; font-weight: 700; font-size: 12px;
+            text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .bb-state-badge.off { background: #edf2f7; color: #718096; }
+        .bb-state-badge.sus { background: #c6f6d5; color: #22543d; }
+        .bb-state-badge.av  { background: #fefcbf; color: #744210; }
+        .bb-state-badge.abt { background: #fed7d7; color: #9b2c2c; animation: pulse 1s infinite; }
+        .bb-state-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .bb-state-badge.off .bb-state-dot { background: #a0aec0; }
+        .bb-state-badge.sus .bb-state-dot { background: #38a169; box-shadow: 0 0 4px #38a169; }
+        .bb-state-badge.av  .bb-state-dot { background: #d69e2e; box-shadow: 0 0 4px #d69e2e; }
+        .bb-state-badge.abt .bb-state-dot { background: #e53e3e; box-shadow: 0 0 6px #e53e3e; }
+        .bb-config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .bb-config-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+        .bb-cfg-group {
+            background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px;
+        }
+        .bb-cfg-group-title {
+            font-size: 11px; font-weight: 700; color: #4a5568; text-transform: uppercase;
+            margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+        }
+        .bb-cfg-field label { display: block; font-size: 10px; color: #718096; margin-bottom: 2px; font-weight: 600; }
+        .bb-cfg-field input, .bb-cfg-field select {
+            width: 100%; padding: 4px 6px; border: 1px solid #e2e8f0; border-radius: 4px;
+            font-size: 12px; font-weight: bold;
+        }
+        .bb-cfg-field { margin-bottom: 6px; }
+        .bb-live-row { display: flex; gap: 8px; align-items: center; }
+        .bb-live-psi {
+            font-size: 22px; font-weight: 800; font-family: 'Consolas','Fira Code',monospace;
+            color: #2d3748; min-width: 100px;
+        }
+        .bb-live-psi.hi { color: #e53e3e; }
+        .bb-live-psi.lo { color: #3182ce; }
+        .bb-sol-indicators { display: flex; gap: 12px; }
+        .bb-sol {
+            display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600;
+        }
+        .bb-sol-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #cbd5e0; background: #edf2f7; }
+        .bb-sol-dot.active { background: #38a169; border-color: #38a169; box-shadow: 0 0 6px rgba(56,161,105,0.5); }
+        .bb-btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+        .bb-action-btn {
+            flex: 1; min-width: 80px; padding: 8px 6px; border: none; border-radius: 6px;
+            font-weight: bold; font-size: 11px; cursor: pointer; transition: all 0.15s;
+            display: flex; align-items: center; justify-content: center; gap: 4px;
+        }
+        .bb-action-btn.enable  { background: #38a169; color: white; }
+        .bb-action-btn.enable:hover  { background: #2f855a; }
+        .bb-action-btn.disable { background: #718096; color: white; }
+        .bb-action-btn.disable:hover { background: #4a5568; }
+        .bb-action-btn.vent    { background: #3182ce; color: white; }
+        .bb-action-btn.vent:hover    { background: #2c5282; }
+        .bb-action-btn.bb-abort   { background: #e53e3e; color: white; }
+        .bb-action-btn.bb-abort:hover   { background: #c53030; }
+        .bb-action-btn.push    { background: #2d3748; color: #e2e8f0; }
+        .bb-action-btn.push:hover    { background: #4a5568; }
+        .bb-action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .bb-chart-container {
+            grid-column: 1 / -1; background: #0d1117; border-radius: 10px;
+            padding: 10px; border: 1px solid #1f2933;
+        }
+        .bb-chart-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 6px; color: #8b949e; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.06em;
+        }
+        .bb-chart-canvas { width: 100%; height: 180px; border-radius: 6px; }
+        .bb-evt-container {
+            grid-column: 1 / -1; background: #0d1117; border-radius: 10px;
+            padding: 10px; border: 1px solid #1f2933; max-height: 200px;
+        }
+        .bb-evt-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 6px; color: #8b949e; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.06em;
+        }
+        .bb-evt-body {
+            overflow-y: auto; max-height: 160px; font-family: 'Fira Code','Consolas',monospace;
+            font-size: 11px; line-height: 1.5;
+        }
+        .bb-evt-line { margin: 0; padding: 1px 4px; border-radius: 2px; }
+        .bb-evt-line.cfg  { color: #79c0ff; }
+        .bb-evt-line.valve { color: #7ee787; }
+        .bb-evt-line.bb-abort-evt { color: #ff7b72; }
+        .bb-evt-line.warn  { color: #d29922; }
+        .bb-evt-line.info  { color: #8b949e; }
+        .bb-evt-line.error { color: #ff7b72; font-weight: bold; }
+        .bb-inline-summary {
+            margin-top: 20px; padding: 10px 14px;
+            background: #f7fafc; border: 2px solid #e2e8f0; border-radius: 8px;
+            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        }
+        .bb-inline-summary-title {
+            font-size: 13px; font-weight: bold; color: #2d3748;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .bb-inline-side {
+            display: flex; align-items: center; gap: 6px;
+            padding: 4px 10px; border-radius: 6px; background: white;
+            border: 1px solid #e2e8f0; font-size: 12px;
+        }
     </style>
 </head>
 
@@ -467,101 +582,149 @@
                     <button class="tab-button" onclick="switchTab('sequencer')">
                         <i class="fas fa-list-ol"></i> AutoSequencer
                     </button>
+                    <button class="tab-button" onclick="switchTab('bangbang')">
+                        <i class="fas fa-sliders-h"></i> Bang-Bang
+                    </button>
                 </div>
 
                 <div id="tab-manual" class="tab-content active">
                     <div class="dc-controls" id="dc-controls"></div>
 
-                    <!-- Bang-Bang Controller -->
-                    <div class="bb-section">
-                        <div class="bb-title"><i class="fas fa-sliders-h"></i> Bang-Bang Pressure Control <span style="font-size:10px;font-weight:normal;color:#718096;">(NI DAQ → PANDA)</span></div>
-                        <div class="bb-buses">
-                            <!-- LOX Bus -->
-                            <div class="bb-card lox" id="bb-lox-card">
+                    <!-- BB Compact Summary (full controls are in BB tab) -->
+                    <div class="bb-inline-summary" id="bb-inline-summary">
+                        <div class="bb-inline-summary-title"><i class="fas fa-sliders-h"></i> Bang-Bang</div>
+                        <div class="bb-inline-side" id="bb-inline-lox">
+                            <i class="fas fa-snowflake" style="color:#3182ce"></i>
+                            <span>LOX:</span>
+                            <span class="bb-state-badge off" id="bb-inline-lox-badge"><span class="bb-state-dot"></span> OFF</span>
+                            <span style="font-weight:bold;font-family:monospace" id="bb-inline-lox-psi">-- psi</span>
+                        </div>
+                        <div class="bb-inline-side" id="bb-inline-fuel">
+                            <i class="fas fa-fire" style="color:#dd6b20"></i>
+                            <span>Fuel:</span>
+                            <span class="bb-state-badge off" id="bb-inline-fuel-badge"><span class="bb-state-dot"></span> OFF</span>
+                            <span style="font-weight:bold;font-family:monospace" id="bb-inline-fuel-psi">-- psi</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-bangbang" class="tab-content">
+                    <div class="bb-tab-layout">
+                        <!-- ═══ LOX Card ═══ -->
+                        <div class="bb-tab-card lox" id="bbt-lox-card">
+                            <div style="display:flex;justify-content:space-between;align-items:center">
                                 <div class="bb-card-title"><i class="fas fa-snowflake"></i> LOX Bus</div>
-                                <div class="bb-params">
-                                    <div class="bb-param">
-                                        <label>Setpoint (PSI)</label>
-                                        <input type="number" id="bb-lox-setpoint" value="200" step="5" min="0" oninput="bbApplyParams('lox')">
-                                    </div>
-                                    <div class="bb-param">
-                                        <label>Deadband (PSI)</label>
-                                        <input type="number" id="bb-lox-deadband" value="10" step="1" min="1" oninput="bbApplyParams('lox')">
-                                    </div>
-                                    <div class="bb-param">
-                                        <label>Wait (ms)</label>
-                                        <input type="number" id="bb-lox-wait" value="500" step="100" min="0" oninput="bbApplyParams('lox')">
-                                    </div>
-                                </div>
-                                <div class="bb-push-row">
-                                    <button class="bb-push-btn" onclick="bbPushConfig('lox')">
-                                        <i class="fas fa-upload"></i> Push Config to Board
-                                    </button>
-                                    <span class="bb-push-status" id="bb-lox-push-status"></span>
-                                </div>
-                                <div class="bb-sensors" id="bb-lox-sensors">
-                                    <div class="bb-sensor">
-                                        <div class="bb-sensor-label">LOX Tank PT</div>
-                                        <div class="bb-sensor-value" id="bb-lox-pt0">-- PSI</div>
-                                    </div>
-                                    <div class="bb-sensor">
-                                        <div class="bb-sensor-label">LOX Feed PT</div>
-                                        <div class="bb-sensor-value" id="bb-lox-pt1">-- PSI</div>
-                                    </div>
-                                </div>
-                                <div class="bb-valve-row">
-                                    <span class="bb-valve-label">Vent Valve:</span>
-                                    <span class="bb-valve-state idle" id="bb-lox-valve-state">IDLE</span>
-                                </div>
-                                <div class="bb-fw-status" id="bb-lox-fw-status">FW: —</div>
-                                <div class="bb-status-bar" id="bb-lox-status">Disabled</div>
-                                <button class="bb-enable-btn off" id="bb-lox-enable" onclick="bbToggle('lox')">
-                                    <i class="fas fa-play"></i> Enable BB
-                                </button>
+                                <span class="bb-state-badge off" id="bbt-lox-badge"><span class="bb-state-dot"></span> <span id="bbt-lox-state-text">OFF</span></span>
                             </div>
-                            <!-- Fuel Bus -->
-                            <div class="bb-card fuel" id="bb-fuel-card">
+                            <!-- Live readings -->
+                            <div class="bb-live-row">
+                                <div class="bb-live-psi" id="bbt-lox-psi">-- psi</div>
+                                <div class="bb-sol-indicators">
+                                    <div class="bb-sol"><div class="bb-sol-dot" id="bbt-lox-press-dot"></div> Press</div>
+                                    <div class="bb-sol"><div class="bb-sol-dot" id="bbt-lox-vent-dot"></div> Vent</div>
+                                </div>
+                            </div>
+                            <!-- Config: Core -->
+                            <div class="bb-cfg-group">
+                                <div class="bb-cfg-group-title"><i class="fas fa-crosshairs"></i> Core Config</div>
+                                <div class="bb-config-grid">
+                                    <div class="bb-cfg-field"><label>Setpoint (PSI)</label><input type="number" id="bbt-lox-setpoint" value="200" step="5" min="0"></div>
+                                    <div class="bb-cfg-field"><label>Deadband (PSI)</label><input type="number" id="bbt-lox-deadband" value="10" step="1" min="1"></div>
+                                    <div class="bb-cfg-field"><label>Wait (ms)</label><input type="number" id="bbt-lox-wait" value="500" step="100" min="0"></div>
+                                    <div class="bb-cfg-field"><label>Max Open (ms)</label><input type="number" id="bbt-lox-maxopen" value="0" step="100" min="0"></div>
+                                </div>
+                            </div>
+                            <!-- Config: Vent -->
+                            <div class="bb-cfg-group">
+                                <div class="bb-cfg-group-title"><i class="fas fa-wind"></i> Vent Config</div>
+                                <div class="bb-config-grid">
+                                    <div class="bb-cfg-field"><label>Trigger (PSI)</label><input type="number" id="bbt-lox-vent-trigger" value="0" step="5" min="0"></div>
+                                    <div class="bb-cfg-field"><label>Auto-Vent</label><select id="bbt-lox-vent-auto"><option value="0">Off</option><option value="1">On</option></select></div>
+                                </div>
+                            </div>
+                            <!-- Config: Mdot -->
+                            <div class="bb-cfg-group">
+                                <div class="bb-cfg-group-title"><i class="fas fa-tachometer-alt"></i> Mass-Flow Config</div>
+                                <div class="bb-config-grid three">
+                                    <div class="bb-cfg-field"><label>Target</label><input type="number" id="bbt-lox-mdot" value="0" step="1" min="0"></div>
+                                    <div class="bb-cfg-field"><label>SP Min</label><input type="number" id="bbt-lox-spmin" value="0" step="5" min="0"></div>
+                                    <div class="bb-cfg-field"><label>SP Max</label><input type="number" id="bbt-lox-spmax" value="0" step="5" min="0"></div>
+                                    <div class="bb-cfg-field"><label>Gain</label><input type="number" id="bbt-lox-gain" value="0" step="1" min="0"></div>
+                                    <div class="bb-cfg-field"><label>Enable</label><select id="bbt-lox-mdot-on"><option value="0">Off</option><option value="1">On</option></select></div>
+                                </div>
+                            </div>
+                            <!-- Buttons -->
+                            <div class="bb-btn-row">
+                                <button class="bb-action-btn push" onclick="bbtPushAll('lox')"><i class="fas fa-upload"></i> Push Config</button>
+                                <button class="bb-action-btn enable" id="bbt-lox-enable" onclick="bbtToggle('lox')"><i class="fas fa-play"></i> Enable</button>
+                                <button class="bb-action-btn vent" id="bbt-lox-vent-btn" onclick="bbtVent('lox')"><i class="fas fa-wind"></i> Vent</button>
+                                <button class="bb-action-btn bb-abort" onclick="bbtAbort('lox')"><i class="fas fa-skull-crossbones"></i> Abort</button>
+                            </div>
+                        </div>
+
+                        <!-- ═══ Fuel Card ═══ -->
+                        <div class="bb-tab-card fuel" id="bbt-fuel-card">
+                            <div style="display:flex;justify-content:space-between;align-items:center">
                                 <div class="bb-card-title"><i class="fas fa-fire"></i> Fuel Bus</div>
-                                <div class="bb-params">
-                                    <div class="bb-param">
-                                        <label>Setpoint (PSI)</label>
-                                        <input type="number" id="bb-fuel-setpoint" value="200" step="5" min="0" oninput="bbApplyParams('fuel')">
-                                    </div>
-                                    <div class="bb-param">
-                                        <label>Deadband (PSI)</label>
-                                        <input type="number" id="bb-fuel-deadband" value="10" step="1" min="1" oninput="bbApplyParams('fuel')">
-                                    </div>
-                                    <div class="bb-param">
-                                        <label>Wait (ms)</label>
-                                        <input type="number" id="bb-fuel-wait" value="500" step="100" min="0" oninput="bbApplyParams('fuel')">
-                                    </div>
-                                </div>
-                                <div class="bb-push-row">
-                                    <button class="bb-push-btn" onclick="bbPushConfig('fuel')">
-                                        <i class="fas fa-upload"></i> Push Config to Board
-                                    </button>
-                                    <span class="bb-push-status" id="bb-fuel-push-status"></span>
-                                </div>
-                                <div class="bb-sensors" id="bb-fuel-sensors">
-                                    <div class="bb-sensor">
-                                        <div class="bb-sensor-label">Fuel Tank PT</div>
-                                        <div class="bb-sensor-value" id="bb-fuel-pt0">-- PSI</div>
-                                    </div>
-                                    <div class="bb-sensor">
-                                        <div class="bb-sensor-label">Fuel Feed PT</div>
-                                        <div class="bb-sensor-value" id="bb-fuel-pt1">-- PSI</div>
-                                    </div>
-                                </div>
-                                <div class="bb-valve-row">
-                                    <span class="bb-valve-label">Vent Valve:</span>
-                                    <span class="bb-valve-state idle" id="bb-fuel-valve-state">IDLE</span>
-                                </div>
-                                <div class="bb-fw-status" id="bb-fuel-fw-status">FW: —</div>
-                                <div class="bb-status-bar" id="bb-fuel-status">Disabled</div>
-                                <button class="bb-enable-btn off" id="bb-fuel-enable" onclick="bbToggle('fuel')">
-                                    <i class="fas fa-play"></i> Enable BB
-                                </button>
+                                <span class="bb-state-badge off" id="bbt-fuel-badge"><span class="bb-state-dot"></span> <span id="bbt-fuel-state-text">OFF</span></span>
                             </div>
+                            <div class="bb-live-row">
+                                <div class="bb-live-psi" id="bbt-fuel-psi">-- psi</div>
+                                <div class="bb-sol-indicators">
+                                    <div class="bb-sol"><div class="bb-sol-dot" id="bbt-fuel-press-dot"></div> Press</div>
+                                    <div class="bb-sol"><div class="bb-sol-dot" id="bbt-fuel-vent-dot"></div> Vent</div>
+                                </div>
+                            </div>
+                            <div class="bb-cfg-group">
+                                <div class="bb-cfg-group-title"><i class="fas fa-crosshairs"></i> Core Config</div>
+                                <div class="bb-config-grid">
+                                    <div class="bb-cfg-field"><label>Setpoint (PSI)</label><input type="number" id="bbt-fuel-setpoint" value="200" step="5" min="0"></div>
+                                    <div class="bb-cfg-field"><label>Deadband (PSI)</label><input type="number" id="bbt-fuel-deadband" value="10" step="1" min="1"></div>
+                                    <div class="bb-cfg-field"><label>Wait (ms)</label><input type="number" id="bbt-fuel-wait" value="500" step="100" min="0"></div>
+                                    <div class="bb-cfg-field"><label>Max Open (ms)</label><input type="number" id="bbt-fuel-maxopen" value="0" step="100" min="0"></div>
+                                </div>
+                            </div>
+                            <div class="bb-cfg-group">
+                                <div class="bb-cfg-group-title"><i class="fas fa-wind"></i> Vent Config</div>
+                                <div class="bb-config-grid">
+                                    <div class="bb-cfg-field"><label>Trigger (PSI)</label><input type="number" id="bbt-fuel-vent-trigger" value="0" step="5" min="0"></div>
+                                    <div class="bb-cfg-field"><label>Auto-Vent</label><select id="bbt-fuel-vent-auto"><option value="0">Off</option><option value="1">On</option></select></div>
+                                </div>
+                            </div>
+                            <div class="bb-cfg-group">
+                                <div class="bb-cfg-group-title"><i class="fas fa-tachometer-alt"></i> Mass-Flow Config</div>
+                                <div class="bb-config-grid three">
+                                    <div class="bb-cfg-field"><label>Target</label><input type="number" id="bbt-fuel-mdot" value="0" step="1" min="0"></div>
+                                    <div class="bb-cfg-field"><label>SP Min</label><input type="number" id="bbt-fuel-spmin" value="0" step="5" min="0"></div>
+                                    <div class="bb-cfg-field"><label>SP Max</label><input type="number" id="bbt-fuel-spmax" value="0" step="5" min="0"></div>
+                                    <div class="bb-cfg-field"><label>Gain</label><input type="number" id="bbt-fuel-gain" value="0" step="1" min="0"></div>
+                                    <div class="bb-cfg-field"><label>Enable</label><select id="bbt-fuel-mdot-on"><option value="0">Off</option><option value="1">On</option></select></div>
+                                </div>
+                            </div>
+                            <div class="bb-btn-row">
+                                <button class="bb-action-btn push" onclick="bbtPushAll('fuel')"><i class="fas fa-upload"></i> Push Config</button>
+                                <button class="bb-action-btn enable" id="bbt-fuel-enable" onclick="bbtToggle('fuel')"><i class="fas fa-play"></i> Enable</button>
+                                <button class="bb-action-btn vent" id="bbt-fuel-vent-btn" onclick="bbtVent('fuel')"><i class="fas fa-wind"></i> Vent</button>
+                                <button class="bb-action-btn bb-abort" onclick="bbtAbort('fuel')"><i class="fas fa-skull-crossbones"></i> Abort</button>
+                            </div>
+                        </div>
+
+                        <!-- ═══ Pressure Chart ═══ -->
+                        <div class="bb-chart-container">
+                            <div class="bb-chart-header">
+                                <span><i class="fas fa-chart-area"></i> Pressure History (30s)</span>
+                                <span id="bbt-chart-legend">— <span style="color:#63b3ed">LOX</span> — <span style="color:#f6ad55">Fuel</span></span>
+                            </div>
+                            <canvas id="bbt-chart" class="bb-chart-canvas"></canvas>
+                        </div>
+
+                        <!-- ═══ Event Log ═══ -->
+                        <div class="bb-evt-container">
+                            <div class="bb-evt-header">
+                                <span><i class="fas fa-scroll"></i> EVT Audit Log</span>
+                                <button style="background:none;border:none;color:#58a6ff;cursor:pointer;font-size:11px" onclick="document.getElementById('bbt-evt-body').innerHTML=''"><i class="fas fa-eraser"></i> Clear</button>
+                            </div>
+                            <div class="bb-evt-body" id="bbt-evt-body"></div>
                         </div>
                     </div>
                 </div>
@@ -716,6 +879,20 @@
             lox:  { enabled:false, setpoint:200, deadband:10, waitMs:500, valveOpen:false, lastSwitch:0 },
             fuel: { enabled:false, setpoint:200, deadband:10, waitMs:500, valveOpen:false, lastSwitch:0 }
         };
+        // BB tab firmware state (from heartbeat)
+        const bbtFwState = {
+            lox:  { state:'OFF', press:false, vent:false, pressure:0 },
+            fuel: { state:'OFF', press:false, vent:false, pressure:0 }
+        };
+        // Pressure chart ring buffers (30s @ ~10Hz = 300 pts)
+        const BB_CHART_PTS = 300;
+        const bbtChartData = {
+            lox: new Float32Array(BB_CHART_PTS),
+            fuel: new Float32Array(BB_CHART_PTS),
+            idx: 0, count: 0
+        };
+        let bbtChartRAF = null;
+        const bbtVentOpen = { lox: false, fuel: false };
 
         // ── Tab switching ──
         function switchTab(tabName) {
@@ -864,6 +1041,9 @@
                         }
                         const ackText = extractSequenceAckText(msg);
                         if (ackText) handleSequenceCallback(msg, ackText);
+                    } else if (msg.type === 'device_message') {
+                        // Forward EVT, error, ack lines to BB tab event log + terminal
+                        bbtHandleDeviceMessage(msg);
                     } else if (msg.success !== undefined && msg.message && (msg.message.includes('Logging') || msg.message.includes('Log file'))) {
                         if (msg.success) showToast('Success', msg.message, 'success');
                         pollLoggingStatus();
@@ -1161,149 +1341,267 @@
                 const db=(Number.isFinite(saved.deadband)&&saved.deadband>0)?saved.deadband:cfg.deadband_psi;
                 const wt=(Number.isFinite(saved.waitMs)&&saved.waitMs>=0)?saved.waitMs:cfg.wait_ms;
                 bbState[bus].setpoint=sp; bbState[bus].deadband=db; bbState[bus].waitMs=wt;
-                document.getElementById(`bb-${bus}-setpoint`).value=sp;
-                document.getElementById(`bb-${bus}-deadband`).value=db;
-                document.getElementById(`bb-${bus}-wait`).value=wt;
-                // Update sensor labels
-                if(cfg.pt_sensors){
-                    cfg.pt_sensors.forEach((s,i)=>{
-                        const el=document.querySelector(`#bb-${bus}-sensors .bb-sensor:nth-child(${i+1}) .bb-sensor-label`);
-                        if(el)el.textContent=`PT${s.ni_daq_channel} — ${s.label}`;
-                    });
-                }
+                // Populate BB tab inputs
+                const el=id=>document.getElementById(id);
+                if(el(`bbt-${bus}-setpoint`)) el(`bbt-${bus}-setpoint`).value=sp;
+                if(el(`bbt-${bus}-deadband`)) el(`bbt-${bus}-deadband`).value=db;
+                if(el(`bbt-${bus}-wait`)) el(`bbt-${bus}-wait`).value=wt;
+                if(el(`bbt-${bus}-maxopen`)) el(`bbt-${bus}-maxopen`).value=cfg.max_open_ms||0;
+                if(el(`bbt-${bus}-vent-trigger`)) el(`bbt-${bus}-vent-trigger`).value=cfg.vent_trigger_psi||0;
+                if(el(`bbt-${bus}-vent-auto`)) el(`bbt-${bus}-vent-auto`).value=cfg.vent_auto?'1':'0';
+                if(el(`bbt-${bus}-mdot`)) el(`bbt-${bus}-mdot`).value=cfg.mdot_target||0;
+                if(el(`bbt-${bus}-spmin`)) el(`bbt-${bus}-spmin`).value=cfg.mdot_sp_min||0;
+                if(el(`bbt-${bus}-spmax`)) el(`bbt-${bus}-spmax`).value=cfg.mdot_sp_max||0;
+                if(el(`bbt-${bus}-gain`)) el(`bbt-${bus}-gain`).value=cfg.mdot_gain||0;
+                if(el(`bbt-${bus}-mdot-on`)) el(`bbt-${bus}-mdot-on`).value=cfg.mdot_enable?'1':'0';
                 // Update card title
-                const titleEl=document.querySelector(`#bb-${bus}-card .bb-card-title`);
+                const titleEl=document.querySelector(`#bbt-${bus}-card .bb-card-title`);
                 if(titleEl&&cfg.label)titleEl.innerHTML=`<i class="fas ${bus==='lox'?'fa-snowflake':'fa-fire'}"></i> ${cfg.label}`;
-                // Update valve label
-                if(cfg.valve){const vl=document.querySelector(`#bb-${bus}-card .bb-valve-label`);if(vl)vl.textContent=`${cfg.valve.label}:`;}
             });
+            // Start chart render
+            if(!bbtChartRAF) bbtChartRAF=setInterval(bbtRenderChart, 100);
         }
 
         function bbApplyParams(bus) {
-            const sp=parseFloat(document.getElementById(`bb-${bus}-setpoint`).value);
-            const db=parseFloat(document.getElementById(`bb-${bus}-deadband`).value);
-            const wt=parseFloat(document.getElementById(`bb-${bus}-wait`).value);
+            const sp=parseFloat(document.getElementById(`bbt-${bus}-setpoint`)?.value);
+            const db=parseFloat(document.getElementById(`bbt-${bus}-deadband`)?.value);
+            const wt=parseFloat(document.getElementById(`bbt-${bus}-wait`)?.value);
             if(Number.isFinite(sp))bbState[bus].setpoint=sp;
             if(Number.isFinite(db)&&db>0)bbState[bus].deadband=db;
             if(Number.isFinite(wt)&&wt>=0)bbState[bus].waitMs=wt;
             try{const saved=JSON.parse(localStorage.getItem('bbParams')||'{}');saved[bus]={setpoint:bbState[bus].setpoint,deadband:bbState[bus].deadband,waitMs:bbState[bus].waitMs};localStorage.setItem('bbParams',JSON.stringify(saved));}catch(e){}
         }
 
-        function bbToggle(bus) {
-            const cfg=bbConfig&&bbConfig.buses&&bbConfig.buses[bus];
-            const device=(cfg&&cfg.device)||'panda_rocket';
-            bbState[bus].enabled=!bbState[bus].enabled;
-            const btn=document.getElementById(`bb-${bus}-enable`);
-            const card=document.getElementById(`bb-${bus}-card`);
-            const statusEl=document.getElementById(`bb-${bus}-status`);
-            if(bbState[bus].enabled){
-                btn.className='bb-enable-btn on'; btn.innerHTML='<i class="fas fa-stop"></i> Disable BB';
-                card.classList.add(`active-${bus}`);
-                statusEl.className='bb-status-bar active';
-                // Send enable to firmware — board runs the control loop
-                if(ws&&ws.readyState===WebSocket.OPEN)
-                    ws.send(JSON.stringify({action:'bb_enable',device,bus,enable:true}));
-                showToast(`${bus.toUpperCase()} BB Enabled`,`Setpoint: ${bbState[bus].setpoint} PSI ±${bbState[bus].deadband/2} PSI`,'warning');
-            } else {
-                btn.className='bb-enable-btn off'; btn.innerHTML='<i class="fas fa-play"></i> Enable BB';
-                card.classList.remove(`active-${bus}`);
-                statusEl.className='bb-status-bar'; statusEl.textContent='Disabled';
-                bbState[bus].valveOpen=false;
-                updateBBValveUI(bus,false,'idle');
-                // Send disable to firmware — board closes valve
-                if(ws&&ws.readyState===WebSocket.OPEN)
-                    ws.send(JSON.stringify({action:'bb_enable',device,bus,enable:false}));
-                showToast(`${bus.toUpperCase()} BB Disabled`,'Board closing valve','info');
-            }
-            // Keep client-side tick running only for PT display updates (not control)
-            const anyEnabled=bbState.lox.enabled||bbState.fuel.enabled;
-            if(anyEnabled&&!bbIntervalId) bbIntervalId=setInterval(bbTick,50);
-            if(!anyEnabled&&bbIntervalId){clearInterval(bbIntervalId);bbIntervalId=null;}
-        }
+        // Legacy toggle (used by abort/estop code) — delegates to tab toggle
+        function bbToggle(bus) { bbtToggle(bus); }
 
         function bbTick() {
             ['lox','fuel'].forEach(bus=>{
                 const st=bbState[bus];
                 if(!st.enabled||!bbConfig||!bbConfig.buses[bus])return;
                 const cfg=bbConfig.buses[bus];
+                if(!cfg.pt_sensors||!cfg.pt_sensors.length)return;
                 const ch0=cfg.pt_sensors[0].ni_daq_channel;
                 const ch1=cfg.pt_sensors[1]?cfg.pt_sensors[1].ni_daq_channel:null;
-                const pressure=nidaqPT[ch0];
-                // Update PT displays
-                const pt0El=document.getElementById(`bb-${bus}-pt0`);
-                const pt1El=document.getElementById(`bb-${bus}-pt1`);
-                if(pt0El&&typeof nidaqPT[ch0]==='number'){const v=nidaqPT[ch0];const hi=st.setpoint+st.deadband/2;const lo=st.setpoint-st.deadband/2;pt0El.textContent=`${v.toFixed(1)} PSI`;pt0El.className='bb-sensor-value'+(v>hi?' hi':v<lo?' lo':'');}
-                if(pt1El&&ch1!==null&&typeof nidaqPT[ch1]==='number')pt1El.textContent=`${nidaqPT[ch1].toFixed(1)} PSI`;
-                if(typeof pressure!=='number')return;
-                const now=Date.now();
-                if(now-st.lastSwitch<st.waitMs)return;
-                const hi=st.setpoint+st.deadband/2;
-                const lo=st.setpoint-st.deadband/2;
-                const dcId=cfg.valve.dc_id;
-                if(pressure>hi&&!st.valveOpen){
-                    st.valveOpen=true; st.lastSwitch=now; controlDC(dcId,1); updateBBValveUI(bus,true);
-                    updateBBStatus(bus,`OPEN | ${pressure.toFixed(1)} > ${hi.toFixed(1)} PSI`);
-                } else if(pressure<lo&&st.valveOpen){
-                    st.valveOpen=false; st.lastSwitch=now; controlDC(dcId,0); updateBBValveUI(bus,false);
-                    updateBBStatus(bus,`CLOSED | ${pressure.toFixed(1)} < ${lo.toFixed(1)} PSI`);
-                } else {
-                    const zone=pressure>hi?'OVERPRESSURE':pressure<lo?'UNDERPRESSURE':'IN BAND';
-                    updateBBStatus(bus,`${zone} | ${pressure.toFixed(1)} PSI | wait ${Math.max(0,st.waitMs-(now-st.lastSwitch))}ms`);
+                // NI DAQ pressure for local display only (firmware does the real control)
+                if(typeof nidaqPT[ch0]==='number'){
+                    const v=nidaqPT[ch0]; const hi=st.setpoint+st.deadband/2; const lo=st.setpoint-st.deadband/2;
                 }
             });
         }
 
-        function updateBBValveUI(bus, open, forceClass) {
-            const el=document.getElementById(`bb-${bus}-valve-state`); if(!el)return;
-            if(forceClass){el.textContent=forceClass.toUpperCase();el.className=`bb-valve-state ${forceClass}`;return;}
-            el.textContent=open?'OPEN':'CLOSED'; el.className=`bb-valve-state ${open?'open':'closed'}`;
-        }
-        function updateBBStatus(bus, text){const el=document.getElementById(`bb-${bus}-status`);if(!el)return;el.textContent=text;el.className='bb-status-bar active';}
+        // ─── BB Tab Functions (bbt*) ───
 
-        // Push current UI params to firmware EEPROM (separate from enable/disable)
-        function bbPushConfig(bus) {
+        function _bbtDevice(bus) {
             const cfg=bbConfig&&bbConfig.buses&&bbConfig.buses[bus];
-            if(!cfg){showToast('BB Error','No config loaded','error');return;}
-            const device=cfg.device||'panda_rocket';
-            if(!ws||ws.readyState!==WebSocket.OPEN){showToast('BB Error','Not connected to server','error');return;}
-            const sp=bbState[bus].setpoint;
-            const db=bbState[bus].deadband;
-            const wt=bbState[bus].waitMs;
-            ws.send(JSON.stringify({action:'bb_config',device,bus,setpoint:sp,deadband:db,wait_ms:wt}));
-            const statusEl=document.getElementById(`bb-${bus}-push-status`);
-            if(statusEl){statusEl.textContent=`Sent ${sp}±${db/2} PSI`;statusEl.className='bb-push-status sent';}
-            showToast(`${bus.toUpperCase()} Config Pushed`,`${sp} PSI ±${db/2} PSI, wait ${wt}ms`,'info');
+            return (cfg&&cfg.device)||'rocket_panda';
         }
 
-        // Update FW status row from telemetry broadcast
+        function bbtPushAll(bus) {
+            if(!ws||ws.readyState!==WebSocket.OPEN){showToast('BB Error','Not connected','error');return;}
+            const device=_bbtDevice(bus);
+            const el=id=>document.getElementById(id);
+            // Core config
+            const sp=parseFloat(el(`bbt-${bus}-setpoint`)?.value)||200;
+            const db=parseFloat(el(`bbt-${bus}-deadband`)?.value)||10;
+            const wt=parseInt(el(`bbt-${bus}-wait`)?.value)||500;
+            const mo=parseInt(el(`bbt-${bus}-maxopen`)?.value)||0;
+            ws.send(JSON.stringify({action:'bb_config',device,bus,setpoint:sp,deadband:db,wait_ms:wt,max_open_ms:mo}));
+            // Vent config
+            const vt=parseFloat(el(`bbt-${bus}-vent-trigger`)?.value)||0;
+            const va=el(`bbt-${bus}-vent-auto`)?.value==='1';
+            ws.send(JSON.stringify({action:'bb_vent_config',device,bus,trigger:vt,auto_on:va}));
+            // Mdot config
+            const md=parseFloat(el(`bbt-${bus}-mdot`)?.value)||0;
+            const mn=parseFloat(el(`bbt-${bus}-spmin`)?.value)||0;
+            const mx=parseFloat(el(`bbt-${bus}-spmax`)?.value)||0;
+            const gn=parseFloat(el(`bbt-${bus}-gain`)?.value)||0;
+            const me=el(`bbt-${bus}-mdot-on`)?.value==='1';
+            ws.send(JSON.stringify({action:'bb_mdot_config',device,bus,mdot:md,sp_min:mn,sp_max:mx,gain:gn,enable:me}));
+            // Update local state
+            bbState[bus].setpoint=sp; bbState[bus].deadband=db; bbState[bus].waitMs=wt;
+            try{const saved=JSON.parse(localStorage.getItem('bbParams')||'{}');saved[bus]={setpoint:sp,deadband:db,waitMs:wt};localStorage.setItem('bbParams',JSON.stringify(saved));}catch(e){}
+            showToast(`${bus.toUpperCase()} Config Pushed`,`B+V+M sent to firmware`,'info');
+        }
+
+        function bbtToggle(bus) {
+            const device=_bbtDevice(bus);
+            const fw=bbtFwState[bus];
+            const wantEnable = fw.state==='OFF';
+            if(!ws||ws.readyState!==WebSocket.OPEN){showToast('BB Error','Not connected','error');return;}
+            ws.send(JSON.stringify({action:'bb_enable',device,bus,enable:wantEnable}));
+            showToast(`${bus.toUpperCase()} BB`,wantEnable?'Enable sent':'Disable sent',wantEnable?'warning':'info');
+        }
+
+        function bbtVent(bus) {
+            const device=_bbtDevice(bus);
+            const wantOpen = !bbtVentOpen[bus];
+            if(!ws||ws.readyState!==WebSocket.OPEN){showToast('BB Error','Not connected','error');return;}
+            ws.send(JSON.stringify({action:'bb_vent',device,bus,open:wantOpen}));
+            showToast(`${bus.toUpperCase()} Vent`,wantOpen?'Open sent':'Close sent','info');
+        }
+
+        function bbtAbort(bus) {
+            const device=_bbtDevice(bus);
+            if(!ws||ws.readyState!==WebSocket.OPEN){showToast('BB Error','Not connected','error');return;}
+            Swal.fire({title:`ABORT ${bus.toUpperCase()}?`,text:'Latched abort — only disarm clears this.',icon:'warning',showCancelButton:true,confirmButtonColor:'#e53e3e',confirmButtonText:'ABORT'}).then(r=>{
+                if(r.isConfirmed){
+                    ws.send(JSON.stringify({action:'bb_abort',device,bus}));
+                    showToast(`${bus.toUpperCase()} ABORT`,'Latched abort sent','error');
+                }
+            });
+        }
+
+        // Push current UI params to firmware EEPROM (legacy, kept for old inline section compat)
+        function bbPushConfig(bus) { bbtPushAll(bus); }
+
+        // ─── BB Firmware Status Update (from heartbeat) ───
         function updateBBFirmwareStatus(bus, bbData) {
-            const fwEl=document.getElementById(`bb-${bus}-fw-status`); if(!fwEl)return;
-            if(bbData.enabled){
-                const state=bbData.valve_open?'OPEN':'CLOSED';
-                fwEl.textContent=`FW: ${state} | ${bbData.pressure.toFixed(1)} PSI`;
-                fwEl.className='bb-fw-status active';
-                // Sync UI button state if firmware reports enabled but local state disagrees
-                if(!bbState[bus].enabled){
-                    bbState[bus].enabled=true;
-                    const btn=document.getElementById(`bb-${bus}-enable`);
-                    if(btn){btn.className='bb-enable-btn on';btn.innerHTML='<i class="fas fa-stop"></i> Disable BB';}
-                    document.getElementById(`bb-${bus}-card`)?.classList.add(`active-${bus}`);
-                    if(!bbIntervalId)bbIntervalId=setInterval(bbTick,50);
+            // bbData shape: { state:'OFF'|'SUS'|'AV'|'ABT', press:bool, vent:bool, pressure:float, config:{...} }
+            const fw = bbtFwState[bus];
+            fw.state = bbData.state || 'OFF';
+            fw.press = !!bbData.press;
+            fw.vent = !!bbData.vent;
+            fw.pressure = typeof bbData.pressure==='number' ? bbData.pressure : 0;
+
+            // Chart data
+            const ci = bbtChartData.idx % BB_CHART_PTS;
+            bbtChartData[bus][ci] = fw.pressure;
+            if(bus==='fuel'){ bbtChartData.idx++; bbtChartData.count=Math.min(bbtChartData.count+1,BB_CHART_PTS); }
+
+            // State badge mapping
+            const stateMap = { OFF:'off', SUS:'sus', AV:'av', ABT:'abt' };
+            const stateLabels = { OFF:'OFF', SUS:'SUSTAIN', AV:'AUTO-VENT', ABT:'ABORT' };
+            const cls = stateMap[fw.state] || 'off';
+            const label = stateLabels[fw.state] || fw.state;
+
+            // BB tab card
+            const card = document.getElementById(`bbt-${bus}-card`);
+            const badge = document.getElementById(`bbt-${bus}-badge`);
+            const stText = document.getElementById(`bbt-${bus}-state-text`);
+            if(badge){badge.className=`bb-state-badge ${cls}`;}
+            if(stText)stText.textContent=label;
+            if(card){
+                card.classList.remove('active','bb-abort');
+                if(fw.state==='SUS'||fw.state==='AV') card.classList.add('active');
+                if(fw.state==='ABT') card.classList.add('bb-abort');
+            }
+
+            // Pressure display
+            const psiEl=document.getElementById(`bbt-${bus}-psi`);
+            if(psiEl){
+                psiEl.textContent=`${fw.pressure.toFixed(1)} psi`;
+                const sp=bbState[bus].setpoint; const db=bbState[bus].deadband;
+                psiEl.className='bb-live-psi'+(fw.pressure>sp+db/2?' hi':fw.pressure<sp-db/2?' lo':'');
+            }
+
+            // Solenoid dots
+            const pressDot=document.getElementById(`bbt-${bus}-press-dot`);
+            const ventDot=document.getElementById(`bbt-${bus}-vent-dot`);
+            if(pressDot) pressDot.className='bb-sol-dot'+(fw.press?' active':'');
+            if(ventDot)  ventDot.className='bb-sol-dot'+(fw.vent?' active':'');
+            bbtVentOpen[bus]=fw.vent;
+
+            // Enable/disable button state
+            const enableBtn=document.getElementById(`bbt-${bus}-enable`);
+            if(enableBtn){
+                if(fw.state!=='OFF'){
+                    enableBtn.className='bb-action-btn disable';
+                    enableBtn.innerHTML='<i class="fas fa-stop"></i> Disable';
+                } else {
+                    enableBtn.className='bb-action-btn enable';
+                    enableBtn.innerHTML='<i class="fas fa-play"></i> Enable';
                 }
-            } else {
-                fwEl.textContent=`FW: OFF`;
-                fwEl.className='bb-fw-status';
-                // Sync UI if firmware reports disabled but local state thinks it's on
-                if(bbState[bus].enabled){
-                    bbState[bus].enabled=false;
-                    const btn=document.getElementById(`bb-${bus}-enable`);
-                    if(btn){btn.className='bb-enable-btn off';btn.innerHTML='<i class="fas fa-play"></i> Enable BB';}
-                    document.getElementById(`bb-${bus}-card`)?.classList.remove(`active-${bus}`);
-                    const statusEl=document.getElementById(`bb-${bus}-status`);
-                    if(statusEl){statusEl.className='bb-status-bar';statusEl.textContent='Disabled';}
-                    updateBBValveUI(bus,false,'idle');
-                    if(!bbState.lox.enabled&&!bbState.fuel.enabled&&bbIntervalId){clearInterval(bbIntervalId);bbIntervalId=null;}
+            }
+
+            // Vent button state
+            const ventBtn=document.getElementById(`bbt-${bus}-vent-btn`);
+            if(ventBtn){
+                ventBtn.innerHTML=fw.vent?'<i class="fas fa-wind"></i> Close Vent':'<i class="fas fa-wind"></i> Vent';
+            }
+
+            // Sync legacy bbState for abort/estop code
+            bbState[bus].enabled = fw.state!=='OFF';
+
+            // Inline summary on manual tab
+            const inlineBadge=document.getElementById(`bb-inline-${bus}-badge`);
+            const inlinePsi=document.getElementById(`bb-inline-${bus}-psi`);
+            if(inlineBadge){inlineBadge.className=`bb-state-badge ${cls}`;inlineBadge.innerHTML=`<span class="bb-state-dot"></span> ${label}`;}
+            if(inlinePsi) inlinePsi.textContent=`${fw.pressure.toFixed(1)} psi`;
+        }
+
+        // ─── BB Pressure Chart (Canvas) ───
+        function bbtRenderChart() {
+            const canvas=document.getElementById('bbt-chart');
+            if(!canvas||!canvas.offsetParent) return; // skip if tab not visible
+            const ctx=canvas.getContext('2d');
+            const dpr=window.devicePixelRatio||1;
+            const w=canvas.clientWidth; const h=canvas.clientHeight;
+            if(canvas.width!==w*dpr||canvas.height!==h*dpr){canvas.width=w*dpr;canvas.height=h*dpr;}
+            ctx.setTransform(dpr,0,0,dpr,0,0);
+            ctx.clearRect(0,0,w,h);
+
+            const n=bbtChartData.count;
+            if(n<2) { ctx.fillStyle='#8b949e'; ctx.font='12px monospace'; ctx.textAlign='center'; ctx.fillText('Waiting for data...',w/2,h/2); return; }
+
+            // Compute Y range
+            let yMin=Infinity, yMax=-Infinity;
+            for(let i=0;i<n;i++){const ci=(bbtChartData.idx-n+i+BB_CHART_PTS)%BB_CHART_PTS; const lv=bbtChartData.lox[ci]; const fv=bbtChartData.fuel[ci]; yMin=Math.min(yMin,lv,fv); yMax=Math.max(yMax,lv,fv);}
+            const pad=Math.max((yMax-yMin)*0.15,20); yMin-=pad; yMax+=pad;
+            const xStep=w/(n-1);
+            const toY=v=>h-(v-yMin)/(yMax-yMin)*h;
+
+            // Setpoint bands
+            ['lox','fuel'].forEach((bus,bi)=>{
+                const sp=bbState[bus].setpoint; const db=bbState[bus].deadband;
+                const y1=toY(sp+db/2); const y2=toY(sp-db/2);
+                ctx.fillStyle=bi===0?'rgba(99,179,237,0.08)':'rgba(246,173,85,0.08)';
+                ctx.fillRect(0,Math.min(y1,y2),w,Math.abs(y2-y1));
+                ctx.strokeStyle=bi===0?'rgba(99,179,237,0.3)':'rgba(246,173,85,0.3)';
+                ctx.setLineDash([4,4]); ctx.lineWidth=1;
+                ctx.beginPath(); ctx.moveTo(0,toY(sp)); ctx.lineTo(w,toY(sp)); ctx.stroke();
+                ctx.setLineDash([]);
+            });
+
+            // Grid lines
+            ctx.strokeStyle='rgba(139,148,158,0.15)'; ctx.lineWidth=0.5;
+            for(let i=0;i<=4;i++){const y=h*i/4;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+            // Y axis labels
+            ctx.fillStyle='#8b949e'; ctx.font='10px monospace'; ctx.textAlign='left';
+            for(let i=0;i<=4;i++){const v=yMax-(yMax-yMin)*i/4;ctx.fillText(v.toFixed(0)+' psi',4,h*i/4+12);}
+
+            // Traces
+            [{bus:'lox',color:'#63b3ed'},{bus:'fuel',color:'#f6ad55'}].forEach(({bus,color})=>{
+                ctx.strokeStyle=color; ctx.lineWidth=2; ctx.lineJoin='round';
+                ctx.beginPath();
+                for(let i=0;i<n;i++){
+                    const ci=(bbtChartData.idx-n+i+BB_CHART_PTS)%BB_CHART_PTS;
+                    const x=i*xStep; const y=toY(bbtChartData[bus][ci]);
+                    if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);
                 }
+                ctx.stroke();
+            });
+        }
+
+        // ─── BB Device Message Handler ───
+        function bbtHandleDeviceMessage(msg) {
+            const line=msg.line||''; const cat=msg.category||'info';
+            // Append to terminal
+            const tType=cat==='error'?'err':cat==='event'?'seq':'normal';
+            appendTerminalLine(line, tType);
+            // Append to BB event log
+            const evtBody=document.getElementById('bbt-evt-body');
+            if(evtBody){
+                const evtCls = line.includes('CFG_PUSH')?'cfg':line.includes('VALVE')?'valve':
+                    (line.includes('ABORT')||line.includes('ERROR'))?'bb-abort-evt':
+                    line.includes('WARN')?'warn':'info';
+                const div=document.createElement('div');
+                div.className=`bb-evt-line ${evtCls}`;
+                div.textContent=`[${new Date().toLocaleTimeString()}] ${line}`;
+                evtBody.appendChild(div);
+                evtBody.scrollTop=evtBody.scrollHeight;
+                // Cap at 200 lines
+                while(evtBody.children.length>200) evtBody.removeChild(evtBody.firstChild);
             }
         }
 
