@@ -102,47 +102,28 @@ moe)
     python3 server.py --config "$SCRIPT_DIR/configs/moe_system.json" $TEST_FLAG
     ;;
 
-# ── Draco: standalone Panda V1 + NI DAQ (original pipeline) ──────────
+# ── Draco: Panda V1 + NI DAQ (via MOE backend) ──────────────────────
 draco)
-    regen_configs --target panda --target nidaq
+    regen_configs --target moe
     echo ""
-    echo "Starting Draco (original)..."
+    echo "Starting Draco (Panda V1 via MOE backend)..."
+    cd "$SCRIPT_DIR/moe"
 
-    # NI DAQ — Node.js WS server + Python streamer
-    cd "$SCRIPT_DIR/ni_daq"
-    if [ ! -d "node_modules" ]; then
-        echo "Installing Node.js dependencies..."
-        npm install --no-fund --no-audit
+    if [ ! -d "venv" ]; then
+        echo "Creating virtual environment..."
+        python3 -m venv venv
     fi
-    node server.js &
-    BG_PIDS+=($!)
-    sleep 2
-    python3 daq_streamer.py &
-    BG_PIDS+=($!)
-
-    # Panda V1
-    cd "$SCRIPT_DIR/panda"
-    if [ ! -d ".venv" ]; then
-        python3 -m venv .venv
-    fi
-    source .venv/bin/activate
-    pip install -q websockets pyserial
-
-    # Serial port: CLI flag > interactive prompt > default
-    if [ -z "$SERIAL_PORT" ]; then
-        echo ""
-        echo "  Serial port? (e.g. /dev/cu.usbmodem14101, leave blank for COM4)"
-        read -rp "  Port: " SERIAL_PORT
-        SERIAL_PORT="${SERIAL_PORT:-COM4}"
-    fi
+    source venv/bin/activate
+    pip install -q -r requirements.txt
 
     echo ""
-    echo "  NI DAQ UI : http://localhost:3000"
-    echo "  Panda UI  : http://localhost:8080/panda-daq-ui.html"
+    echo "  WebSocket : ws://localhost:3941"
+    echo "  UI        : http://localhost:8080/moeui.html"
     echo ""
 
-    open_browser "http://localhost:8080/panda-daq-ui.html"
-    python3 main.py --port "$SERIAL_PORT" $TEST_FLAG
+    open_browser "http://localhost:8080/moeui.html"
+    python3 server.py --config "$SCRIPT_DIR/configs/draco_system.json" \
+        --ws-port 3941 --http-port 8080 $TEST_FLAG
     ;;
 
 # ── GSE V1: Panda V1 through MOE backend ─────────────────────────────
