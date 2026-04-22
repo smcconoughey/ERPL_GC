@@ -205,6 +205,12 @@ class SerialProcessor:
         # Throttle for console RAW printing (seconds between prints)
         self.debug_raw_throttle_sec: float = 1.0
         self._last_raw_print: float = 0.0
+        # Throttle noisy PT preview prints (seconds between prints)
+        self._last_pt_preview_print: float = 0.0
+        self._pt_preview_throttle_sec: float = 1.0
+        # Cap websocket send cadence to avoid backpressure/latency stalls.
+        self.ws_max_hz: float = 40.0
+        self._last_ws_send_ts: float = 0.0
         # Auto-estimate shunt from ambient voltage so ambient ≈ 4 mA in volts mode
         self.auto_shunt_v_ambient: bool = True
         self._ambient_v_sum: float = 0.0
@@ -508,10 +514,11 @@ class SerialProcessor:
                             self._last_pt_mA = mA_vals[:16]
                             # Periodic debug print of first channels in mA
                             now_dbg = time.time()
-                            if int(now_dbg) % 2 == 0:
+                            if (now_dbg - self._last_pt_preview_print) >= self._pt_preview_throttle_sec:
                                 try:
                                     preview = ', '.join(f"{v:.3f}mA" for v in mA_vals[:4])
                                     print(f"PT mA preview: {preview}")
+                                    self._last_pt_preview_print = now_dbg
                                 except Exception:
                                     pass
                     except Exception:
@@ -798,10 +805,13 @@ class SerialProcessor:
             return result
 
     async def broadcast_data(self):
-        message_count = 0
+        ingest_count = 0
         last_print = time.time()
+        send_interval = 1.0 / max(1.0, float(getattr(self, "ws_max_hz", 40.0)))
         while True:
             processed_any = False
+            latest_processed = None
+            pending_device_msgs: List[Dict] = []
             try:
                 while True:
                     try:
@@ -811,19 +821,30 @@ class SerialProcessor:
 
                     processed_any = True
                     data, dc_meta, device_msgs = self._process_outgoing_data_and_meta(raw_data)
-                    message_count += 1
+                    ingest_count += 1
+                    latest_processed = (data, raw_data, dc_meta)
+                    if device_msgs:
+                        # Cap burst event fan-out per loop.
+                        pending_device_msgs.extend(device_msgs[:64])
                     now = time.time()
                     if now - last_print >= 2.0:
                         try:
                             preview = (raw_data[:120] + '...') if len(raw_data) > 120 else raw_data
-                            rate = message_count / (now - last_print)
-                            logging.info(f"WS broadcast rate: {rate:.1f} msg/s, clients={len(self.clients)}; raw preview: {preview}")
+                            rate = ingest_count / (now - last_print)
+                            logging.info(f"WS ingest rate: {rate:.1f} lines/s, clients={len(self.clients)}; raw preview: {preview}")
                         except Exception:
                             pass
-                        message_count = 0
+                        ingest_count = 0
                         last_print = now
 
-                    if self.clients:
+                    now_send = time.time()
+                    should_send = (
+                        latest_processed is not None
+                        and self.clients
+                        and (now_send - self._last_ws_send_ts) >= send_interval
+                    )
+                    if should_send:
+                        data, raw_data, dc_meta = latest_processed
                         stale_clients = []
                         payload = {"type": "data", "content": data, "raw": raw_data}
                         try:
@@ -863,8 +884,8 @@ class SerialProcessor:
                         for client in list(self.clients):
                             try:
                                 await client.send(message)
-                                if device_msgs:
-                                    for evt in device_msgs:
+                                if pending_device_msgs:
+                                    for evt in pending_device_msgs:
                                         await client.send(json.dumps(evt))
                             except Exception:
                                 stale_clients.append(client)
@@ -875,13 +896,14 @@ class SerialProcessor:
                                 pass
                             if client in self.clients:
                                 self.clients.remove(client)
-
-                    if self.udp_enable and self.udp_sock is not None:
-                        try:
-                            payload = json.dumps({"type": "data", "content": data}).encode('utf-8')
-                            self.udp_sock.sendto(payload, (self.udp_group, self.udp_port))
-                        except Exception:
-                            pass
+                        self._last_ws_send_ts = now_send
+                        pending_device_msgs = []
+                        if self.udp_enable and self.udp_sock is not None:
+                            try:
+                                payload = json.dumps({"type": "data", "content": data}).encode('utf-8')
+                                self.udp_sock.sendto(payload, (self.udp_group, self.udp_port))
+                            except Exception:
+                                pass
             except Exception:
                 pass
 
@@ -891,7 +913,7 @@ class SerialProcessor:
                 except Exception as e:
                     logging.error(f"Failed to write log entry: {e}")
 
-            await asyncio.sleep(0 if processed_any else 0.01)
+            await asyncio.sleep(0.001 if processed_any else 0.01)
     
     def start_logging(self) -> Dict:
         """Start CSV logging with timestamped filename"""
