@@ -1125,14 +1125,33 @@ class ReusableTCPServer(socketserver.TCPServer):
 
 
 def start_http_server(http_port: int):
-    # Serve from the built Svelte app directory.
-    # server.py lives in moe/, so go to ui/dist
-    web_root = str(Path(__file__).parent / "ui" / "dist")
+    # Serve from the root public/ directory so moeui.html and other flat-file
+    # UIs are reachable. server.py lives in moe/, so ../public is the root.
     import os
+    public_root = Path(__file__).parent.parent / "public"
+    dist_root   = Path(__file__).parent / "ui" / "dist"
+    web_root    = str(public_root if public_root.is_dir() else dist_root)
     os.chdir(web_root)
-    handler = http.server.SimpleHTTPRequestHandler
+
+    class _MultiRootHandler(http.server.SimpleHTTPRequestHandler):
+        """Serve from public/ first, fall back to ui/dist/ for Svelte assets."""
+        _roots = [str(public_root), str(dist_root)]
+
+        def translate_path(self, path):
+            import urllib.parse, posixpath
+            path = urllib.parse.unquote(path.split('?')[0].split('#')[0])
+            path = posixpath.normpath(path).lstrip('/')
+            for root in self._roots:
+                candidate = os.path.join(root, path) if path else root
+                if os.path.isfile(candidate):
+                    return candidate
+            return os.path.join(self._roots[0], path)
+
+        def log_message(self, fmt, *args):
+            pass  # suppress per-request access log noise
+
     try:
-        httpd = ReusableTCPServer(("0.0.0.0", http_port), handler)
+        httpd = ReusableTCPServer(("0.0.0.0", http_port), _MultiRootHandler)
         threading.Thread(target=httpd.serve_forever, daemon=True).start()
         logger.info(f"HTTP server on http://0.0.0.0:{http_port} (serving {web_root})")
         return httpd

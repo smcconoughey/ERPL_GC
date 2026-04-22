@@ -192,8 +192,8 @@ class SerialProcessor:
         # Last seen raw PT currents (mA) for tare capture
         self._last_pt_mA: List[float] = [0.0 for _ in range(16)]
         self._last_pt_raw: List[float] = [0.0 for _ in range(16)]
-        # Debug: echo raw serial bus lines
-        self.debug_print_serial: bool = True
+        # Debug: echo raw serial bus lines (off by default — very noisy)
+        self.debug_print_serial: bool = False
         # Throttle for console RAW printing (seconds between prints)
         self.debug_raw_throttle_sec: float = 1.0
         self._last_raw_print: float = 0.0
@@ -525,7 +525,6 @@ class SerialProcessor:
     def read_serial(self):
         lines_read = 0
         last_report = time.time()
-        _hex_diag_remaining = 3
         _buf = bytearray()
 
         while self.connected:
@@ -535,16 +534,11 @@ class SerialProcessor:
                 if not chunk:
                     now = time.time()
                     if now - last_report >= 2.0:
-                        logging.info("Serial lines/sec: %.1f  buf=%dB  (no data)",
-                                     lines_read / (now - last_report), len(_buf))
+                        logging.debug("Serial lines/sec: %.1f  buf=%dB  (no data)",
+                                      lines_read / (now - last_report), len(_buf))
                         lines_read = 0
                         last_report = now
                     continue
-
-                if _hex_diag_remaining > 0:
-                    snippet = chunk[:120]
-                    logging.info("SERIAL HEX (%dB): %s", len(chunk), snippet.hex(' '))
-                    _hex_diag_remaining -= 1
 
                 _buf.extend(chunk)
 
@@ -571,10 +565,10 @@ class SerialProcessor:
                     lines_read += 1
 
                 if len(_buf) > 16384:
-                    overflow = bytes(_buf[-200:])
                     logging.warning(
-                        "Serial buffer overflow (%dB, no newline); tail hex: %s",
-                        len(_buf), overflow.hex(' ')
+                        "Serial buffer overflow (%dB, no newline in stream); "
+                        "check baud rate and TX polarity. Buffer cleared.",
+                        len(_buf)
                     )
                     _buf.clear()
 
@@ -582,8 +576,8 @@ class SerialProcessor:
                 if now - last_report >= 2.0:
                     try:
                         rate = lines_read / (now - last_report)
-                        logging.info("Serial lines/sec: %.1f  buf=%dB",
-                                     rate, len(_buf))
+                        logging.debug("Serial lines/sec: %.1f  buf=%dB",
+                                      rate, len(_buf))
                     except Exception:
                         pass
                     lines_read = 0
