@@ -77,9 +77,6 @@ goto :eof
 rem ── Draco ───────────────────────────────────────────────────────────
 :launch_draco
 echo.
-echo Regenerating configs from sensor_config.xlsx...
-python generate_configs.py
-echo.
 echo Starting Draco (original)...
 
 call start_nidaq.bat

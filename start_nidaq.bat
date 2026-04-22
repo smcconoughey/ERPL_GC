@@ -38,10 +38,6 @@ if not exist ni_daq\node_modules (
     popd
 )
 
-echo Regenerating configs from sensor_config.xlsx...
-python "%~dp0generate_configs.py"
-echo.
-
 echo Starting NI DAQ WebSocket Server...
 start "NI DAQ Server" cmd /k "title NI DAQ Server && cd ni_daq && "%NODE_EXE%" server.js"
 

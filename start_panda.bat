@@ -34,10 +34,6 @@ echo Installing dependencies...
 rem Free the websocket port if held
 powershell -NoProfile -Command "try{Get-NetTCPConnection -LocalPort %WS_PORT% -State Listen -ErrorAction SilentlyContinue | Select -Expand OwningProcess -Unique | ForEach-Object { try { Stop-Process -Id $_ -ErrorAction SilentlyContinue } catch {} }}catch{}"
 
-echo Regenerating configs from sensor_config.xlsx...
-python "%~dp0generate_configs.py"
-echo.
-
 echo Starting PANDA bridge...
 start "PANDA Bridge" cmd /k "title PANDA Bridge && %PY% -u main.py %ARGS%"
 

@@ -871,6 +871,11 @@
         let nidaqWs = null;
         let isNidaqConnected = false;
         let nidaqPT = {};   // keyed by NI DAQ channel index
+        // Raw 16-PT array forwarded from Panda V2 over the V1 'p…' line.
+        // Indexed 0..15, matching firmware's BB_LOX_PT_CH / BB_FUEL_PT_CH.
+        // Used by the BB tab when the backend doesn't relay the BB: heartbeat
+        // (e.g. the legacy panda/main.py bridge in Draco .bat mode).
+        let pandaV2PT = new Array(16).fill(null);
 
         // ── Bang-Bang state (MOE addition) ──
         let bbConfig = null;
@@ -1111,6 +1116,7 @@
                     const values = tokens.map(tok => { const n=parseFloat(tok.replace(/^[a-zA-Z]+/,'')); return Number.isFinite(n)?n:null; }).filter(v=>v!==null);
                     if (id==='p') {
                         for (let i=0; i<Math.min(values.length,16); i++) {
+                            pandaV2PT[i]=values[i];
                             const rawIdx=i+1;
                             const cid = ptIndexMap.hasOwnProperty(rawIdx)?ptIndexMap[rawIdx]:rawIdx;
                             currentData.pt[cid]=values[i]; updateSensorDisplay('pt',cid,values[i]);
@@ -1128,6 +1134,7 @@
                     } else if (id==='s') {
                         for (let i=0;i<values.length;i++) { const mi=(i<dcOrder.length)?dcOrder[i]:i; const ri=mi+1; const dcId=dcIndexMap.hasOwnProperty(ri)?dcIndexMap[ri]:ri; currentData.dc[dcId]=values[i]; const cel=document.getElementById(`dc-current-${dcId}`); if(cel)cel.textContent=`${values[i].toFixed(3)} A`; }
                     }
+                    if (id==='p') { try { bbtUpdatePressureFromPT(); } catch(_){} }
                     lastDataUpdate=new Date(); updateTimestamp(); return;
                 }
             }
@@ -1455,6 +1462,40 @@
         // Push current UI params to firmware EEPROM (legacy, kept for old inline section compat)
         function bbPushConfig(bus) { bbtPushAll(bus); }
 
+        // ─── Live PT pressure from raw V2 'p…' row ───
+        // Drives the BB cards directly so the legacy panda/main.py bridge (which
+        // doesn't parse the BB: heartbeat) can still show live tank pressure.
+        function _bbPtPressure(bus) {
+            const cfg = bbConfig && bbConfig.buses && bbConfig.buses[bus];
+            if (!cfg) return null;
+            const ch = Number(cfg.pt_channel);
+            if (!Number.isFinite(ch) || ch < 0 || ch > 15) return null;
+            const v = pandaV2PT[ch];
+            return Number.isFinite(v) ? v : null;
+        }
+        function bbtUpdatePressureFromPT() {
+            ['lox','fuel'].forEach(bus => {
+                const p = _bbPtPressure(bus);
+                if (p === null) return;
+                const fw = bbtFwState[bus];
+                fw.pressure = p;
+                const sp = bbState[bus].setpoint, db = bbState[bus].deadband;
+                const cls = 'bb-live-psi' + (p > sp+db/2 ? ' hi' : p < sp-db/2 ? ' lo' : '');
+                const psiEl = document.getElementById(`bbt-${bus}-psi`);
+                if (psiEl) { psiEl.textContent = `${p.toFixed(1)} psi`; psiEl.className = cls; }
+                const inlinePsi = document.getElementById(`bb-inline-${bus}-psi`);
+                if (inlinePsi) inlinePsi.textContent = `${p.toFixed(1)} psi`;
+                // Feed the rolling chart as well so the trace continues even when
+                // the BB heartbeat is absent (Draco / panda-main.py backend).
+                const ci = bbtChartData.idx % BB_CHART_PTS;
+                bbtChartData[bus][ci] = p;
+                if (bus === 'fuel') {
+                    bbtChartData.idx++;
+                    bbtChartData.count = Math.min(bbtChartData.count + 1, BB_CHART_PTS);
+                }
+            });
+        }
+
         // ─── BB Firmware Status Update (from heartbeat) ───
         function updateBBFirmwareStatus(bus, bbData) {
             // bbData shape: { state:'OFF'|'SUS'|'AV'|'ABT', press:bool, vent:bool, pressure:float, config:{...} }
@@ -1462,7 +1503,12 @@
             fw.state = bbData.state || 'OFF';
             fw.press = !!bbData.press;
             fw.vent = !!bbData.vent;
-            fw.pressure = typeof bbData.pressure==='number' ? bbData.pressure : 0;
+            // Prefer the heartbeat pressure when the firmware sends one (>0); otherwise
+            // fall back to the live V2 PT array so Draco mode still shows tank pressure.
+            const hbPressure = typeof bbData.pressure==='number' ? bbData.pressure : null;
+            const ptPressure = _bbPtPressure(bus);
+            fw.pressure = (hbPressure !== null && hbPressure !== 0) ? hbPressure
+                        : (ptPressure !== null ? ptPressure : (hbPressure || 0));
 
             // Chart data
             const ci = bbtChartData.idx % BB_CHART_PTS;

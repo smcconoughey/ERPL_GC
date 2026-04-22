@@ -91,7 +91,11 @@ def _make_pt_channels(rows):
     for r in rows:
         ch = _safei(r.get('channel'))
         rng_min = _safef(r.get('range_min'), 0)
-        rng_max = _safef(r.get('range_max'), 500)
+        # Prefer explicit range_max, fall back to calibration max (cal_max_psi_a).
+        # Default 1500 psi for panda PTs (was 500, but the panda hardware now uses
+        # 0–1500 psi sensors across the board).
+        rng_max = _safef(r.get('range_max'),
+                         _safef(r.get('cal_max_psi_a'), 1500))
         channels.append({
             "pt": {
                 "id": ch + 1,
