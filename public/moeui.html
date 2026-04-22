@@ -1631,7 +1631,14 @@
 
         // ─── BB Device Message Handler ───
         function bbtHandleDeviceMessage(msg) {
-            const line=msg.line||''; const cat=msg.category||'info';
+            const line=String(msg.line ?? msg.message ?? msg.raw ?? '').trim();
+            if(!line) return;
+            let cat=msg.category||'info';
+            if(cat==='info'){
+                if(line.startsWith('BB_ERROR:')||line.startsWith('CMD_ERROR:')) cat='error';
+                else if(line.startsWith('EVT:')||line.startsWith('BB:')) cat='event';
+                else if(line.startsWith('SEQ_')||line==='Arming!'||line==='Disarming!') cat='ack';
+            }
             // Append to terminal
             const tType=cat==='error'?'err':cat==='event'?'seq':'normal';
             appendTerminalLine(line, tType);

@@ -9,12 +9,15 @@ import argparse
 import random
 import time
 import math
+import collections
 import http.server
 import socket
 import socketserver
 import signal
 import atexit
 import os
+import subprocess
+import sys
 from typing import List, Dict
 import logging
 import csv
@@ -184,7 +187,9 @@ class SerialProcessor:
         self.pt_shunt_ohms: float = 47.0  # default shunt used on hardware
         # Optional per-channel effective shunt ohms (computed at tare)
         self.pt_shunt_ohms_list: List[float] = [self.pt_shunt_ohms for _ in range(16)]
-        # Board may send 4–20 mA directly; default to mA mapping. If sending volts across 47Ω shunt, set to 'volts'.
+        # PandaV2 scuffed-bangbang firmware emits raw voltage across the PT
+        # shunt (~0.7 V at idle), not mA. Stay in 'volts' mode so the server's
+        # auto-shunt calibration converts V -> mA against the 4 mA baseline.
         self.pt_input_mode: str = "volts"  # auto | ma | volts
         self.pt_meta: List[Dict] = self._load_pt_metadata()
         # Per-channel tare offsets in engineering units (psi)
@@ -192,6 +197,9 @@ class SerialProcessor:
         # Last seen raw PT currents (mA) for tare capture
         self._last_pt_mA: List[float] = [0.0 for _ in range(16)]
         self._last_pt_raw: List[float] = [0.0 for _ in range(16)]
+        # If V1 emits uppercase 'P' PT PSI rows, prefer those for outgoing PT values.
+        self._prefer_v1_pt_psi: bool = False
+        self._last_v1_pt_psi_ts: float = 0.0
         # Debug: echo raw serial bus lines (off by default — very noisy)
         self.debug_print_serial: bool = False
         # Throttle for console RAW printing (seconds between prints)
@@ -225,9 +233,20 @@ class SerialProcessor:
         self.cmd_log_file = None
         self.cmd_log_writer = None
         self.cmd_log_filename = None
-        # Bang-bang configs (persist in memory during runtime)
-        self.bb_configs = {"fuel": {"id": None, "enable": False, "set": 150.0, "deadHigh": 10.0, "deadLow": 10.0, "wait": 250},
-                           "lox":  {"id": None, "enable": False, "set": 150.0, "deadHigh": 10.0, "deadLow": 10.0, "wait": 250}}
+        # Bang-bang config cache + latest firmware runtime heartbeat mirror.
+        self.bb_configs = {
+            "lox":  {"setpoint": 200.0, "deadband": 10.0, "wait_ms": 500, "max_open_ms": 0,
+                     "vent_trigger": 0.0, "vent_auto": False,
+                     "mdot_target": 0.0, "sp_min": 0.0, "sp_max": 0.0, "gain": 0.0, "rho": 0.0, "enable": False},
+            "fuel": {"setpoint": 200.0, "deadband": 10.0, "wait_ms": 500, "max_open_ms": 0,
+                     "vent_trigger": 0.0, "vent_auto": False,
+                     "mdot_target": 0.0, "sp_min": 0.0, "sp_max": 0.0, "gain": 0.0, "rho": 0.0, "enable": False},
+        }
+        self.bb_runtime = {
+            "l": {"state": "OFF", "press": False, "vent": False, "pressure": 0.0},
+            "f": {"state": "OFF", "press": False, "vent": False, "pressure": 0.0},
+        }
+        self.device_messages = collections.deque(maxlen=300)
         # Preset sequences (e.g., GOX purge, hotfire) persisted to disk
         base_dir = os.path.dirname(os.path.abspath(__file__))
         self.preset_file = Path(base_dir) / "configs" / "preset_sequences.json"
@@ -269,24 +288,43 @@ class SerialProcessor:
                         "name": str(row[col.get('name', -1)] or f'PT{channel + 1}'),
                         "short_name": str(row[col.get('short_name', -1)] or f'pt{channel + 1}'),
                         "units": str(row[col.get('units', -1)] or 'psi'),
-                        "range": [0, 500],
+                        "range": [0, 1500],
                     }
             
             wb.close()
             
             for i in range(16):
                 if not mapped[i]:
-                    mapped[i] = {"id": i + 1, "range": [0, 500], "units": "psi"}
-            
+                    mapped[i] = {"id": i + 1, "range": [0, 1500], "units": "psi"}
+
+            # Overlay authoritative ranges from pt_channels.json when available.
             try:
-                r0 = mapped[0].get('range', [0, 500])
+                pt_cfg_path = os.path.join(base_dir, 'configs', 'pt_channels.json')
+                if os.path.exists(pt_cfg_path):
+                    with open(pt_cfg_path, 'r', encoding='utf-8') as f:
+                        pt_cfg = json.load(f)
+                    for ch in pt_cfg.get('channels', []):
+                        pt = ch.get('pt') or {}
+                        idx = int(pt.get('raw_index', pt.get('id', 0))) - 1
+                        rng = pt.get('range')
+                        if 0 <= idx < 16 and isinstance(rng, list) and len(rng) == 2:
+                            mapped[idx]['range'] = [float(rng[0]), float(rng[1])]
+                            if pt.get('name'):
+                                mapped[idx]['name'] = str(pt['name'])
+                            if pt.get('short_name'):
+                                mapped[idx]['short_name'] = str(pt['short_name'])
+            except Exception as e:
+                print(f"PT range overlay from pt_channels.json failed: {e}")
+
+            try:
+                r0 = mapped[0].get('range', [0, 1500])
                 print(f"PT0 range loaded: {r0}")
             except Exception:
                 pass
             return mapped
         except Exception as e:
             print(f"Failed to load PT metadata from xlsx: {e}")
-            return [{"id": i + 1, "range": [0, 500], "units": "psi"} for i in range(16)]
+            return [{"id": i + 1, "range": [0, 1500], "units": "psi"} for i in range(16)]
 
     def _calibrate_pt_values(self, values: List[float]) -> List[float]:
         """Convert PT readings to engineering units using 4-20mA mapping and channel ranges.
@@ -299,8 +337,9 @@ class SerialProcessor:
         # Reuse unified conversion so polarity and mode handling are consistent
         vals_mA: List[float] = self._to_mA(values)
         if not vals_mA:
-            # If not mA/voltage-like, assume values are already engineering units
-            return values
+            # Firmware always emits mA; fall back to treating values as mA directly
+            # rather than forwarding raw numbers as engineering units.
+            vals_mA = list(values)
 
         calibrated: List[float] = []
         for idx, mA in enumerate(vals_mA):
@@ -349,7 +388,8 @@ class SerialProcessor:
         if mode == "ma":
             return values[:]
         # auto
-        if 0.0 <= vmax <= 2.0 or 0.0 <= vmin <= 2.0:
+        abs_max = max(abs(vmin), abs(vmax))
+        if abs_max <= 2.0:
             out: List[float] = []
             for idx, v in enumerate(values):
                 pol_i = -1.0 if v < 0.0 else 1.0
@@ -363,7 +403,8 @@ class SerialProcessor:
                     r_i = self.pt_shunt_ohms
                 out.append(((pol_i * v) / max(r_i, 0.001)) * 1000.0)
             return out
-        if 0.0 <= vmin <= 30.0 and 0.0 <= vmax <= 30.0:
+        # Accept slight negatives (idle / unconnected channel noise) as mA too.
+        if -2.0 <= vmin <= 30.0 and -2.0 <= vmax <= 30.0:
             return values[:]
         return []
 
@@ -381,22 +422,45 @@ class SerialProcessor:
             out.append(min_eng + norm * (max_eng - min_eng))
         return out
 
+
     def _process_outgoing_data_and_meta(self, raw: str):
-        """Apply processing/calibration to outgoing CSV packets and return (text, dc_meta).
+        """Apply processing/calibration to outgoing CSV packets and return (text, dc_meta, device_msgs).
         dc_meta is a dict with keys: timestamp, currents, states; or None if not applicable.
         """
         try:
             lines = [ln for ln in raw.split('\n') if ln.strip()]
             out_lines: List[str] = []
             dc_meta = None
+            device_msgs: List[Dict] = []
             for line in lines:
                 if ',' not in line:
+                    # Firmware status / event lines (non-CSV)
+                    if line.startswith("BB:"):
+                        try:
+                            # BB:<side>:<state>:<press01>:<vent01>:<pressure_psi>
+                            parts = line.split(':')
+                            if len(parts) >= 5:
+                                bus = (parts[1] or '').lower()
+                                if bus in self.bb_runtime:
+                                    self.bb_runtime[bus]["state"] = parts[2]
+                                    self.bb_runtime[bus]["press"] = parts[3] == '1'
+                                    self.bb_runtime[bus]["vent"] = parts[4] == '1'
+                                    if len(parts) > 5:
+                                        self.bb_runtime[bus]["pressure"] = float(parts[5])
+                        except Exception:
+                            pass
+                    if line.startswith(("EVT:", "BB_ERROR:", "CMD_ERROR:", "Arming!", "Disarming!", "SEQ_")):
+                        device_msgs.append({
+                            "type": "device_message",
+                            "message": line,
+                            "timestamp": datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+                        })
                     out_lines.append(line)
                     continue
                 tokens = [tok.strip() for tok in line.split(',')]
                 if not tokens:
                     continue
-                id_char = tokens[0][0].lower() if tokens[0] else ''
+                id_char = tokens[0][0] if tokens[0] else ''
                 # Parse numeric portion from each token
                 def _to_float(tok: str) -> float:
                     try:
@@ -405,6 +469,10 @@ class SerialProcessor:
                     except Exception:
                         return 0.0
 
+                # Drop V1-scaled 'P' PSI rows entirely — the server re-computes PSI
+                # from the lowercase 'p' mA stream so raw/mA/psi stay consistent.
+                if id_char == 'P':
+                    continue
                 if id_char == 'p' and self.apply_pt_calibration:
                     # Board sends currents in mA for PTs; tokens look like p6.500, p6.520 ...
                     numeric = [_to_float(tok) for tok in tokens]
@@ -454,6 +522,17 @@ class SerialProcessor:
                     # Store for logging (PT channels 1-16)
                     for i, val in enumerate(calibrated[:16], 1):
                         self.current_data['pt'][i] = val
+                    # Periodic sanity print of the mA -> psi mapping for ch0.
+                    try:
+                        now_dbg2 = time.time()
+                        if int(now_dbg2) % 2 == 0 and self._last_raw_print != int(now_dbg2):
+                            self._last_raw_print = int(now_dbg2)
+                            rng0 = (self.pt_meta[0] or {}).get('range', [0, 1500]) if self.pt_meta else [0, 1500]
+                            ma0 = self._last_pt_mA[0] if self._last_pt_mA else 0.0
+                            psi0 = calibrated[0] if calibrated else 0.0
+                            print(f"PT0 map: {ma0:.3f}mA -> {psi0:.2f}psi (range {rng0}, mode={self.pt_input_mode})")
+                    except Exception:
+                        pass
                 elif id_char == 'l':
                     # Legacy: load cell data on 'l' line
                     numeric = [_to_float(tok) for tok in tokens]
@@ -482,9 +561,9 @@ class SerialProcessor:
                         self.current_data['dc'][i] = val
                 else:
                     out_lines.append(line)
-            return '\n'.join(out_lines), dc_meta
+            return '\n'.join(out_lines), dc_meta, device_msgs
         except Exception:
-            return raw, None
+            return raw, None, []
 
     async def connect(self, port: str) -> Dict:
         if self.connected:
@@ -714,7 +793,7 @@ class SerialProcessor:
                         break
 
                     processed_any = True
-                    data, dc_meta = self._process_outgoing_data_and_meta(raw_data)
+                    data, dc_meta, device_msgs = self._process_outgoing_data_and_meta(raw_data)
                     message_count += 1
                     now = time.time()
                     if now - last_print >= 2.0:
@@ -731,9 +810,34 @@ class SerialProcessor:
                         stale_clients = []
                         payload = {"type": "data", "content": data, "raw": raw_data}
                         try:
-                            if isinstance(raw_data, str) and len(raw_data) > 0 and raw_data[0].lower() == 'p':
+                            if isinstance(raw_data, str) and len(raw_data) > 0 and raw_data[0] == 'p':
                                 if isinstance(self._last_pt_mA, list) and self._last_pt_mA:
                                     payload["pt_mA"] = self._last_pt_mA[:16]
+                        except Exception:
+                            pass
+                        try:
+                            payload["devices"] = {
+                                "rocket_panda": {
+                                    "bb": {
+                                        "l": {
+                                            "enabled": self.bb_runtime["l"]["state"] != "OFF",
+                                            "valve_open": bool(self.bb_runtime["l"]["press"]),
+                                            "pressure": float(self.bb_runtime["l"]["pressure"]),
+                                            "state": self.bb_runtime["l"]["state"],
+                                            "press": bool(self.bb_runtime["l"]["press"]),
+                                            "vent": bool(self.bb_runtime["l"]["vent"]),
+                                        },
+                                        "f": {
+                                            "enabled": self.bb_runtime["f"]["state"] != "OFF",
+                                            "valve_open": bool(self.bb_runtime["f"]["press"]),
+                                            "pressure": float(self.bb_runtime["f"]["pressure"]),
+                                            "state": self.bb_runtime["f"]["state"],
+                                            "press": bool(self.bb_runtime["f"]["press"]),
+                                            "vent": bool(self.bb_runtime["f"]["vent"]),
+                                        },
+                                    }
+                                }
+                            }
                         except Exception:
                             pass
                         if dc_meta is not None:
@@ -742,6 +846,9 @@ class SerialProcessor:
                         for client in list(self.clients):
                             try:
                                 await client.send(message)
+                                if device_msgs:
+                                    for evt in device_msgs:
+                                        await client.send(json.dumps(evt))
                             except Exception:
                                 stale_clients.append(client)
                         for client in stale_clients:
@@ -1076,104 +1183,111 @@ class SerialProcessor:
                         except Exception as e:
                             await websocket.send(json.dumps({"success": False, "message": str(e)}))
                     elif msg.get("action") == "bb_config":
-                        # Store and forward a bang-bang config to Panda firmware protocol:
-                        # Enable:  B{1|2}{0|1}
-                        # Config:  b{1|2}.{targetRaw}.{lowerRaw}.{upperRaw}.{minOff}.{minOn}
+                        # Push core BB config: B<side><sp>,<db>,<wait>,<maxOpen>
                         try:
-                            which = (msg.get("which") or "").lower()
-                            if which not in ("fuel", "lox"):
-                                await websocket.send(json.dumps({"success": False, "message": "Invalid which"}))
+                            bus = (msg.get("bus") or "").lower()
+                            if bus not in ("lox", "fuel"):
+                                await websocket.send(json.dumps({"success": False, "message": "Invalid bus"}))
                                 continue
-                            cfg = {"id": msg.get("id"),
-                                   "enable": bool(msg.get("enable")),
-                                   "set": float(msg.get("set")),
-                                   "deadHigh": float(msg.get("deadHigh")),
-                                   "deadLow": float(msg.get("deadLow")),
-                                   "wait": int(msg.get("wait"))}
-                            self.bb_configs[which] = cfg
-
-                            # Map which -> controller channel (1=fuel, 2=lox)
-                            chan = 1 if which == "fuel" else 2
-
-                            # Convert psi set/deadbands to raw volts across PT shunt for the board
-                            def _psi_to_raw_volts(psi: float) -> float:
-                                # Use last known PT mA map (choose nominal 15 mA mid if missing)
-                                # Convert desired PSI -> mA using pt_meta range
-                                try:
-                                    # Default: assume bus PT range same as PT0 if unknown
-                                    rng = self.pt_meta[0].get('range', [0, 500])
-                                    min_eng, max_eng = float(rng[0]), float(rng[1])
-                                except Exception:
-                                    min_eng, max_eng = 0.0, 500.0
-                                span_eng = max(1e-6, max_eng - min_eng)
-                                frac = (psi - min_eng) / span_eng
-                                frac = max(0.0, min(1.0, frac))
-                                mA = self.pt_min_ma + frac * (self.pt_max_ma - self.pt_min_ma)
-                                # mA -> volts across shunt
-                                volts = (mA / 1000.0) * max(self.pt_shunt_ohms, 0.001)
-                                return volts
-
-                            tgt_raw = _psi_to_raw_volts(cfg['set'])
-                            low_raw = _psi_to_raw_volts(cfg['set'] - abs(cfg['deadLow']))
-                            hi_raw  = _psi_to_raw_volts(cfg['set'] + abs(cfg['deadHigh']))
-                            # Send deadbands as relative voltage deltas (positive magnitudes)
-                            low_delta_raw = abs(tgt_raw - low_raw)
-                            hi_delta_raw  = abs(hi_raw - tgt_raw)
-
-                            # Bound voltages to reasonable limits (±10V)
-                            def _clamp(v: float, lo: float, hi: float) -> float:
-                                return max(lo, min(hi, v))
-                            tgt_raw = _clamp(tgt_raw, -10.0, 10.0)
-                            low_raw = _clamp(low_raw, -10.0, 10.0)
-                            hi_raw  = _clamp(hi_raw,  -10.0, 10.0)
-
-                            # Build command lines (primary + legacy fallback)
-                            enable_line = f"B{chan}{1 if cfg['enable'] else 0}\n"
-                            cfg_line_new = f"b{chan}.{tgt_raw:.5f}.{low_delta_raw:.5f}.{hi_delta_raw:.5f}.{cfg['wait']}.{cfg['wait']}\n"
-                            cfg_line_legacy = f"b{chan},{tgt_raw:.5f},{low_delta_raw:.5f},{hi_delta_raw:.5f},{cfg['wait']},{cfg['wait']}\n"
-
-                            # Forward to board (with basic verification)
-                            sent = False
-                            if not self.test_mode and self.connected and self.ser:
-                                try:
-                                    self.ser.write(enable_line.encode('utf-8'))
-                                    self.ser.write(cfg_line_new.encode('utf-8'))
-                                    # Also send legacy comma variant for compatibility
-                                    self.ser.write(cfg_line_legacy.encode('utf-8'))
-                                    self.ser.flush()
-                                    # Slow, explicit console prints so user can see exact packets
-                                    try:
-                                        print(f"TX: {enable_line.strip()}")
-                                        print(f"TX: {cfg_line_new.strip()}")
-                                        print(f"TX: {cfg_line_legacy.strip()}")
-                                    except Exception:
-                                        pass
-                                    sent = True
-                                except Exception as se:
-                                    logging.error(f"BB send error: {se}")
-
-                            if not sent:
-                                # If we couldn't send, return a clear error
-                                await websocket.send(json.dumps({
-                                    "success": False,
-                                    "message": "Serial not connected or send failed",
-                                    "detail": {
-                                        "connected": self.connected,
-                                        "port": getattr(self.ser, 'port', None) if self.ser else None
-                                    }
-                                }))
+                            bus_char = 'L' if bus == 'lox' else 'F'
+                            sp = float(msg.get("setpoint", 200))
+                            db = float(msg.get("deadband", 10))
+                            wait_ms = int(msg.get("wait_ms", 500))
+                            max_open_ms = int(msg.get("max_open_ms", 0))
+                            cmd = f"B{bus_char}{sp:.1f},{db:.1f},{wait_ms},{max_open_ms}"
+                            result = await self.send_command(cmd)
+                            if result.get("success"):
+                                self.bb_configs[bus]["setpoint"] = sp
+                                self.bb_configs[bus]["deadband"] = db
+                                self.bb_configs[bus]["wait_ms"] = wait_ms
+                                self.bb_configs[bus]["max_open_ms"] = max_open_ms
+                            await websocket.send(json.dumps(result))
+                        except Exception as e:
+                            await websocket.send(json.dumps({"success": False, "message": str(e)}))
+                    elif msg.get("action") == "bb_vent_config":
+                        # Push vent config: V<side><trigger>,<autoOn01>
+                        try:
+                            bus = (msg.get("bus") or "").lower()
+                            if bus not in ("lox", "fuel"):
+                                await websocket.send(json.dumps({"success": False, "message": "Invalid bus"}))
                                 continue
-                            # Log command
-                            try:
-                                self._write_command_entry(f"bb_config {which} {json.dumps(cfg)}")
-                            except Exception:
-                                pass
-                            await websocket.send(json.dumps({
-                                "success": True,
-                                "message": f"BB config sent: {which}",
-                                "bb": {which: cfg},
-                                "sent_lines": [enable_line.strip(), cfg_line_new.strip(), cfg_line_legacy.strip()]
-                            }))
+                            bus_char = 'L' if bus == 'lox' else 'F'
+                            trig = float(msg.get("trigger", 0))
+                            auto_on = 1 if bool(msg.get("auto_on", False)) else 0
+                            cmd = f"V{bus_char}{trig:.1f},{auto_on}"
+                            result = await self.send_command(cmd)
+                            if result.get("success"):
+                                self.bb_configs[bus]["vent_trigger"] = trig
+                                self.bb_configs[bus]["vent_auto"] = bool(auto_on)
+                            await websocket.send(json.dumps(result))
+                        except Exception as e:
+                            await websocket.send(json.dumps({"success": False, "message": str(e)}))
+                    elif msg.get("action") == "bb_mdot_config":
+                        # Push mass-flow config: M<side><mdot>,<spMin>,<spMax>,<gain>,<rho>,<on01>
+                        try:
+                            bus = (msg.get("bus") or "").lower()
+                            if bus not in ("lox", "fuel"):
+                                await websocket.send(json.dumps({"success": False, "message": "Invalid bus"}))
+                                continue
+                            bus_char = 'L' if bus == 'lox' else 'F'
+                            mdot = float(msg.get("mdot", 0))
+                            sp_min = float(msg.get("sp_min", 0))
+                            sp_max = float(msg.get("sp_max", 0))
+                            gain = float(msg.get("gain", 0))
+                            rho = float(msg.get("rho", 0))
+                            enable = 1 if bool(msg.get("enable", False)) else 0
+                            cmd = f"M{bus_char}{mdot:.3f},{sp_min:.3f},{sp_max:.3f},{gain:.5f},{rho:.3f},{enable}"
+                            result = await self.send_command(cmd)
+                            if result.get("success"):
+                                self.bb_configs[bus]["mdot_target"] = mdot
+                                self.bb_configs[bus]["sp_min"] = sp_min
+                                self.bb_configs[bus]["sp_max"] = sp_max
+                                self.bb_configs[bus]["gain"] = gain
+                                self.bb_configs[bus]["rho"] = rho
+                            await websocket.send(json.dumps(result))
+                        except Exception as e:
+                            await websocket.send(json.dumps({"success": False, "message": str(e)}))
+                    elif msg.get("action") == "bb_enable":
+                        # Enable/disable sustain: b<side><0|1>
+                        try:
+                            bus = (msg.get("bus") or "").lower()
+                            if bus not in ("lox", "fuel"):
+                                await websocket.send(json.dumps({"success": False, "message": "Invalid bus"}))
+                                continue
+                            bus_char = 'L' if bus == 'lox' else 'F'
+                            enable = bool(msg.get("enable", False))
+                            cmd = f"b{bus_char}{1 if enable else 0}"
+                            result = await self.send_command(cmd)
+                            if result.get("success"):
+                                self.bb_configs[bus]["enable"] = enable
+                            await websocket.send(json.dumps(result))
+                        except Exception as e:
+                            await websocket.send(json.dumps({"success": False, "message": str(e)}))
+                    elif msg.get("action") == "bb_vent":
+                        # Manual vent open/close: v<side><0|1>
+                        try:
+                            bus = (msg.get("bus") or "").lower()
+                            if bus not in ("lox", "fuel"):
+                                await websocket.send(json.dumps({"success": False, "message": "Invalid bus"}))
+                                continue
+                            bus_char = 'L' if bus == 'lox' else 'F'
+                            open_v = bool(msg.get("open", False))
+                            cmd = f"v{bus_char}{1 if open_v else 0}"
+                            result = await self.send_command(cmd)
+                            await websocket.send(json.dumps(result))
+                        except Exception as e:
+                            await websocket.send(json.dumps({"success": False, "message": str(e)}))
+                    elif msg.get("action") == "bb_abort":
+                        # Latched abort: x<side>
+                        try:
+                            bus = (msg.get("bus") or "").lower()
+                            if bus not in ("lox", "fuel"):
+                                await websocket.send(json.dumps({"success": False, "message": "Invalid bus"}))
+                                continue
+                            bus_char = 'L' if bus == 'lox' else 'F'
+                            cmd = f"x{bus_char}"
+                            result = await self.send_command(cmd)
+                            await websocket.send(json.dumps(result))
                         except Exception as e:
                             await websocket.send(json.dumps({"success": False, "message": str(e)}))
                     elif msg.get("action") == "bb_get":
@@ -1267,6 +1381,26 @@ async def main(test_mode=False, cli_port=None, debug_serial=False):
     ws_port = WS_PORT
     http_port = HTTP_PORT
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    # Keep UI channel configs in sync with root sensor_config.xlsx each launch.
+    try:
+        repo_root = Path(__file__).resolve().parent.parent
+        gen_script = repo_root / "generate_configs.py"
+        if gen_script.exists():
+            res = subprocess.run(
+                [sys.executable, str(gen_script), "--target", "panda"],
+                cwd=str(repo_root),
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if res.returncode == 0:
+                logging.info("Regenerated panda configs from sensor_config.xlsx")
+            else:
+                logging.warning("Config generation failed (non-fatal): %s", (res.stderr or res.stdout).strip())
+        else:
+            logging.warning("generate_configs.py not found at %s", gen_script)
+    except Exception as e:
+        logging.warning("Config auto-generation skipped: %s", e)
     processor = SerialProcessor(test_mode=test_mode, test_scenario="normal_operation", udp_enable=True, udp_group=UDP_GROUP, udp_port=UDP_PORT)
     if debug_serial:
         processor.debug_print_serial = True

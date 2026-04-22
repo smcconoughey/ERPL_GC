@@ -61,6 +61,19 @@ def _safei(val, default=0):
     except (ValueError, TypeError):
         return default
 
+def _parse_trailing_int(text, prefix):
+    """Parse trailing integer from labels like DC8/PT12 (case-insensitive)."""
+    try:
+        s = str(text or '').strip()
+        if not s:
+            return None
+        if s.upper().startswith(prefix.upper()):
+            n = int(s[len(prefix):])
+            return n if n > 0 else None
+    except Exception:
+        pass
+    return None
+
 
 def _write_json(path, data):
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -166,11 +179,15 @@ def _make_dc_channels(rows):
     channels = []
     for r in rows:
         ch = _safei(r.get('channel'))
+        # Prefer explicit ID (e.g., "DC8") when present so channel numbering
+        # in the UI/control path matches the spreadsheet's canonical mapping.
+        id_from_sheet = _parse_trailing_int(r.get('id'), 'DC')
+        dc_id = id_from_sheet if id_from_sheet is not None else (ch + 1)
         entry = {
-            "id": ch + 1,
-            "raw_index": ch + 1,
-            "name": _safe(r.get('name'), f'DC{ch + 1}'),
-            "short_name": _safe(r.get('short_name'), f'dc{ch + 1}'),
+            "id": dc_id,
+            "raw_index": dc_id,
+            "name": _safe(r.get('name'), f'DC{dc_id}'),
+            "short_name": _safe(r.get('short_name'), f'dc{dc_id}'),
             "type": _safe(r.get('dc_type'), 'misc'),
         }
         abort_role = r.get('abort_role')

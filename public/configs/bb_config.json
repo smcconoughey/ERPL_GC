@@ -15,15 +15,15 @@
             "mdot_gain": 0,
             "mdot_enable": false,
             "pt_channel": 0,
-            "press_dc": 4,
+            "press_dc": 1,
             "vent_dc": 0,
             "pt_sensors": [
                 {"ni_daq_channel": 0, "label": "LOX Tank PT"},
                 {"ni_daq_channel": 1, "label": "LOX Feed PT"}
             ],
             "valve": {
-                "dc_id": 4,
-                "label": "PB9 GOX Purge (DC4)"
+                "dc_id": 1,
+                "label": "S1 LOX Press (DC1)"
             }
         },
         "fuel": {
@@ -41,15 +41,15 @@
             "mdot_gain": 0,
             "mdot_enable": false,
             "pt_channel": 1,
-            "press_dc": 7,
+            "press_dc": 2,
             "vent_dc": 0,
             "pt_sensors": [
                 {"ni_daq_channel": 2, "label": "Fuel Tank PT"},
                 {"ni_daq_channel": 3, "label": "Fuel Feed PT"}
             ],
             "valve": {
-                "dc_id": 7,
-                "label": "PB7 Fuel Vent (DC7)"
+                "dc_id": 2,
+                "label": "S2 Fuel Press (DC2)"
             }
         }
     }

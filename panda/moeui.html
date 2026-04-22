@@ -183,6 +183,13 @@
         .dc-type-fuel { background-color: #fff4e6; border-color: #f6ad55; }
         .dc-type-lox  { background-color: #e6f4ff; border-color: #63b3ed; }
         .dc-type-misc { background-color: #e8fff0; border-color: #68d391; }
+        /* BB-owned channels remain manually controllable, but are visually tagged. */
+        .dc-channel.dc-bb-owned { box-shadow: inset 0 0 0 2px rgba(128,90,213,0.35); }
+        .dc-bb-tag {
+            display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 10px;
+            font-size: 9px; font-weight: 700; letter-spacing: 0.02em;
+            color: #553c9a; background: #e9d8fd; border: 1px solid #d6bcfa;
+        }
         .dc-channel:hover { border-color: #3182ce; box-shadow: 0 4px 12px rgba(49,130,206,0.15); }
         .dc-channel.active   { border-color: #38a169; background-color: #f0fff4; }
         .dc-channel.inactive { border-color: #e53e3e; background-color: #fff5f5; }
@@ -864,6 +871,11 @@
                         }
                         const ackText = extractSequenceAckText(msg);
                         if (ackText) handleSequenceCallback(msg, ackText);
+                    } else if (msg.type === 'device_message' && typeof msg.message === 'string') {
+                        const txt = msg.message.trim();
+                        const isErr = txt.startsWith('BB_ERROR:') || txt.startsWith('CMD_ERROR:');
+                        const isEvt = txt.startsWith('EVT:') || txt.startsWith('BB:');
+                        appendTerminalLine(txt, isErr ? 'err' : (isEvt ? 'seq' : 'normal'));
                     } else if (msg.success !== undefined && msg.message && (msg.message.includes('Logging') || msg.message.includes('Log file'))) {
                         if (msg.success) showToast('Success', msg.message, 'success');
                         pollLoggingStatus();
@@ -995,10 +1007,12 @@
             channels.forEach(channel=>{
                 const d=document.createElement('div');
                 const t=(channel.type||'misc').toLowerCase();
-                d.className=`dc-channel inactive dc-type-${t}`;
+                const bbClass = channel.bb ? ' dc-bb-owned' : '';
+                d.className=`dc-channel inactive dc-type-${t}${bbClass}`;
                 d.onclick=()=>controlDCToggle(channel.id);
                 const ri=Number.isFinite(channel.raw_index)?channel.raw_index:channel.id;
-                d.innerHTML=`<div class="dc-header"><div><div class="dc-name">${channel.name}</div><div class="dc-short">${channel.short_name} • ${(channel.type||'misc').toUpperCase()} <span style="color:#94a3b8">#${ri}</span></div></div><div class="dc-controls-row"><span class="dc-pill off" id="dc-toggle-${channel.id}">OFF</span></div></div><div style="display:flex;justify-content:flex-end;font-size:9px;color:#718096;margin-top:3px;"><span id="dc-current-${channel.id}">-- A</span></div>`;
+                const bbTag = channel.bb ? '<span class="dc-bb-tag">BB</span>' : '';
+                d.innerHTML=`<div class="dc-header"><div><div class="dc-name">${channel.name}${bbTag}</div><div class="dc-short">${channel.short_name} • ${(channel.type||'misc').toUpperCase()} <span style="color:#94a3b8">#${ri}</span></div></div><div class="dc-controls-row"><span class="dc-pill off" id="dc-toggle-${channel.id}">OFF</span></div></div><div style="display:flex;justify-content:flex-end;font-size:9px;color:#718096;margin-top:3px;"><span id="dc-current-${channel.id}">-- A</span></div>`;
                 container.appendChild(d);
                 dcState[channel.id]=0;
             });
@@ -1269,7 +1283,8 @@
             const sp=bbState[bus].setpoint;
             const db=bbState[bus].deadband;
             const wt=bbState[bus].waitMs;
-            ws.send(JSON.stringify({action:'bb_config',device,bus,setpoint:sp,deadband:db,wait_ms:wt}));
+            const mo=parseInt((document.getElementById(`bb-${bus}-max-open`)||{}).value)||0;
+            ws.send(JSON.stringify({action:'bb_config',device,bus,setpoint:sp,deadband:db,wait_ms:wt,max_open_ms:mo}));
             const statusEl=document.getElementById(`bb-${bus}-push-status`);
             if(statusEl){statusEl.textContent=`Sent ${sp}±${db/2} PSI`;statusEl.className='bb-push-status sent';}
             showToast(`${bus.toUpperCase()} Config Pushed`,`${sp} PSI ±${db/2} PSI, wait ${wt}ms`,'info');

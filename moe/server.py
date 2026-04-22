@@ -102,10 +102,16 @@ class PandaConnection(DeviceConnection):
         self.pt_max_ma = 20.0
         self.pt_shunt_ohms = 47.0
         self.pt_shunt_ohms_list = [self.pt_shunt_ohms for _ in range(16)]
+        # PandaV2 scuffed-bangbang firmware emits raw voltage across the PT
+        # shunt (~0.7 V at idle), not mA. Stay in 'volts' mode so the server's
+        # auto-shunt calibration converts V -> mA against the 4 mA baseline.
         self.pt_input_mode = "volts"
         self.pt_offsets = [0.0 for _ in range(16)]
         self._last_pt_mA = [0.0 for _ in range(16)]
         self._last_pt_raw = [0.0 for _ in range(16)]
+        # If V1 emits uppercase 'P' PT PSI rows, prefer those as display values.
+        self._prefer_v1_pt_psi = False
+        self._last_v1_pt_psi_ts = 0.0
         self.auto_shunt_v_ambient = True
         self._ambient_v_sum = 0.0
         self._ambient_v_count = 0
@@ -183,8 +189,10 @@ class PandaConnection(DeviceConnection):
             return values[:]
 
         # auto mode
+        vmin = min(values) if values else 0.0
         vmax = max(values) if values else 0.0
-        if 0.0 <= vmax <= 2.0:
+        abs_max = max(abs(vmin), abs(vmax))
+        if abs_max <= 2.0:
             out = []
             for idx, v in enumerate(values):
                 pol = -1.0 if v < 0.0 else 1.0
@@ -193,7 +201,8 @@ class PandaConnection(DeviceConnection):
                 out.append(((pol * v) / max(r, 0.001)) * 1000.0)
             return out
 
-        if 0.0 <= vmax <= 30.0:
+        # Tolerate slight negative noise from idle/unconnected channels.
+        if -2.0 <= vmin <= 30.0 and -2.0 <= vmax <= 30.0:
             return values[:]
 
         return []
@@ -217,7 +226,9 @@ class PandaConnection(DeviceConnection):
 
         mA_vals = self._to_mA(values)
         if not mA_vals:
-            return values
+            # Firmware always emits mA; fall back to treating values as mA directly
+            # rather than forwarding raw numbers as engineering units.
+            mA_vals = list(values)
 
         # Auto-estimate shunt from ambient
         if self.pt_input_mode == "volts" and self.auto_shunt_v_ambient:
@@ -318,10 +329,14 @@ class PandaConnection(DeviceConnection):
             except:
                 return 0.0
 
-        id_char = tokens[0][0].lower() if tokens[0] else ''
+        id_char = tokens[0][0] if tokens[0] else ''
         numeric = [_to_float(tok) for tok in tokens]
 
         data = {}
+
+        # Drop V1-scaled uppercase 'P' PSI rows; always compute PSI from 'p' mA stream.
+        if id_char == 'P':
+            return {}
 
         if id_char == 'p':
             if self.apply_pt_calibration:
@@ -765,19 +780,34 @@ class MOEBackend:
         action = msg.get('action', '')
         device = msg.get('device', '')
 
+        # Legacy flat-file UIs sometimes omit `device`. Resolve a sane default
+        # target so arm/send/BB commands still reach the Panda firmware.
+        def _resolve_panda_device(requested: str) -> Optional[str]:
+            if requested in self.devices and isinstance(self.devices[requested], PandaConnection):
+                return requested
+            if 'rocket_panda' in self.devices and isinstance(self.devices['rocket_panda'], PandaConnection):
+                return 'rocket_panda'
+            for dev_id, dev in self.devices.items():
+                if isinstance(dev, PandaConnection):
+                    return dev_id
+            return None
+
         try:
             if action == 'send':
                 command = msg.get('command', '')
-                if device in self.devices:
-                    await self.devices[device].send_command(command)
+                target = _resolve_panda_device(device)
+                if target:
+                    await self.devices[target].send_command(command)
 
             elif action == 'arm':
-                if device in self.devices:
-                    await self.devices[device].send_command('a')
+                target = _resolve_panda_device(device)
+                if target:
+                    await self.devices[target].send_command('a')
 
             elif action == 'disarm':
-                if device in self.devices:
-                    await self.devices[device].send_command('r')
+                target = _resolve_panda_device(device)
+                if target:
+                    await self.devices[target].send_command('r')
 
             elif action == 'abort':
                 await self._abort_all()
@@ -787,8 +817,9 @@ class MOEBackend:
 
             elif action == 'connect_device':
                 port = msg.get('port', '')
-                if device in self.devices:
-                    await self.devices[device].connect()
+                target = _resolve_panda_device(device) if device else _resolve_panda_device('')
+                if target and target in self.devices:
+                    await self.devices[target].connect()
 
             elif action == 'list_ports':
                 ports = [p.device for p in serial.tools.list_ports.comports()]
@@ -807,9 +838,10 @@ class MOEBackend:
                 self._stop_logging()
 
             elif action == 'tare_pts':
-                if device in self.devices and isinstance(self.devices[device], PandaConnection):
+                target = _resolve_panda_device(device)
+                if target and isinstance(self.devices[target], PandaConnection):
                     ch = msg.get('channel')
-                    self.devices[device].tare_pt(ch)
+                    self.devices[target].tare_pt(ch)
 
             elif action == 'bb_config':
                 # Push bang-bang config: setpoint, deadband, wait_ms, max_open_ms
@@ -820,9 +852,10 @@ class MOEBackend:
                 max_open_ms  = int(msg.get('max_open_ms', 0))
                 bus_char = 'L' if bus == 'lox' else 'F'
                 cmd = f'B{bus_char}{int(setpoint)},{int(deadband)},{wait_ms},{max_open_ms}'
-                if device in self.devices:
-                    await self.devices[device].send_command(cmd)
-                    logger.info(f"BB config pushed to {device}: {cmd}")
+                target = _resolve_panda_device(device)
+                if target:
+                    await self.devices[target].send_command(cmd)
+                    logger.info(f"BB config pushed to {target}: {cmd}")
 
             elif action == 'bb_vent_config':
                 # Push vent config: trigger psi, auto-vent enable
@@ -831,9 +864,10 @@ class MOEBackend:
                 auto_on   = bool(msg.get('auto_on', False))
                 bus_char  = 'L' if bus == 'lox' else 'F'
                 cmd = f'V{bus_char}{int(trigger)},{"1" if auto_on else "0"}'
-                if device in self.devices:
-                    await self.devices[device].send_command(cmd)
-                    logger.info(f"BB vent config pushed to {device}: {cmd}")
+                target = _resolve_panda_device(device)
+                if target:
+                    await self.devices[target].send_command(cmd)
+                    logger.info(f"BB vent config pushed to {target}: {cmd}")
 
             elif action == 'bb_mdot_config':
                 # Push mass-flow config: mdot, sp_min, sp_max, gain, enable
@@ -842,12 +876,17 @@ class MOEBackend:
                 sp_min    = float(msg.get('sp_min', 0))
                 sp_max    = float(msg.get('sp_max', 0))
                 gain      = float(msg.get('gain', 0))
+                rho       = float(msg.get('rho', 0))
                 enable    = bool(msg.get('enable', False))
                 bus_char  = 'L' if bus == 'lox' else 'F'
-                cmd = f'M{bus_char}{int(mdot)},{int(sp_min)},{int(sp_max)},{int(gain)},{"1" if enable else "0"}'
-                if device in self.devices:
-                    await self.devices[device].send_command(cmd)
-                    logger.info(f"BB mdot config pushed to {device}: {cmd}")
+                cmd = (
+                    f'M{bus_char}{mdot:.3f},{sp_min:.3f},{sp_max:.3f},'
+                    f'{gain:.5f},{rho:.3f},{"1" if enable else "0"}'
+                )
+                target = _resolve_panda_device(device)
+                if target:
+                    await self.devices[target].send_command(cmd)
+                    logger.info(f"BB mdot config pushed to {target}: {cmd}")
 
             elif action == 'bb_enable':
                 # Enter/leave SUSTAIN: b<side>1 / b<side>0
@@ -855,9 +894,10 @@ class MOEBackend:
                 enable  = bool(msg.get('enable', False))
                 bus_char = 'L' if bus == 'lox' else 'F'
                 cmd = f'b{bus_char}{"1" if enable else "0"}'
-                if device in self.devices:
-                    await self.devices[device].send_command(cmd)
-                    logger.info(f"BB {'enable' if enable else 'disable'} sent to {device}: {cmd}")
+                target = _resolve_panda_device(device)
+                if target:
+                    await self.devices[target].send_command(cmd)
+                    logger.info(f"BB {'enable' if enable else 'disable'} sent to {target}: {cmd}")
 
             elif action == 'bb_vent':
                 # Manual auto-vent open/close: v<side>1 / v<side>0
@@ -865,18 +905,20 @@ class MOEBackend:
                 open_v  = bool(msg.get('open', False))
                 bus_char = 'L' if bus == 'lox' else 'F'
                 cmd = f'v{bus_char}{"1" if open_v else "0"}'
-                if device in self.devices:
-                    await self.devices[device].send_command(cmd)
-                    logger.info(f"BB vent {'open' if open_v else 'close'} sent to {device}: {cmd}")
+                target = _resolve_panda_device(device)
+                if target:
+                    await self.devices[target].send_command(cmd)
+                    logger.info(f"BB vent {'open' if open_v else 'close'} sent to {target}: {cmd}")
 
             elif action == 'bb_abort':
                 # Latched per-side abort: x<side>
                 bus      = msg.get('bus', '')       # 'lox' or 'fuel'
                 bus_char = 'L' if bus == 'lox' else 'F'
                 cmd = f'x{bus_char}'
-                if device in self.devices:
-                    await self.devices[device].send_command(cmd)
-                    logger.info(f"BB ABORT sent to {device}: {cmd}")
+                target = _resolve_panda_device(device)
+                if target:
+                    await self.devices[target].send_command(cmd)
+                    logger.info(f"BB ABORT sent to {target}: {cmd}")
 
             elif action == 'preset_save':
                 name = msg.get('name', '')
