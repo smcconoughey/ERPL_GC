@@ -4,7 +4,7 @@
             "dc": {
                 "id": 1,
                 "raw_index": 1,
-                "name": "S1 Lox",
+                "name": "S1 Lox BB",
                 "short_name": "dc1",
                 "type": "lox",
                 "bb": true
@@ -14,7 +14,7 @@
             "dc": {
                 "id": 2,
                 "raw_index": 2,
-                "name": "S2 fuel",
+                "name": "S2 fuel BB",
                 "short_name": "dc2",
                 "type": "fuel",
                 "bb": true
@@ -24,57 +24,47 @@
             "dc": {
                 "id": 3,
                 "raw_index": 3,
-                "name": "PB1 Lox",
-                "short_name": "s2",
-                "type": "lox"
+                "name": "PB1 Lox vent",
+                "short_name": "dc3",
+                "type": "lox",
+                "bb": true
             }
         },
         {
             "dc": {
                 "id": 4,
                 "raw_index": 4,
-                "name": "PB3 Lox",
-                "short_name": "pb9",
+                "name": "PB3 Fuel vent",
+                "short_name": "dc4",
                 "type": "fuel",
                 "bb": true
-            }
-        },
-        {
-            "dc": {
-                "id": 7,
-                "raw_index": 7,
-                "name": "S4",
-                "short_name": "pb7",
-                "type": "lox",
-                "bb": true
-            }
-        },
-        {
-            "dc": {
-                "id": 9,
-                "raw_index": 9,
-                "name": "S3",
-                "short_name": "pb8",
-                "type": "fuel"
             }
         },
         {
             "dc": {
                 "id": 5,
                 "raw_index": 5,
-                "name": "PB2",
-                "short_name": "s1",
-                "type": "lox",
-                "abort_role": "runline"
+                "name": "PB5 lox fill",
+                "short_name": "dc5",
+                "type": "lox"
             }
         },
         {
             "dc": {
                 "id": 6,
                 "raw_index": 6,
-                "name": "PB4 fuel",
-                "short_name": "s3",
-                "type": "fuel",
+                "name": "S3 Pneumatics Purge",
+                "short_name": "dc6",
+                "type": "fuel"
+            }
+        },
+        {
+            "dc": {
+                "id": 7,
+                "raw_index": 7,
+                "name": "PB2 LOX runline",
+                "short_name": "dc7",
+                "type": "lox",
                 "abort_role": "runline"
             }
         },
@@ -82,8 +72,18 @@
             "dc": {
                 "id": 8,
                 "raw_index": 8,
-                "name": "S4-5 fuel",
-                "short_name": "pb1-5",
+                "name": "PB4 Fuel runline",
+                "short_name": "dc8",
+                "type": "fuel",
+                "abort_role": "runline"
+            }
+        },
+        {
+            "dc": {
+                "id": 9,
+                "raw_index": 9,
+                "name": "S5 fuel GN2 purges",
+                "short_name": "dc9",
                 "type": "fuel"
             }
         },
@@ -91,26 +91,26 @@
             "dc": {
                 "id": 10,
                 "raw_index": 10,
-                "name": "PB5",
-                "short_name": "pb4",
-                "type": "lox"
+                "name": "S4 LOX GN2 purge",
+                "short_name": "dc10",
+                "type": "misc"
             }
         },
         {
             "dc": {
                 "id": 11,
                 "raw_index": 11,
-                "name": "PB6",
-                "short_name": "s6",
+                "name": "PB6 lox dump",
+                "short_name": "dc11",
                 "type": "fuel"
             }
         },
         {
             "dc": {
-                "id": 12,
-                "raw_index": 12,
-                "name": "DC12",
-                "short_name": "dc12",
+                "id": 1,
+                "raw_index": 1,
+                "name": "DC1",
+                "short_name": "dc1",
                 "type": "misc"
             }
         }

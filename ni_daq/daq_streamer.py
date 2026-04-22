@@ -179,6 +179,62 @@ class DAQStreamer:
                     pass
             except ValueError as e:
                 logger.error(f"Failed to initialize device {device_name}: {e}")
+
+    def _product_token_for_device(self, device: Any) -> Optional[str]:
+        """Return product token used to rebind module alias (e.g. '9208')."""
+        try:
+            t = str(device.device_info.get('device_type', '')).lower()
+        except Exception:
+            t = ''
+        if '9208' in t or 'pt card' in t:
+            return '9208'
+        if '9237' in t or 'lc card' in t:
+            return '9237'
+        if '9211' in t or 'tc card' in t:
+            return '9211'
+        return None
+
+    def _refresh_device_binding(self, device: Any) -> bool:
+        """
+        Re-resolve module_name from currently visible NI devices.
+        Returns True when a matching module is found.
+        """
+        try:
+            system = nidaqmx.system.System.local()
+            token = self._product_token_for_device(device)
+            available = []
+            for dev in system.devices:
+                try:
+                    available.append((dev.name, dev.product_type))
+                except Exception:
+                    pass
+            if available:
+                logger.info("Visible NI devices: %s", ", ".join(f"{n} ({p})" for n, p in available))
+
+            if not token:
+                return False
+
+            for dev in system.devices:
+                try:
+                    if dev.name.startswith(device.chassis) and token in str(dev.product_type):
+                        old = getattr(device, 'module_name', None)
+                        device.module_name = dev.name
+                        if hasattr(device, 'device_name'):
+                            device.device_name = dev.name
+                        if hasattr(device, 'product_type'):
+                            device.product_type = dev.product_type
+                        try:
+                            device.module_slot = int(dev.name.split('Mod')[-1])
+                        except Exception:
+                            pass
+                        if old != dev.name:
+                            logger.info("Rebound %s: %s -> %s", device.device_info.get('device_type', 'device'), old, dev.name)
+                        return True
+                except Exception:
+                    continue
+        except Exception as e:
+            logger.warning(f"Device rebinding failed: {e}")
+        return False
                 
     def stream_daq_data_sync(self) -> None:
         """Stream data from all configured devices at ~100 Hz using persistent tasks."""
@@ -353,7 +409,12 @@ class DAQStreamer:
                                 time.sleep(3.0)
                             continue
                         if ('-201003' in msg) and attempt < 2:
-                            # Device cannot be accessed; allow network chassis to settle and retry
+                            # Device cannot be accessed. Re-enumerate module aliases (network
+                            # cDAQ names can drift after transient disconnect) then retry.
+                            try:
+                                self._refresh_device_binding(device)
+                            except Exception:
+                                pass
                             time.sleep(3.0)
                             continue
                         if ('-201401' in msg or 'Make sure the device is connected' in msg) and attempt < 2:

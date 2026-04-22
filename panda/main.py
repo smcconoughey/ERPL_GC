@@ -228,7 +228,7 @@ class SerialProcessor:
         self.log_lock = threading.Lock()
         self.log_data_count = 0
         self.log_start_time = None
-        self.current_data = {'pt': {}, 'lc': {}, 'tc': {}, 'dc': {}}
+        self.current_data = {'pt': {}, 'lc': {}, 'tc': {}, 'dc': {}, 'dc_state': {}}
         # Command logging (DC commands and any others sent via WS)
         self.cmd_log_file = None
         self.cmd_log_writer = None
@@ -559,6 +559,8 @@ class SerialProcessor:
                     # Store for logging (DC channels 1-16)
                     for i, val in enumerate(currents[:16], 1):
                         self.current_data['dc'][i] = val
+                    for i, st in enumerate(states[:16], 1):
+                        self.current_data['dc_state'][i] = 1 if st else 0
                 else:
                     out_lines.append(line)
             return '\n'.join(out_lines), dc_meta, device_msgs
@@ -752,33 +754,48 @@ class SerialProcessor:
 
     async def send_command(self, command: str) -> Dict:
         if not self.connected:
-            return {"success": False, "message": "Not connected"}
+            result = {"success": False, "message": "Not connected"}
+            try:
+                self._write_command_entry(command, success=False, result=result.get("message", ""))
+            except Exception:
+                pass
+            return result
             
         if self.test_mode:
             # Handle special test commands
             if command == "test_cycle":
                 if self.test_generator.cycle_scenario():
-                    return {"success": True, "message": f"Switched to scenario: {self.test_generator.current_scenario}"}
+                    result = {"success": True, "message": f"Switched to scenario: {self.test_generator.current_scenario}"}
                 else:
-                    return {"success": True, "message": "Only one scenario available"}
+                    result = {"success": True, "message": "Only one scenario available"}
             elif command.startswith("test_scenario_"):
                 scenario = command.replace("test_scenario_", "")
                 if scenario in self.test_generator.available_scenarios:
                     self.test_generator.current_scenario = scenario
-                    return {"success": True, "message": f"Switched to scenario: {scenario}"}
+                    result = {"success": True, "message": f"Switched to scenario: {scenario}"}
                 else:
-                    return {"success": False, "message": f"Unknown scenario: {scenario}"}
+                    result = {"success": False, "message": f"Unknown scenario: {scenario}"}
             else:
                 # Simulate normal command acknowledgment
-                return {"success": True, "message": f"TEST MODE - Simulated: {command}"}
+                result = {"success": True, "message": f"TEST MODE - Simulated: {command}"}
+            try:
+                self._write_command_entry(command, success=bool(result.get("success")), result=str(result.get("message", "")))
+            except Exception:
+                pass
+            return result
         else:
             # Normal serial command
             try:
                 self.ser.write((command + '\n').encode('utf-8'))
                 self.ser.flush()
-                return {"success": True, "message": f"Sent: {command}"}
+                result = {"success": True, "message": f"Sent: {command}"}
             except Exception as e:
-                return {"success": False, "message": str(e)}
+                result = {"success": False, "message": str(e)}
+            try:
+                self._write_command_entry(command, success=bool(result.get("success")), result=str(result.get("message", "")))
+            except Exception:
+                pass
+            return result
 
     async def broadcast_data(self):
         message_count = 0
@@ -912,9 +929,12 @@ class SerialProcessor:
             # Add TC columns (16 channels)
             for i in range(1, 17):
                 header.append(f'TC{i}_degF')
-            # Add DC columns (16 channels, voltage)
+            # Add DC current columns (16 channels, Amps)
             for i in range(1, 17):
-                header.append(f'DC{i}_V')
+                header.append(f'DC{i}_A')
+            # Add DC boolean state columns (thresholded)
+            for i in range(1, 17):
+                header.append(f'DC{i}_state')
             
             self.log_writer.writerow(header)
             self.log_file.flush()
@@ -933,7 +953,7 @@ class SerialProcessor:
                     counter2 += 1
                 self.cmd_log_file = open(cmd_log_path, 'w', newline='')
                 self.cmd_log_writer = csv.writer(self.cmd_log_file)
-                self.cmd_log_writer.writerow(['timestamp', 'elapsed_ms', 'command'])
+                self.cmd_log_writer.writerow(['timestamp', 'elapsed_ms', 'command', 'success', 'result'])
                 self.cmd_log_filename = str(cmd_log_path)
             except Exception as e:
                 logging.error(f"Failed to init command log: {e}")
@@ -1014,6 +1034,9 @@ class SerialProcessor:
             # Add DC data (16 channels)
             for i in range(1, 17):
                 row.append(self.current_data['dc'].get(i, ''))
+            # Add DC thresholded state (16 channels)
+            for i in range(1, 17):
+                row.append(self.current_data['dc_state'].get(i, ''))
             
             self.log_writer.writerow(row)
             self.log_data_count += 1
@@ -1022,14 +1045,15 @@ class SerialProcessor:
             if self.log_data_count % 10 == 0:
                 self.log_file.flush()
 
-    def _write_command_entry(self, command: str) -> None:
+    def _write_command_entry(self, command: str, success: bool | None = None, result: str = "") -> None:
         """Append a command row to the command log if available."""
         try:
             if not self.cmd_log_writer or not self.logging_enabled:
                 return
             timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
             elapsed_ms = int((time.time() - self.log_start_time) * 1000) if self.log_start_time else 0
-            self.cmd_log_writer.writerow([timestamp, elapsed_ms, command])
+            success_cell = "" if success is None else int(bool(success))
+            self.cmd_log_writer.writerow([timestamp, elapsed_ms, command, success_cell, result])
             # Flush commands more aggressively to not lose actions
             self.cmd_log_file.flush()
         except Exception as e:
@@ -1088,11 +1112,6 @@ class SerialProcessor:
                         await websocket.send(json.dumps({"success": True, "message": "Disconnected"}))
                     elif msg.get("action") == "send":
                         cmd = msg.get("command")
-                        # Log the command to command log regardless of send outcome
-                        try:
-                            self._write_command_entry(cmd)
-                        except Exception:
-                            pass
                         result = await self.send_command(cmd)
                         logging.info(f"WS send command: {msg.get('command')} -> {result.get('success')}")
                         await websocket.send(json.dumps(result))
@@ -1324,6 +1343,9 @@ class SerialProcessor:
                             await websocket.send(json.dumps({"success": False, "action": "load_pid_layout", "message": str(e)}))
                 except json.JSONDecodeError:
                     await websocket.send(json.dumps({"success": False, "message": "Invalid JSON"}))
+        except websockets.exceptions.ConnectionClosed:
+            # Normal disconnect path under browser refresh/network churn.
+            pass
         finally:
             try:
                 self.clients.remove(websocket)
@@ -1444,7 +1466,14 @@ async def main(test_mode=False, cli_port=None, debug_serial=False):
         except Exception as e:
             logging.error(f"Auto-connect error: {e}")
 
-    server = await websockets.serve(processor.handler, ws_host, ws_port)
+    server = await websockets.serve(
+        processor.handler,
+        ws_host,
+        ws_port,
+        ping_interval=20,
+        ping_timeout=90,
+        close_timeout=5,
+    )
     # Ensure logging is always on once the server is up
     try:
         result = processor.start_logging()
