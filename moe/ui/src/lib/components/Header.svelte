@@ -9,6 +9,7 @@
     { id: 'telemetry', label: 'Telemetry', icon: 'fa-chart-line' },
     { id: 'pid', label: 'P&ID', icon: 'fa-project-diagram' },
     { id: 'controls', label: 'Controls', icon: 'fa-sliders-h' },
+    { id: 'bangbang', label: 'Bang-Bang', icon: 'fa-bolt' },
   ];
 
   $: rocketConnected = $devices['rocket_panda']?.connected ?? false;

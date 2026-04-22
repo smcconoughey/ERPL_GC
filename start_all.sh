@@ -95,10 +95,10 @@ moe)
 
     echo ""
     echo "  WebSocket : ws://localhost:3942"
-    echo "  UI        : http://localhost:8081/moeui.html"
+    echo "  UI        : http://localhost:8081/"
     echo ""
 
-    open_browser "http://localhost:8081/moeui.html"
+    open_browser "http://localhost:8081/"
     python3 server.py --config "$SCRIPT_DIR/configs/moe_system.json" $TEST_FLAG
     ;;
 
@@ -118,10 +118,10 @@ draco)
 
     echo ""
     echo "  WebSocket : ws://localhost:3941"
-    echo "  UI        : http://localhost:8080/moeui.html"
+    echo "  UI        : http://localhost:8080/"
     echo ""
 
-    open_browser "http://localhost:8080/moeui.html"
+    open_browser "http://localhost:8080/"
     python3 server.py --config "$SCRIPT_DIR/configs/draco_system.json" \
         --ws-port 3941 --http-port 8080 $TEST_FLAG
     ;;
@@ -142,10 +142,10 @@ gse-v1)
 
     echo ""
     echo "  WebSocket : ws://localhost:3942"
-    echo "  UI        : http://localhost:8081/moeui.html"
+    echo "  UI        : http://localhost:8081/"
     echo ""
 
-    open_browser "http://localhost:8081/moeui.html"
+    open_browser "http://localhost:8081/"
     python3 server.py --config "$SCRIPT_DIR/configs/gse_v1_system.json" $TEST_FLAG
     ;;
 

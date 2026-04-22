@@ -78,6 +78,11 @@ function createDeviceStore() {
             device.dc[ch] = reading;
           });
         }
+        
+        // BB channels
+        if (data.bb && typeof data.bb === 'object') {
+          device.bb = data.bb;
+        }
 
         next[deviceId] = device;
       });

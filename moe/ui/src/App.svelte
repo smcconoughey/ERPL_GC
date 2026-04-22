@@ -7,13 +7,17 @@
   import TelemetryView from './lib/views/TelemetryView.svelte';
   import PIDView from './lib/views/PIDView.svelte';
   import ControlView from './lib/views/ControlView.svelte';
+  import BangBangView from './lib/views/BangBangView.svelte';
   import { connectWebSocket, onMessage } from './lib/stores/websocket.js';
   import { devices } from './lib/stores/devices.js';
   import { activeTab, toasts, tickMessage } from './lib/stores/ui.js';
 
   onMount(() => {
-    // Connect WebSocket
-    connectWebSocket(3942);
+    // Derive WS port from HTTP port:
+    // If we're on 8080 (Draco), use 3941. If 8081 (MOE/GSE), use 3942. Default to 3942.
+    const currentPort = window.location.port;
+    const wsPort = currentPort === '8080' ? 3941 : 3942;
+    connectWebSocket(wsPort);
 
     // Track message rate
     const unsub = onMessage(() => {
@@ -43,6 +47,8 @@
       <PIDView />
     {:else if $activeTab === 'controls'}
       <ControlView />
+    {:else if $activeTab === 'bangbang'}
+      <BangBangView />
     {/if}
   </main>
 

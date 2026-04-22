@@ -1125,9 +1125,9 @@ class ReusableTCPServer(socketserver.TCPServer):
 
 
 def start_http_server(http_port: int):
-    # Serve from the repo root public/ directory so moeui.html is accessible.
-    # server.py lives in moe/, so go one level up.
-    web_root = str(Path(__file__).parent.parent / "public")
+    # Serve from the built Svelte app directory.
+    # server.py lives in moe/, so go to ui/dist
+    web_root = str(Path(__file__).parent / "ui" / "dist")
     import os
     os.chdir(web_root)
     handler = http.server.SimpleHTTPRequestHandler
