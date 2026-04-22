@@ -524,8 +524,41 @@ class SerialProcessor:
 
     def read_serial(self):
         lines_read = 0
+        bytes_read = 0
+        overflow_count = 0
         last_report = time.time()
         _buf = bytearray()
+
+        def _format_preview(buf: bytes, n: int = 96) -> str:
+            """Return 'hex: .. .. .. | ascii: \"...\"' for the last n bytes."""
+            tail = bytes(buf[-n:])
+            hex_part = ' '.join(f"{b:02x}" for b in tail)
+            ascii_part = ''.join(chr(b) if 0x20 <= b <= 0x7e else '.' for b in tail)
+            return f"hex: {hex_part}  |  ascii: \"{ascii_part}\""
+
+        def _diagnose(buf: bytes) -> str:
+            """Try several alternative byte interpretations and report which one
+            actually contains newlines. The winner tells us how the link is broken."""
+            candidates = {
+                "as-is":            buf,
+                "XOR 0xFF (inv)":   bytes(b ^ 0xFF for b in buf),
+                "high-bit-strip":   bytes(b & 0x7F for b in buf),
+                "high-bit-set":     bytes(b | 0x80 for b in buf),
+                "bit-reverse":      bytes(int(f"{b:08b}"[::-1], 2) for b in buf),
+            }
+            scored = []
+            for name, data in candidates.items():
+                nl = data.count(0x0A) + data.count(0x0D)
+                printable = sum(1 for b in data if 0x20 <= b <= 0x7E)
+                scored.append((name, nl, printable, len(data)))
+            best = max(scored, key=lambda r: (r[1], r[2]))
+            lines = [f"  - {n}: newlines={nl} printable={pr}/{tot}"
+                     for (n, nl, pr, tot) in scored]
+            verdict = ""
+            if best[1] > 0 and best[0] != "as-is":
+                verdict = (f"\n  >>> '{best[0]}' contains newlines — "
+                           f"link likely needs that transformation upstream.")
+            return "Alt-decode scan:\n" + "\n".join(lines) + verdict
 
         while self.connected:
             try:
@@ -533,13 +566,13 @@ class SerialProcessor:
                 chunk = self.ser.read(max(1, waiting))
                 if not chunk:
                     now = time.time()
-                    if now - last_report >= 2.0:
-                        logging.debug("Serial lines/sec: %.1f  buf=%dB  (no data)",
-                                      lines_read / (now - last_report), len(_buf))
-                        lines_read = 0
+                    if now - last_report >= 5.0:
+                        logging.info("Serial: no data flowing (%.1f s silence)",
+                                     now - last_report)
                         last_report = now
                     continue
 
+                bytes_read += len(chunk)
                 _buf.extend(chunk)
 
                 while b'\n' in _buf:
@@ -565,22 +598,38 @@ class SerialProcessor:
                     lines_read += 1
 
                 if len(_buf) > 16384:
+                    overflow_count += 1
+                    sample = bytes(_buf[-128:])
+                    raw_ascii  = sum(1 for b in sample if 0x20 <= b <= 0x7E)
+                    flip_ascii = sum(1 for b in sample if 0x20 <= (b ^ 0xFF) <= 0x7E)
+                    hint = ""
+                    if flip_ascii > raw_ascii + 4:
+                        hint = " Bytes look bit-inverted → check RS-485 A/B polarity or firmware TXINV."
+                    elif raw_ascii < 8:
+                        hint = " Almost no printable ASCII → wrong baud or non-ASCII framing."
+
                     logging.warning(
-                        "Serial buffer overflow (%dB, no newline in stream); "
-                        "check baud rate and TX polarity. Buffer cleared.",
-                        len(_buf)
+                        "Serial overflow: %dB without newline.%s\n  %s\n  %s",
+                        len(_buf), hint,
+                        _format_preview(_buf, 96),
+                        _diagnose(bytes(_buf[:512])),
                     )
                     _buf.clear()
 
                 now = time.time()
-                if now - last_report >= 2.0:
-                    try:
-                        rate = lines_read / (now - last_report)
-                        logging.debug("Serial lines/sec: %.1f  buf=%dB",
-                                      rate, len(_buf))
-                    except Exception:
-                        pass
+                if now - last_report >= 5.0:
+                    elapsed = now - last_report
+                    kbps = bytes_read / elapsed / 1000
+                    if lines_read > 0:
+                        logging.info("Serial: %.1f lines/s  %.1f kB/s  overflows=%d",
+                                     lines_read / elapsed, kbps, overflow_count)
+                    else:
+                        logging.info("Serial: 0 lines parsed  %.1f kB/s raw  overflows=%d  "
+                                     "(no newlines — RS-485 polarity / baud?)",
+                                     kbps, overflow_count)
                     lines_read = 0
+                    bytes_read = 0
+                    overflow_count = 0
                     last_report = now
 
             except Exception:
@@ -968,6 +1017,24 @@ class SerialProcessor:
                         await websocket.send(json.dumps(result))
                     elif msg.get("action") == "ping":
                         await websocket.send(json.dumps({"success": True, "message": "pong"}))
+                    elif msg.get("action") == "debug_serial":
+                        # Runtime toggle for raw-line printing on the server console.
+                        # Body: {"action":"debug_serial", "enable":true/false, "throttle_sec":0.0}
+                        try:
+                            self.debug_print_serial = bool(msg.get("enable", not self.debug_print_serial))
+                            if "throttle_sec" in msg:
+                                self.debug_raw_throttle_sec = max(0.0, float(msg["throttle_sec"]))
+                            logging.info(
+                                "debug_print_serial=%s throttle=%.2fs",
+                                self.debug_print_serial, self.debug_raw_throttle_sec,
+                            )
+                            await websocket.send(json.dumps({
+                                "success": True,
+                                "debug_print_serial": self.debug_print_serial,
+                                "throttle_sec": self.debug_raw_throttle_sec,
+                            }))
+                        except Exception as e:
+                            await websocket.send(json.dumps({"success": False, "message": str(e)}))
                     elif msg.get("action") == "tare_pts":
                         # Capture current raw mA snapshot and set engineering-unit tare offsets
                         try:
@@ -1166,30 +1233,53 @@ def _pick_free_port(preferred: int) -> int:
             return s.getsockname()[1]
 
 def start_http_server(http_port: int):
-    # Serve files from the directory containing this script
-    web_root = os.path.dirname(os.path.abspath(__file__))
-    os.chdir(web_root)
-    handler = http.server.SimpleHTTPRequestHandler
+    # Multi-root: public/ (repo root) is primary so the latest moeui.html and
+    # other shared assets are served; panda/ is the fallback for legacy pages
+    # and the per-board configs (pt_channels.json etc.) generated there.
+    panda_root = os.path.dirname(os.path.abspath(__file__))
+    public_root = os.path.abspath(os.path.join(panda_root, os.pardir, "public"))
+    roots = [public_root, panda_root] if os.path.isdir(public_root) else [panda_root]
+    os.chdir(roots[0])
+
+    class _MultiRootHandler(http.server.SimpleHTTPRequestHandler):
+        """Serve from public/ first, fall back to panda/ for legacy files."""
+        _roots = roots
+
+        def translate_path(self, path):
+            import urllib.parse, posixpath
+            path = urllib.parse.unquote(path.split('?')[0].split('#')[0])
+            path = posixpath.normpath(path).lstrip('/')
+            for root in self._roots:
+                candidate = os.path.join(root, path) if path else root
+                if os.path.isfile(candidate):
+                    return candidate
+            return os.path.join(self._roots[0], path)
+
     http_port = _pick_free_port(http_port)
-    httpd = ReusableTCPServer(("0.0.0.0", http_port), handler)
+    httpd = ReusableTCPServer(("0.0.0.0", http_port), _MultiRootHandler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
-    logging.info(f"HTTP server running on http://0.0.0.0:{http_port}")
+    logging.info(f"HTTP server running on http://0.0.0.0:{http_port} (roots: {', '.join(roots)})")
     return httpd
 
-async def main(test_mode=False, cli_port=None):
+async def main(test_mode=False, cli_port=None, debug_serial=False):
     # Defaults: bind on all interfaces, serve HTTP, enable UDP multicast
     ws_host = "0.0.0.0"
     ws_port = WS_PORT
     http_port = HTTP_PORT
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     processor = SerialProcessor(test_mode=test_mode, test_scenario="normal_operation", udp_enable=True, udp_group=UDP_GROUP, udp_port=UDP_PORT)
+    if debug_serial:
+        processor.debug_print_serial = True
+        processor.debug_raw_throttle_sec = 0.0
+        logging.info("Raw serial printing ENABLED (--debug-serial)")
     # Start HTTP server
     httpd = start_http_server(http_port)
     if httpd:
         logging.info("Open UI:")
-        logging.info(f"  - http://localhost:{http_port}/index.html")
+        logging.info(f"  - http://localhost:{http_port}/moeui.html")
         logging.info(f"  - http://localhost:{http_port}/panda-daq-ui.html")
         logging.info(f"  - http://localhost:{http_port}/sequencer.html")
+        logging.info(f"  - http://localhost:{http_port}/pid.html")
     # Start WebSocket server bound to LAN
     # In normal mode, attempt manual port if provided, otherwise auto-connect
     if not test_mode:
@@ -1294,8 +1384,10 @@ def parse_args():
     parser = argparse.ArgumentParser(description="PANDA server")
     parser.add_argument("--test", action="store_true", help="Run in test mode (simulated telemetry)")
     parser.add_argument("--port", "-p", dest="port", help="Serial port to open, e.g., COM3 or /dev/ttyUSB0")
+    parser.add_argument("--debug-serial", action="store_true",
+                        help="Print every raw line received from the board (very noisy)")
     return parser.parse_args()
 
 if __name__ == "__main__":
     args = parse_args()
-    asyncio.run(main(test_mode=args.test, cli_port=args.port))
+    asyncio.run(main(test_mode=args.test, cli_port=args.port, debug_serial=args.debug_serial))

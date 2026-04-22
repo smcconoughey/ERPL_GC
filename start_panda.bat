@@ -51,6 +51,7 @@ echo WebSocket Port:    %WS_PORT%
 echo HTTP Port:         8080
 echo.
 echo UI Pages:
+echo   http://localhost:8080/moeui.html
 echo   http://localhost:8080/panda-daq-ui.html
 echo   http://localhost:8080/sequencer.html
 echo   http://localhost:8080/pid.html
